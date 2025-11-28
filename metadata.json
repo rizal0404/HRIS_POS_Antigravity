@@ -1,0 +1,8 @@
+{
+  "name": "HRIS Prototype_new",
+  "description": "A prototype for a Human Resource Information System (HRIS) application focusing on attendance, leave, overtime, and approval management, with role-based access control.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
