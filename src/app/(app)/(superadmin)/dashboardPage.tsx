@@ -10,6 +10,7 @@ import Spinner from '../../../components/ui/Spinner';
 
 interface SuperadminDashboardPageProps {
   user: UserProfile;
+  allUsers: UserProfile[];
 }
 
 const StatCard: React.FC<{ title: string; count: number | string; icon: React.ReactNode; color: string }> = ({ title, count, icon, color }) => (
@@ -24,29 +25,38 @@ const StatCard: React.FC<{ title: string; count: number | string; icon: React.Re
     </div>
 );
 
-const SuperadminDashboardPage: React.FC<SuperadminDashboardPageProps> = ({ user }) => {
-    const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+const SuperadminDashboardPage: React.FC<SuperadminDashboardPageProps> = ({ user, allUsers: initialAllUsers }) => {
+    const [allUsers, setAllUsers] = useState<UserProfile[]>(initialAllUsers || []);
     const [allRequests, setAllRequests] = useState<Request[]>([]);
     const [structure, setStructure] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
+    const hasInitialUsers = (initialAllUsers || []).length > 0;
     
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [users, reqs, orgStructure] = await Promise.all([
-                apiService.getProfiles(),
-                apiService.getAllRequests(),
-                apiService.getOrganizationStructure()
+            const [reqs, orgStructure, usersFallback] = await Promise.all([
+                apiService.getAllRequests(200),
+                apiService.getOrganizationStructure(),
+                hasInitialUsers ? Promise.resolve<UserProfile[] | null>(null) : apiService.getProfiles()
             ]);
-            setAllUsers(users);
             setAllRequests(reqs);
             setStructure(orgStructure);
+            if (!hasInitialUsers && usersFallback) {
+                setAllUsers(usersFallback);
+            }
         } catch(e) {
             console.error("Failed to load superadmin dashboard data:", e);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [hasInitialUsers]);
+
+    useEffect(() => {
+        if (hasInitialUsers) {
+            setAllUsers(initialAllUsers);
+        }
+    }, [hasInitialUsers, initialAllUsers]);
 
     useEffect(() => {
         fetchData();

@@ -200,11 +200,12 @@ export const apiService = {
         return handleSupabaseError({ data, error }, 'getSubordinateRequests');
     },
 
-    async getAllRequests(): Promise<Request[]> {
+    async getAllRequests(limit: number = 200): Promise<Request[]> {
         const { data, error } = await supabase
             .from('requests')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('id, profile_id, request_type, status, start_date, end_date, created_at, approver_id')
+            .order('created_at', { ascending: false })
+            .limit(limit);
         return handleSupabaseError({ data, error }, 'getAllRequests');
     },
     

@@ -41,7 +41,7 @@ const ProfilSayaPage: React.FC<ProfilSayaPageProps> = ({ user }) => {
         }
     };
     
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -149,6 +149,10 @@ const ProfilSayaPage: React.FC<ProfilSayaPageProps> = ({ user }) => {
                         <InfoField label="Nomor HP" name="phone_number" value={formData.phone_number || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
                         <InfoField label="Tempat Lahir" name="place_of_birth" value={formData.place_of_birth || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
                         <InfoField type="date" label="Tanggal Lahir" name="date_of_birth" value={formData.date_of_birth || ''} onChange={handleFormChange} disabled={!isEditing} />
+                        <InfoField label="Pendidikan Terakhir" name="education_level" value={formData.education_level || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
+                        <InfoField label="Jurusan Pendidikan" name="education_major" value={formData.education_major || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
+                        <InfoField label="Status" name="employment_status" value={formData.employment_status || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Contoh: Tetap / Kontrak / Menikah" />
+                        <InfoField label="Alamat" name="address" value={formData.address || ''} onChange={handleFormChange} disabled={!isEditing} multiline placeholder="Belum diatur" />
                     </div>
                 </div>
 
@@ -192,20 +196,34 @@ const InfoField: React.FC<{
     type?: string;
     disabled?: boolean;
     placeholder?: string;
-    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}> = ({ label, name, value, type = "text", disabled = false, onChange, placeholder }) => (
+    multiline?: boolean;
+    onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+}> = ({ label, name, value, type = "text", disabled = false, onChange, placeholder, multiline }) => (
     <div>
         <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-        <input 
-            type={type}
-            id={name}
-            name={name}
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-            placeholder={placeholder}
-            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-200 disabled:cursor-not-allowed" 
-        />
+        {multiline ? (
+            <textarea
+                id={name}
+                name={name}
+                value={value}
+                onChange={onChange}
+                disabled={disabled}
+                placeholder={placeholder}
+                rows={2}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
+            />
+        ) : (
+            <input 
+                type={type}
+                id={name}
+                name={name}
+                value={value}
+                onChange={onChange}
+                disabled={disabled}
+                placeholder={placeholder}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-200 disabled:cursor-not-allowed" 
+            />
+        )}
     </div>
 );
 

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { UserProfile, Department } from '../../../types';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { UserProfile, Department, UserRole } from '../../../types';
 import { apiService } from '../../../services/apiService';
 import { supabase } from '../../../services/supabase';
 import { PlusCircleIcon, PencilIcon, TrashIcon, SearchIcon, UsersIcon, CurrencyDollarIcon } from '../../../components/icons';
@@ -11,6 +11,9 @@ import KonfigurasiGaji from '../../../components/konfigurasi/KonfigurasiGaji';
 import ConfirmationModal from '../../../components/modals/ConfirmationModal';
 
 const PAGE_SIZE = 10;
+const TEMPLATE_CSV = `Nama Lengkap,Tempat Lahir,Tanggal Lahir,Pendidikan Terakhir,Jurusan Pendidikan,Status,Alamat,No. HP,Alamat Email
+Contoh Nama,Bandung,1990-01-01,S1,Informatika,Tetap,"Jalan Contoh No. 1",08123456789,contoh@example.com
+`;
 
 interface KonfigurasiPegawaiPageProps {
     user: UserProfile;
@@ -27,6 +30,9 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('pegawai');
+    const [isImporting, setIsImporting] = useState(false);
+    const [importSummary, setImportSummary] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // State for confirmation modal
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -178,6 +184,182 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
         }
     }
 
+    const parseCsvLine = (line: string): string[] => {
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                const nextChar = line[i + 1];
+                if (inQuotes && nextChar === '"') {
+                    current += '"';
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        values.push(current.trim());
+        return values;
+    };
+
+        const parseCsv = (text: string): Record<string, string>[] => {
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            if (lines.length === 0) return [];
+            const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
+            return lines.slice(1).map(line => {
+            const cols = parseCsvLine(line);
+            const row: Record<string, string> = {};
+            headers.forEach((header, idx) => {
+                row[header] = (cols[idx] || '').trim();
+            });
+            return row;
+        });
+    };
+
+    const normalizeDate = (value: string): string | null => {
+        if (!value) return null;
+        const sanitized = value.replace(/\//g, '-').trim();
+        const parts = sanitized.split('-').map(p => p.trim());
+        if (parts.length === 3) {
+            if (parts[0].length === 4) {
+                return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+            if (parts[2].length === 4) {
+                return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+        }
+        const parsed = new Date(value);
+        return isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+    };
+
+    const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsImporting(true);
+        setImportSummary(null);
+
+        const columnMapping: Record<string, string> = {
+            'nama lengkap': 'full_name',
+            'tempat lahir': 'place_of_birth',
+            'tanggal lahir': 'date_of_birth',
+            'pendidikan terakhir': 'education_level',
+            'jurusan pendidikan': 'education_major',
+            'status': 'employment_status',
+            'alamat': 'address',
+            'no. hp': 'phone_number',
+            'alamat email': 'email',
+        };
+
+        try {
+            const text = await file.text();
+            const rows = parseCsv(text);
+            if (rows.length === 0) {
+                setImportSummary('File CSV kosong atau header tidak ditemukan.');
+                return;
+            }
+
+            const existingByEmail = new Map(allUsers.map(u => [u.email.toLowerCase(), u]));
+            let created = 0;
+            let updated = 0;
+            const errors: string[] = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const mapped: Record<string, string> = {};
+                Object.entries(columnMapping).forEach(([csvHeader, field]) => {
+                    const value = row[csvHeader] || '';
+                    mapped[field] = value.trim();
+                });
+
+                const email = (mapped.email || '').toLowerCase();
+                if (!email) {
+                    errors.push(`Baris ${i + 2}: Email wajib diisi.`);
+                    continue;
+                }
+
+                const normalizedDob = normalizeDate(mapped.date_of_birth);
+
+                const existing = existingByEmail.get(email);
+
+                try {
+                    if (existing) {
+                        const updatePayload: Partial<UserProfile> = {
+                            id: existing.id,
+                            full_name: mapped.full_name || existing.full_name,
+                            place_of_birth: mapped.place_of_birth || existing.place_of_birth || null,
+                            date_of_birth: normalizedDob || existing.date_of_birth || null,
+                            education_level: mapped.education_level || existing.education_level || null,
+                            education_major: mapped.education_major || existing.education_major || null,
+                            employment_status: mapped.employment_status || existing.employment_status || null,
+                            address: mapped.address || existing.address || null,
+                            phone_number: mapped.phone_number || existing.phone_number || null,
+                        };
+                        await apiService.saveProfile(updatePayload as UserProfile);
+                        updated += 1;
+                    } else {
+                        const { data, error } = await supabase.auth.signUp({
+                            email,
+                            password: 'password123',
+                        });
+                        if (error || !data.user) {
+                            errors.push(`Baris ${i + 2}: ${error?.message || 'Gagal membuat user.'}`);
+                            continue;
+                        }
+
+                        const fullName = mapped.full_name || email;
+                        const profilePayload: Partial<UserProfile> = {
+                            id: data.user.id,
+                            email,
+                            role: UserRole.USER,
+                            position: '',
+                            manager_id: null,
+                            avatar_url: 'https://i.pravatar.cc/150',
+                            default_shift: '',
+                            full_name: fullName,
+                            place_of_birth: mapped.place_of_birth || null,
+                            date_of_birth: normalizedDob,
+                            education_level: mapped.education_level || null,
+                            education_major: mapped.education_major || null,
+                            employment_status: mapped.employment_status || null,
+                            address: mapped.address || null,
+                            phone_number: mapped.phone_number || null,
+                        };
+                        await apiService.saveProfile(profilePayload as UserProfile);
+                        created += 1;
+                    }
+                } catch (err: any) {
+                    errors.push(`Baris ${i + 2}: ${err.message || 'Terjadi kesalahan saat memproses baris.'}`);
+                }
+            }
+
+            await fetchAllData();
+            const errorNote = errors.length ? `. ${errors.length} baris bermasalah. Contoh: ${errors.slice(0, 3).join(' | ')}` : '';
+            setImportSummary(`Import selesai. ${created} pegawai baru, ${updated} diperbarui${errorNote}`);
+        } catch (err: any) {
+            setImportSummary(`Import gagal: ${err.message}`);
+        } finally {
+            setIsImporting(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleDownloadTemplate = () => {
+        const blob = new Blob([TEMPLATE_CSV], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'template_pegawai.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     const renderPegawaiTab = () => (
         <>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
@@ -191,11 +373,39 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
                     className="w-full sm:w-80 border rounded-md pl-10 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                 />
             </div>
-            <button onClick={handleAdd} className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-                <PlusCircleIcon className="h-5 w-5 mr-2" />
-                Tambah Pegawai
-            </button>
+            <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
+                <button
+                    onClick={handleDownloadTemplate}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                >
+                    Download Template CSV
+                </button>
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                    disabled={isImporting}
+                >
+                    <SearchIcon className="h-5 w-5 mr-2" />
+                    {isImporting ? 'Memproses CSV...' : 'Import CSV'}
+                </button>
+                <button onClick={handleAdd} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                    <PlusCircleIcon className="h-5 w-5 mr-2" />
+                    Tambah Pegawai
+                </button>
+            </div>
         </div>
+        <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleImportFile}
+        />
+        {importSummary && (
+            <div className="mb-4 px-4 py-3 rounded-md bg-blue-50 text-blue-800 text-sm border border-blue-100">
+                {importSummary}
+            </div>
+        )}
         {loading ? (
              <div className="text-center py-12">Memuat data pegawai...</div>
         ) : (

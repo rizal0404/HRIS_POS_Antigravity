@@ -22,6 +22,13 @@ const defaultFormData: Omit<UserProfile, 'id'> = {
     manager_id: null,
     avatar_url: 'https://i.pravatar.cc/150',
     default_shift: '',
+    phone_number: '',
+    place_of_birth: '',
+    date_of_birth: '',
+    education_level: '',
+    education_major: '',
+    employment_status: '',
+    address: '',
 };
 
 const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, initialData, allUsers, positions }) => {
@@ -83,7 +90,7 @@ const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, in
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
                             </div>
                         </div>
-                         <div>
+                        <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                             <input type="email" id="email" name="email" value={formData.email} onChange={handleChange}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required />
@@ -137,11 +144,52 @@ const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, in
                                     ))}
                                 </select>
                             </div>
-                             <div>
+                            <div>
                                 <label htmlFor="default_shift" className="block text-sm font-medium text-gray-700 mb-1">Shift Default</label>
                                 <input type="text" id="default_shift" name="default_shift" value={formData.default_shift || ''} onChange={handleChange}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
                             </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="place_of_birth" className="block text-sm font-medium text-gray-700 mb-1">Tempat Lahir</label>
+                                <input type="text" id="place_of_birth" name="place_of_birth" value={formData.place_of_birth || ''} onChange={handleChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="date_of_birth" className="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label>
+                                <input type="date" id="date_of_birth" name="date_of_birth" value={formData.date_of_birth || ''} onChange={handleChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="education_level" className="block text-sm font-medium text-gray-700 mb-1">Pendidikan Terakhir</label>
+                                <input type="text" id="education_level" name="education_level" value={formData.education_level || ''} onChange={handleChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="education_major" className="block text-sm font-medium text-gray-700 mb-1">Jurusan Pendidikan</label>
+                                <input type="text" id="education_major" name="education_major" value={formData.education_major || ''} onChange={handleChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="employment_status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <input type="text" id="employment_status" name="employment_status" value={formData.employment_status || ''} onChange={handleChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Contoh: Tetap, Kontrak, Lajang, Menikah" />
+                            </div>
+                            <div>
+                                <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 mb-1">No. HP</label>
+                                <input type="text" id="phone_number" name="phone_number" value={formData.phone_number || ''} onChange={handleChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+                            <textarea id="address" name="address" value={formData.address || ''} onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" rows={2} />
                         </div>
                         <div>
                             <label htmlFor="avatar_url" className="block text-sm font-medium text-gray-700 mb-1">URL Avatar</label>

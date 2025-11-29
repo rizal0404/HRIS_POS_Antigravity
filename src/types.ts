@@ -24,6 +24,10 @@ export interface UserProfile {
   phone_number?: string | null;
   place_of_birth?: string | null;
   date_of_birth?: string | null; // Stored as YYYY-MM-DD string
+  education_level?: string | null;
+  education_major?: string | null;
+  employment_status?: string | null;
+  address?: string | null;
 }
 
 export interface NavLink {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
@@ -39,6 +39,7 @@ const AppLayout: React.FC<{
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
     const pageTitle = location.pathname.split('/').filter(Boolean).pop() || 'dashboard';
+    const navigate = useNavigate();
 
     return (
         <div className="relative flex h-screen bg-gray-100 font-sans">
@@ -56,7 +57,13 @@ const AppLayout: React.FC<{
                     pageTitle={pageTitle} // Derived from current path
                     onMenuClick={() => setIsMobileMenuOpen(true)}
                     notifications={notifications}
-                    onNotificationClick={() => {}} // Needs navigation logic
+                    onNotificationClick={(notif) => {
+                        if (currentUser.isManager) {
+                            navigate('/persetujuan');
+                        } else {
+                            navigate('/riwayat');
+                        }
+                    }}
                     allUsers={allUsers}
                     onLogout={handleLogout}
                 />
@@ -88,6 +95,31 @@ export default function App() {
         navigate(path);
     };
 
+    const loadNotifications = useCallback(async (user: UserProfile, users: UserProfile[]) => {
+        try {
+            if (user.isManager) {
+                const subordinates = getAllSubordinates(user.id, users);
+                const subIds = subordinates.map(s => s.id);
+                if (subIds.length === 0) {
+                    setNotifications([]);
+                    return;
+                }
+                const pending = await apiService.getSubordinateRequests(subIds);
+                const sorted = pending
+                    .filter(req => req.status === 'pending')
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .slice(0, 15);
+                setNotifications(sorted);
+            } else {
+                const updates = await apiService.getRequestUpdatesForUser(user.id);
+                setNotifications(updates.slice(0, 15));
+            }
+        } catch (error) {
+            logWarn('Failed to load notifications', error);
+            setNotifications([]);
+        }
+    }, []);
+
     useEffect(() => {
         logInfo('App component mounted. Setting up auth listener.');
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -111,17 +143,18 @@ export default function App() {
                     if (profileError) throw profileError;
                     if (usersError) throw usersError;
                     setAllUsers(users as UserProfile[]);
-                    if (profile) {
-                        const { count, error: managerError } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('manager_id', profile.id);
-                        if (managerError) logWarn('Could not determine manager status', managerError);
-                        const isManager = (count ?? 0) > 0;
-                        const completeProfile = { ...profile, isManager } as UserProfile;
-                        setCurrentUser(completeProfile);
-                    } else {
-                        logWarn('User authenticated but no profile found.', { userId: session.user.id });
-                        setCurrentUser(null);
-                    }
-                } catch (error) {
+                        if (profile) {
+                            const { count, error: managerError } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('manager_id', profile.id);
+                            if (managerError) logWarn('Could not determine manager status', managerError);
+                            const isManager = (count ?? 0) > 0;
+                            const completeProfile = { ...profile, isManager } as UserProfile;
+                            setCurrentUser(completeProfile);
+                            loadNotifications(completeProfile, users as UserProfile[]);
+                        } else {
+                            logWarn('User authenticated but no profile found.', { userId: session.user.id });
+                            setCurrentUser(null);
+                        }
+                    } catch (error) {
                     logError('Failed to fetch user profile or all users', error);
                     setCurrentUser(null);
                     setAllUsers([]);
@@ -134,8 +167,9 @@ export default function App() {
             setCurrentUser(null);
             setAllUsers([]);
             setLoading(false);
+            setNotifications([]);
         }
-    }, [session]);
+    }, [session, loadNotifications]);
 
     const handleLogout = async () => {
         logInfo('User initiated logout.');
@@ -156,8 +190,22 @@ export default function App() {
             <Routes>
                 {currentUser ? (
                     <Route path="/" element={<AppLayout currentUser={currentUser} allUsers={allUsers} notifications={notifications} handleLogout={handleLogout} />}>
-                        {/* Default route after login */}
-                        <Route index element={<Navigate to="/dashboard" replace />} />
+                        {/* Default route after login, adjusted by role */}
+                        <Route
+                            index
+                            element={
+                                <Navigate
+                                    to={
+                                        currentUser.role === UserRole.USER
+                                            ? "/absensi"
+                                            : currentUser.role === UserRole.SUPERADMIN
+                                                ? "/superadmin/dashboard"
+                                                : "/dashboard"
+                                    }
+                                    replace
+                                />
+                            }
+                        />
                         
                         {/* Bawahan Routes */}
                         <Route path="absensi" element={<AbsensiPage user={currentUser} />} />
@@ -174,7 +222,7 @@ export default function App() {
                         <Route path="laporan-tim" element={<LaporanTimPage user={currentUser} />} />
 
                         {/* Superadmin Routes */}
-                        <Route path="superadmin/dashboard" element={<SuperadminDashboardPage user={currentUser} />} />
+                        <Route path="superadmin/dashboard" element={<SuperadminDashboardPage user={currentUser} allUsers={allUsers} />} />
                         <Route path="superadmin/pegawai" element={<KonfigurasiPegawaiPage user={currentUser} />} />
                         <Route path="superadmin/sistem" element={<KonfigurasiSistemPage user={currentUser} />} />
                         <Route path="superadmin/laporan-semua" element={<SemuaLaporanPage user={currentUser} />} />
@@ -182,8 +230,22 @@ export default function App() {
                         {/* General Routes */}
                         <Route path="presensi" element={<PresensiPage user={currentUser} />} />
                         
-                        {/* Redirect any other authenticated path to dashboard */}
-                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                        {/* Redirect any other authenticated path to role-specific landing */}
+                        <Route
+                            path="*"
+                            element={
+                                <Navigate
+                                    to={
+                                        currentUser.role === UserRole.USER
+                                            ? "/absensi"
+                                            : currentUser.role === UserRole.SUPERADMIN
+                                                ? "/superadmin/dashboard"
+                                                : "/dashboard"
+                                    }
+                                    replace
+                                />
+                            }
+                        />
                     </Route>
                 ) : (
                     <Route path="*" element={<AuthRoutes />} />
