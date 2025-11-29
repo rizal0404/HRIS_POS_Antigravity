@@ -171,7 +171,8 @@ export default function App() {
                                 .maybeSingle();
                             if (regErr && regErr.code !== 'PGRST116') logWarn('Failed to check registration status', regErr);
                             const isRegistrationPending = pendingReg?.status === RequestStatus.PENDING;
-                            setRegistrationPending(isRegistrationPending);
+                            // Jika sudah di-approve, paksa pending = false meski request belum di-update.
+                            setRegistrationPending(profile.approved === false ? isRegistrationPending : false);
 
                             if (profile.approved === false) {
                                 setBlockedMessage('Akun menunggu persetujuan superadmin.');
@@ -180,6 +181,8 @@ export default function App() {
                                 setCurrentUser(null);
                                 setLoading(false);
                                 return;
+                            } else {
+                                setBlockedMessage(null);
                             }
 
                             const { count, error: managerError } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('manager_id', profile.id);
