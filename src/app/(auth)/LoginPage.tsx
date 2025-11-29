@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
-import { UserProfile } from '@/types';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '@/services/supabase';
 import { AcademicCapIcon } from '@/components/icons';
 import Spinner from '@/components/ui/Spinner';
@@ -13,11 +12,28 @@ interface LoginPageProps {
     onClearInfo?: () => void;
 }
 
+type BeforeInstallPromptEvent = Event & {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, onShowRegister, infoMessage, onClearInfo }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [installFeedback, setInstallFeedback] = useState<string | null>(null);
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            event.preventDefault();
+            setInstallPrompt(event as BeforeInstallPromptEvent);
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,58 +48,122 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, onShowRegist
         if (error) {
             setError(error.message);
         }
-        // onLogin is no longer needed; the onAuthStateChange listener in App.tsx will handle the login event.
         setLoading(false);
     };
 
+    const handleInstall = async () => {
+        if (installPrompt) {
+            await installPrompt.prompt();
+            const { outcome } = await installPrompt.userChoice;
+            setInstallFeedback(outcome === 'accepted' ? 'Instalasi dimulai.' : 'Instalasi dibatalkan.');
+            setInstallPrompt(null);
+        } else {
+            setInstallFeedback('Gunakan menu browser lalu pilih "Add to Home screen" / "Install app".');
+        }
+    };
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 flex-col px-4">
-            <div className="max-w-md w-full">
-                <div className="flex justify-center items-center mb-6">
-                    <AcademicCapIcon className="h-10 w-10 text-slate-700" />
-                    <h1 className="text-3xl font-bold text-center text-slate-800 ml-2">HRIS App</h1>
-                </div>
-                <div className="bg-white p-8 rounded-xl shadow-lg">
-                    {infoMessage && (
-                        <div className="bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 flex justify-between items-start">
-                            <div className="pr-4">{infoMessage}</div>
-                            {onClearInfo && (
-                                <button onClick={onClearInfo} className="text-sm text-yellow-700 hover:text-yellow-900 font-semibold">
-                                    Tutup
-                                </button>
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4 py-10">
+            <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-2">
+                    <div className="hidden lg:block relative bg-slate-800">
+                        <div
+                            className="absolute inset-0 opacity-80"
+                            style={{
+                                backgroundImage:
+                                    'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95)), linear-gradient(160deg, rgba(37,99,235,0.35), rgba(37,99,235,0))',
+                            }}
+                        />
+                        <div
+                            className="absolute inset-0"
+                            style={{
+                                backgroundImage:
+                                    'radial-gradient(circle at 20% 20%, rgba(59,130,246,0.3), transparent 35%), radial-gradient(circle at 80% 50%, rgba(14,165,233,0.25), transparent 40%)',
+                            }}
+                        />
+                        <div className="relative h-full flex items-center justify-center px-10 py-16">
+                            <div className="text-white space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/20">
+                                        <AcademicCapIcon className="h-8 w-8 text-blue-200" />
+                                    </span>
+                                    <div>
+                                        <p className="text-sm uppercase tracking-[0.3em] text-blue-100">HRIS</p>
+                                        <p className="text-2xl font-semibold text-white">POS Workspace</p>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-blue-100 max-w-md">
+                                    Portal karyawan Alih Daya KOPKAR ST dengan akses cepat untuk presensi, pengajuan, dan persetujuan.
+                                    Optimalkan produktivitas dengan tampilan bersih dan fokus.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14 bg-white relative">
+                        <div className="absolute inset-x-0 -top-16 h-32 bg-gradient-to-b from-slate-900/15 via-transparent to-transparent pointer-events-none" />
+                        <div className="lg:hidden mb-8 rounded-2xl overflow-hidden bg-slate-900">
+                            <div className="h-28 w-full" style={{ backgroundImage: 'linear-gradient(135deg,#1e293b,#0f172a)' }} />
+                        </div>
+
+                        <div className="flex flex-col items-center gap-2 text-center mb-8">
+                            <div className="flex items-center gap-3">
+                                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg">
+                                    <AcademicCapIcon className="h-7 w-7" />
+                                </span>
+                                <div className="text-left">
+                                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">SIG</p>
+                                    <p className="text-3xl font-bold text-slate-900 leading-tight">
+                                        HRIS <span className="text-blue-700">POS</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <p className="text-sm text-slate-500">Sistem Informasi POS KOPKAR ST</p>
+                        </div>
+
+                        <div className="space-y-4 mb-6">
+                            {infoMessage && (
+                                <div className="bg-blue-50 border border-blue-200 text-slate-700 rounded-xl px-4 py-3 flex justify-between items-start">
+                                    <div className="pr-4 text-sm">{infoMessage}</div>
+                                    {onClearInfo && (
+                                        <button
+                                            onClick={onClearInfo}
+                                            className="text-sm font-semibold text-blue-700 hover:text-blue-800"
+                                        >
+                                            Tutup
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                                    {error}
+                                </div>
                             )}
                         </div>
-                    )}
-                    <h2 className="text-2xl font-semibold text-center text-gray-700 mb-6">Login to your account</h2>
-                    {error && (
-                        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-                            <p>{error}</p>
-                        </div>
-                    )}
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                Email Address
-                            </label>
-                            <div className="mt-1">
+
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="space-y-2">
+                                <label htmlFor="email" className="text-sm font-semibold text-slate-700">
+                                    Email atau Username
+                                </label>
                                 <input
                                     id="email"
                                     name="email"
-                                    type="email"
+                                    type="text"
                                     autoComplete="email"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    placeholder="m.rizal"
+                                    className="w-full rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-inner"
                                 />
                             </div>
-                        </div>
 
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                Password
-                            </label>
-                            <div className="mt-1">
+                            <div className="space-y-2">
+                                <label htmlFor="password" className="text-sm font-semibold text-slate-700">
+                                    Kata sandi
+                                </label>
                                 <input
                                     id="password"
                                     name="password"
@@ -92,39 +172,64 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, onShowRegist
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    className="w-full rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-inner"
                                 />
                             </div>
-                        </div>
 
-                        <div className="flex items-center justify-between">
-                            <button
-                                type="button"
-                                onClick={onShowRegister}
-                                className="text-sm font-medium text-slate-700 hover:text-slate-900"
-                            >
-                                Daftar akun baru
-                            </button>
-                            <button
-                                type="button"
-                                onClick={onShowResetPassword}
-                                className="text-sm font-medium text-blue-600 hover:text-blue-500"
-                            >
-                                Forgot your password?
-                            </button>
-                        </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <label className="inline-flex items-center gap-3 text-slate-700">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        checked={rememberMe}
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                    />
+                                    Tetap masuk
+                                </label>
+                            </div>
 
-                        <div>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400"
+                                className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-lg shadow-slate-200/60 transition disabled:bg-slate-500"
                             >
                                 {loading && <Spinner />}
-                                {loading ? 'Logging in...' : 'Log in'}
+                                {loading ? 'Memproses...' : 'Masuk'}
                             </button>
-                        </div>
-                    </form>
+
+                            <div className="text-sm text-slate-700">
+                                <button
+                                    type="button"
+                                    onClick={onShowResetPassword}
+                                    className="font-semibold text-blue-700 hover:text-blue-800"
+                                >
+                                    Lupa kata sandi?
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleInstall}
+                                className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl text-base font-semibold text-white bg-slate-500 hover:bg-slate-600 shadow-inner transition"
+                            >
+                                Pasang HRIS-POS
+                            </button>
+
+                            {installFeedback && <p className="text-xs text-slate-500">{installFeedback}</p>}
+
+                            <div className="text-center text-xs text-slate-500 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={onShowRegister}
+                                    className="font-semibold text-blue-700 hover:text-blue-800"
+                                >
+                                    Daftar akun baru
+                                </button>
+                            </div>
+                        </form>
+
+                        <p className="mt-10 text-center text-sm text-slate-500">Copyright © RZL 2025</p>
+                    </div>
                 </div>
             </div>
         </div>
