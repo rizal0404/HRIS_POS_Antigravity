@@ -255,11 +255,11 @@ export default function App() {
                             element={
                                 <Navigate
                                     to={
-                                        currentUser.role === UserRole.USER
-                                            ? "/absensi"
-                                            : currentUser.role === UserRole.SUPERADMIN
-                                                ? "/superadmin/dashboard"
-                                                : "/dashboard"
+                                        currentUser.role === UserRole.SUPERADMIN
+                                            ? "/superadmin/dashboard"
+                                            : currentUser.isManager
+                                                ? "/dashboard"
+                                                : "/absensi"
                                     }
                                     replace
                                 />
@@ -295,11 +295,11 @@ export default function App() {
                             element={
                                 <Navigate
                                     to={
-                                        currentUser.role === UserRole.USER
-                                            ? "/absensi"
-                                            : currentUser.role === UserRole.SUPERADMIN
-                                                ? "/superadmin/dashboard"
-                                                : "/dashboard"
+                                        currentUser.role === UserRole.SUPERADMIN
+                                            ? "/superadmin/dashboard"
+                                            : currentUser.isManager
+                                                ? "/dashboard"
+                                                : "/absensi"
                                     }
                                     replace
                                 />
