@@ -114,6 +114,20 @@ export default function App() {
         navigate(path);
     };
 
+    const roleLandingPath = currentUser
+        ? currentUser.role === UserRole.SUPERADMIN
+            ? '/superadmin/dashboard'
+            : currentUser.isManager
+                ? '/dashboard'
+                : '/absensi'
+        : '/';
+
+    const requireManager = <T,>(node: React.ReactElement<T>) =>
+        currentUser?.isManager ? node : <Navigate to={roleLandingPath} replace />;
+
+    const requireSuperadmin = <T,>(node: React.ReactElement<T>) =>
+        currentUser?.role === UserRole.SUPERADMIN ? node : <Navigate to={roleLandingPath} replace />;
+
     const loadNotifications = useCallback(async (user: UserProfile, users: UserProfile[]) => {
         try {
             if (user.isManager) {
@@ -254,13 +268,7 @@ export default function App() {
                             index
                             element={
                                 <Navigate
-                                    to={
-                                        currentUser.role === UserRole.SUPERADMIN
-                                            ? "/superadmin/dashboard"
-                                            : currentUser.isManager
-                                                ? "/dashboard"
-                                                : "/absensi"
-                                    }
+                                    to={roleLandingPath}
                                     replace
                                 />
                             }
@@ -275,16 +283,16 @@ export default function App() {
                         <Route path="profil" element={<ProfilSayaPage user={currentUser} />} />
 
                         {/* Atasan Routes */}
-                        <Route path="dashboard" element={<AtasanDashboardPage user={currentUser} onNavigate={handleNavigate} />} />
-                        <Route path="persetujuan" element={<PersetujuanTimPage user={currentUser} />} />
-                        <Route path="tim" element={<TimSayaPage user={currentUser} />} />
-                        <Route path="laporan-tim" element={<LaporanTimPage user={currentUser} />} />
+                        <Route path="dashboard" element={requireManager(<AtasanDashboardPage user={currentUser} onNavigate={handleNavigate} />)} />
+                        <Route path="persetujuan" element={requireManager(<PersetujuanTimPage user={currentUser} />)} />
+                        <Route path="tim" element={requireManager(<TimSayaPage user={currentUser} />)} />
+                        <Route path="laporan-tim" element={requireManager(<LaporanTimPage user={currentUser} />)} />
 
                         {/* Superadmin Routes */}
-                        <Route path="superadmin/dashboard" element={<SuperadminDashboardPage user={currentUser} allUsers={allUsers} />} />
-                        <Route path="superadmin/pegawai" element={<KonfigurasiPegawaiPage user={currentUser} />} />
-                        <Route path="superadmin/sistem" element={<KonfigurasiSistemPage user={currentUser} />} />
-                        <Route path="superadmin/laporan-semua" element={<SemuaLaporanPage user={currentUser} />} />
+                        <Route path="superadmin/dashboard" element={requireSuperadmin(<SuperadminDashboardPage user={currentUser} allUsers={allUsers} />)} />
+                        <Route path="superadmin/pegawai" element={requireSuperadmin(<KonfigurasiPegawaiPage user={currentUser} />)} />
+                        <Route path="superadmin/sistem" element={requireSuperadmin(<KonfigurasiSistemPage user={currentUser} />)} />
+                        <Route path="superadmin/laporan-semua" element={requireSuperadmin(<SemuaLaporanPage user={currentUser} />)} />
 
                         {/* General Routes */}
                         <Route path="presensi" element={<PresensiPage user={currentUser} />} />
@@ -294,13 +302,7 @@ export default function App() {
                             path="*"
                             element={
                                 <Navigate
-                                    to={
-                                        currentUser.role === UserRole.SUPERADMIN
-                                            ? "/superadmin/dashboard"
-                                            : currentUser.isManager
-                                                ? "/dashboard"
-                                                : "/absensi"
-                                    }
+                                    to={roleLandingPath}
                                     replace
                                 />
                             }
