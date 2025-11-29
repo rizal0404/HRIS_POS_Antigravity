@@ -16,8 +16,9 @@ import {
     LogoutIcon,
     XIcon,
     CalendarIcon,
-    AcademicCapIcon
+    AcademicCapIcon,
 } from './icons';
+import { defaultLogo, getBrandLogoUrl } from '@/lib/branding';
 
 interface SidebarProps {
   user: UserProfile;
@@ -66,6 +67,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   const isManager = user.isManager;
   const navigate = useNavigate();
   const location = useLocation();
+  const [logoUrl, setLogoUrl] = React.useState<string>(defaultLogo);
+
+  React.useEffect(() => {
+    try {
+        const logo = getBrandLogoUrl();
+        setLogoUrl(logo);
+    } catch (err) {
+        // fallback silently
+    }
+  }, []);
 
   const renderLink = (link: NavLinkItem) => {
     const Icon = link.icon;
@@ -100,9 +111,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
             <XIcon className="h-6 w-6" />
         </button>
-        <div className={`h-16 flex items-center border-b border-slate-700 transition-all duration-300 ${isCollapsed ? 'justify-center' : 'justify-center px-6'}`}>
-            <span className={`text-2xl font-bold text-white transition-opacity whitespace-nowrap overflow-hidden ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>HRIS App</span>
-            <span className={`text-2xl font-bold text-white transition-opacity ${!isCollapsed ? 'opacity-0 w-0 absolute' : 'opacity-100'}`}>H</span>
+        <div className={`h-16 flex items-center gap-3 border-b border-slate-700 transition-all duration-300 ${isCollapsed ? 'justify-center' : 'px-4'}`}>
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 border border-white/10 overflow-hidden">
+                <img src={logoUrl} alt="HRIS logo" className="h-10 w-10 object-contain" />
+            </span>
+            <span className={`text-xl font-bold text-white transition-opacity whitespace-nowrap overflow-hidden ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+                HRIS POS
+            </span>
         </div>
         <nav className={`flex-1 px-2 py-4 overflow-y-auto overflow-x-hidden ${isCollapsed ? 'px-3' : 'px-4'}`}>
             {user.role === UserRole.SUPERADMIN ? (

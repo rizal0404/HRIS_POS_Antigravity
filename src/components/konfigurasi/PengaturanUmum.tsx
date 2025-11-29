@@ -1,16 +1,49 @@
 "use client";
 
-import React, { useState } from 'react';
-import { CogIcon, LocationMarkerIcon, BellIcon, SaveIcon, PencilIcon } from '../icons';
+import React, { useEffect, useState } from 'react';
+import { CogIcon, LocationMarkerIcon, BellIcon, SaveIcon, PencilIcon, UploadIcon, CheckCircleIcon } from '../icons';
+import { supabase } from '@/services/supabase';
+import { BRAND_BUCKET, BRAND_LOGO_PATH, getBrandLogoUrl } from '@/lib/branding';
 
 const PengaturanUmum: React.FC = () => {
     const [radius, setRadius] = useState<number>(350);
     const [tempRadius, setTempRadius] = useState<number>(350);
     const [isEditingRadius, setIsEditingRadius] = useState(false);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoUploading, setLogoUploading] = useState(false);
+    const [logoMessage, setLogoMessage] = useState<string | null>(null);
 
     const handleSaveRadius = () => {
         setRadius(tempRadius);
         setIsEditingRadius(false);
+    };
+
+    useEffect(() => {
+        try {
+            setLogoUrl(getBrandLogoUrl());
+        } catch {
+            setLogoUrl(null);
+        }
+    }, []);
+
+    const handleUploadLogo = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        setLogoUploading(true);
+        setLogoMessage(null);
+        const { error } = await supabase.storage.from(BRAND_BUCKET).upload(BRAND_LOGO_PATH, file, {
+            upsert: true,
+            contentType: file.type,
+            cacheControl: '3600',
+        });
+        if (error) {
+            setLogoMessage(`Gagal mengunggah logo: ${error.message}`);
+        } else {
+            const refreshedUrl = `${getBrandLogoUrl()}?t=${Date.now()}`; // bust cache
+            setLogoUrl(refreshedUrl);
+            setLogoMessage('Logo berhasil diperbarui. Reload aplikasi untuk melihat perubahan.');
+        }
+        setLogoUploading(false);
     };
 
     return (
@@ -24,6 +57,41 @@ const PengaturanUmum: React.FC = () => {
             </div>
 
             <div className="space-y-6">
+                {/* Logo Aplikasi */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                            <UploadIcon className="h-5 w-5" /> Logo Aplikasi
+                        </h3>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">Superadmin dapat mengganti logo aplikasi yang tampil di login dan sidebar. Logo akan diambil dari penyimpanan Supabase bucket "{BRAND_BUCKET}".</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className="h-20 w-20 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center overflow-hidden">
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Logo aplikasi" className="h-full w-full object-contain" />
+                            ) : (
+                                <span className="text-xs text-gray-400">Belum ada logo</span>
+                            )}
+                        </div>
+                        <label className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
+                            <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                onChange={handleUploadLogo}
+                                disabled={logoUploading}
+                            />
+                            {logoUploading ? 'Mengunggah...' : 'Unggah Logo Baru'}
+                        </label>
+                    </div>
+                    {logoMessage && (
+                        <div className="mt-3 inline-flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                            <CheckCircleIcon className="h-4 w-4" />
+                            <span>{logoMessage}</span>
+                        </div>
+                    )}
+                </div>
+
                 {/* Radius Lokasi Absensi */}
                 <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex justify-between items-center mb-2">

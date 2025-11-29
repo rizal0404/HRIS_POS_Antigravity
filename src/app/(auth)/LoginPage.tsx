@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/services/supabase';
-import { AcademicCapIcon } from '@/components/icons';
 import Spinner from '@/components/ui/Spinner';
+import { defaultLogo, getBrandLogoUrl } from '@/lib/branding';
 
 interface LoginPageProps {
     onShowResetPassword: () => void;
@@ -25,6 +25,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, onShowRegist
     const [error, setError] = useState<string | null>(null);
     const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [installFeedback, setInstallFeedback] = useState<string | null>(null);
+    const [logoUrl, setLogoUrl] = useState<string>(defaultLogo);
 
     useEffect(() => {
         const handler = (event: Event) => {
@@ -62,6 +63,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, onShowRegist
         }
     };
 
+    useEffect(() => {
+        try {
+            const logo = getBrandLogoUrl();
+            setLogoUrl(logo);
+        } catch (err) {
+            // fallback silently
+        }
+    }, []);
+
     return (
         <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4 py-10">
             <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden">
@@ -84,8 +94,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, onShowRegist
                         <div className="relative h-full flex items-center justify-center px-10 py-16">
                             <div className="text-white space-y-4">
                                 <div className="flex items-center gap-3">
-                                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/20">
-                                        <AcademicCapIcon className="h-8 w-8 text-blue-200" />
+                                    <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 border border-white/20 overflow-hidden">
+                                        <img src={logoUrl} alt="HRIS logo" className="h-14 w-14 object-contain" />
                                     </span>
                                     <div>
                                         <p className="text-sm uppercase tracking-[0.3em] text-blue-100">HRIS</p>
@@ -102,23 +112,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, onShowRegist
 
                     <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14 bg-white relative">
                         <div className="absolute inset-x-0 -top-16 h-32 bg-gradient-to-b from-slate-900/15 via-transparent to-transparent pointer-events-none" />
-                        <div className="lg:hidden mb-8 rounded-2xl overflow-hidden bg-slate-900">
-                            <div className="h-28 w-full" style={{ backgroundImage: 'linear-gradient(135deg,#1e293b,#0f172a)' }} />
+                        <div className="lg:hidden mb-8 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center py-6">
+                            <img src={logoUrl} alt="HRIS logo" className="h-20 w-20 object-contain" />
                         </div>
 
                         <div className="flex flex-col items-center gap-2 text-center mb-8">
                             <div className="flex items-center gap-3">
-                                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg">
-                                    <AcademicCapIcon className="h-7 w-7" />
+                                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg overflow-hidden">
+                                    <img src={logoUrl} alt="HRIS logo" className="h-12 w-12 object-contain" />
                                 </span>
                                 <div className="text-left">
-                                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">SIG</p>
+                                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">QC ST</p>
                                     <p className="text-3xl font-bold text-slate-900 leading-tight">
                                         HRIS <span className="text-blue-700">POS</span>
                                     </p>
                                 </div>
                             </div>
-                            <p className="text-sm text-slate-500">Sistem Informasi POS KOPKAR ST</p>
+                            <p className="text-sm text-slate-500">Sistem Informasi POS Unit Quality Control ST</p>
                         </div>
 
                         <div className="space-y-4 mb-6">
