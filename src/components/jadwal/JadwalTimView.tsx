@@ -321,12 +321,12 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
     return (
         <>
             <div className="flex flex-col h-full">
-                <header className={`text-white p-3 flex items-center justify-between flex-shrink-0 ${mode === 'team' ? 'bg-red-700' : 'bg-blue-700'}`}>
-                    <div className="flex items-center gap-4">
+                <header className={`text-white p-3 flex flex-col gap-3 flex-shrink-0 ${mode === 'team' ? 'bg-red-700' : 'bg-blue-700'} md:flex-row md:items-center md:justify-between`}>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <button onClick={handlePrevMonth} className={`p-2 rounded-full ${mode === 'team' ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}>
                             <ChevronLeftIcon className="h-6 w-6" />
                         </button>
-                        <div className="bg-white text-black px-4 py-2 rounded-md font-semibold flex items-center gap-2">
+                        <div className="bg-white text-black px-3 py-2 rounded-md font-semibold flex items-center gap-2 text-sm sm:text-base">
                             <span>{currentDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span>
                             <CalendarIcon className="h-5 w-5 text-gray-600" />
                         </div>
@@ -351,13 +351,15 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
                         )}
                     </div>
                     {mode === 'team' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 justify-start md:justify-end">
                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} />
                         <button onClick={handleDownload} className="flex items-center gap-2 bg-white text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-100">
-                            <DownloadIcon className="h-5 w-5"/><span>Download</span>
+                            <DownloadIcon className="h-5 w-5"/><span className="hidden sm:inline">Download</span>
+                            <span className="inline sm:hidden">DL</span>
                         </button>
                         <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 bg-white text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed">
-                            <UploadIcon className="h-5 w-5"/><span>{isUploading ? 'Mengunggah...' : 'Upload'}</span>
+                            <UploadIcon className="h-5 w-5"/><span className="hidden sm:inline">{isUploading ? 'Mengunggah...' : 'Upload'}</span>
+                            <span className="inline sm:hidden">{isUploading ? '...' : 'UP'}</span>
                         </button>
                     </div>
                     )}

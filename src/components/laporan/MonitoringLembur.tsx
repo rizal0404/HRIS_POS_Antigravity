@@ -254,17 +254,19 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
                         {Array.from({length: 12}).map((_, i) => <option key={i} value={i}>{new Date(0, i).toLocaleString('id-ID', {month: 'long'})}</option>)}
                     </select>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={handleDownload} className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 border" title="Download as CSV">
-                        <ExcelIcon className="h-5 w-5"/>
+                <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={handleDownload} className="flex items-center gap-2 p-2 bg-green-600 text-white rounded-md hover:bg-green-700 border">
+                        <ExcelIcon className="h-5 w-5"/><span className="hidden sm:inline">Download</span><span className="inline sm:hidden">CSV</span>
                     </button>
                     <button 
                         onClick={handleExportPDF} 
-                        className="p-2 w-10 h-10 flex items-center justify-center bg-red-600 text-white rounded-md hover:bg-red-700 border disabled:bg-red-400 disabled:cursor-wait" 
+                        className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 border disabled:bg-red-400 disabled:cursor-wait" 
                         title="Cetak Laporan PDF"
                         disabled={loading || isGeneratingPDF}
                     >
                         {isGeneratingPDF ? <Spinner/> : <PrintIcon className="h-5 w-5"/>}
+                        <span className="hidden sm:inline">{isGeneratingPDF ? 'Memproses...' : 'Cetak'}</span>
+                        <span className="inline sm:hidden">{isGeneratingPDF ? '...' : 'PDF'}</span>
                     </button>
                     <span className="text-sm">Tampilkan</span>
                      <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="p-2 border rounded-md text-sm">

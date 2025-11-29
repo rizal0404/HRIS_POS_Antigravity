@@ -401,31 +401,33 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
 
     return (
         <div className="bg-white rounded-lg shadow-md p-4">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-wrap items-center gap-3 sm:justify-between mb-4">
                  <h3 className="text-lg font-bold text-gray-800">Monitoring Daftar Hadir & Surat Perintah Lembur (SPL)</h3>
-                 <div className="flex items-center gap-2">
+                 <div className="flex flex-wrap items-center gap-2">
                     <button 
                         onClick={handleDownload}
-                        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700"
+                        className="flex items-center gap-2 bg-green-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700"
                         disabled={!reportData || loading}
                     >
                         <ExcelIcon className="h-5 w-5"/>
-                        <span>Download</span>
+                        <span className="hidden sm:inline">Download</span>
+                        <span className="inline sm:hidden">CSV</span>
                     </button>
                     <button 
                         onClick={handleExportPDF}
-                        className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait w-44"
+                        className="flex items-center justify-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-wait min-w-[48px]"
                         disabled={!reportData || loading || isGeneratingPDF}
                     >
                         {isGeneratingPDF ? (
                             <>
                                 <Spinner />
-                                <span>Membuat PDF...</span>
+                                <span className="hidden sm:inline">Membuat PDF...</span>
                             </>
                         ) : (
                             <>
                                 <PrintIcon className="h-5 w-5"/>
-                                <span>Cetak Laporan</span>
+                                <span className="hidden sm:inline">Cetak Laporan</span>
+                                <span className="inline sm:hidden">PDF</span>
                             </>
                         )}
                     </button>
