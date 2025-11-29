@@ -33,6 +33,7 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
     const [isImporting, setIsImporting] = useState(false);
     const [importSummary, setImportSummary] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
 
     // State for confirmation modal
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -128,6 +129,22 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
             setIsDeleting(false);
             setIsConfirmModalOpen(false);
             setUserToDelete(null);
+        }
+    };
+
+    const handleToggleApproval = async (user: UserProfile, nextApproved: boolean) => {
+        setApprovingIds(prev => new Set(prev).add(user.id));
+        try {
+            await apiService.saveProfile({ id: user.id, approved: nextApproved });
+            await fetchAllData();
+        } catch (error) {
+            console.error("Failed to update approval status:", error);
+        } finally {
+            setApprovingIds(prev => {
+                const updated = new Set(prev);
+                updated.delete(user.id);
+                return updated;
+            });
         }
     };
     
@@ -417,6 +434,7 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
                         <th className="px-4 py-3">Jabatan</th>
                         <th className="px-4 py-3">Atasan Langsung</th>
                         <th className="px-4 py-3">Email</th>
+                        <th className="px-4 py-3">Approved</th>
                         <th className="px-4 py-3 text-right">Tindakan</th>
                     </tr>
                 </thead>
@@ -435,8 +453,22 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
                             <td className="px-4 py-3 capitalize">{user.position}</td>
                             <td className="px-4 py-3">{user.manager_id ? (usersMap.get(user.manager_id)?.full_name || 'N/A') : '-'}</td>
                             <td className="px-4 py-3">{user.email}</td>
+                            <td className="px-4 py-3">
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.approved === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                    {user.approved === false ? 'Menunggu' : 'Aktif'}
+                                </span>
+                            </td>
                             <td className="px-4 py-3 text-right">
                                 <div className="flex items-center justify-end space-x-3">
+                                    {user.approved === false && (
+                                        <button
+                                            onClick={() => handleToggleApproval(user, true)}
+                                            disabled={approvingIds.has(user.id)}
+                                            className="px-3 py-1 text-xs font-semibold rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-60"
+                                        >
+                                            {approvingIds.has(user.id) ? 'Menyetujui...' : 'Setujui'}
+                                        </button>
+                                    )}
                                     <button onClick={() => handleEdit(user)} className="p-1 text-gray-500 hover:text-blue-600">
                                         <PencilIcon className="h-5 w-5" />
                                     </button>

@@ -3,7 +3,7 @@ import { Routes, Route, Outlet, Navigate, useNavigate, useLocation } from 'react
 import { Session } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import { UserProfile, UserRole, Request } from './types';
+import { UserProfile, UserRole, Request, RequestType, RequestStatus } from './types';
 import { supabase } from './services/supabase';
 import { apiService } from './services/apiService';
 import { getAllSubordinates } from './lib/utils';
@@ -28,6 +28,8 @@ import KonfigurasiSistemPage from './app/(app)/(superadmin)/sistemPage';
 import SemuaLaporanPage from './app/(app)/(superadmin)/laporan_semuaPage';
 import LoginPage from './app/(auth)/LoginPage';
 import ResetPasswordPage from './app/(auth)/ResetPasswordPage';
+import SignupPage from './app/(auth)/SignupPage';
+import PendingApprovalPage from './app/(auth)/PendingApprovalPage';
 
 const AppLayout: React.FC<{
     currentUser: UserProfile;
@@ -75,12 +77,25 @@ const AppLayout: React.FC<{
     );
 };
 
-const AuthRoutes = () => {
-    const [view, setView] = useState<'login' | 'resetPassword'>('login');
+const AuthRoutes: React.FC<{
+    blockedMessage: string | null;
+    clearBlockedMessage: () => void;
+}> = ({ blockedMessage, clearBlockedMessage }) => {
+    const [view, setView] = useState<'login' | 'resetPassword' | 'register'>('login');
     if (view === 'resetPassword') {
         return <ResetPasswordPage onShowLogin={() => setView('login')} />;
     }
-    return <LoginPage onShowResetPassword={() => setView('resetPassword')} />;
+    if (view === 'register') {
+        return <SignupPage onShowLogin={() => setView('login')} />;
+    }
+    return (
+        <LoginPage
+            onShowResetPassword={() => setView('resetPassword')}
+            onShowRegister={() => setView('register')}
+            infoMessage={blockedMessage}
+            onClearInfo={clearBlockedMessage}
+        />
+    );
 };
 
 export default function App() {
@@ -89,6 +104,8 @@ export default function App() {
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     const [notifications, setNotifications] = useState<Request[]>([]);
     const [loading, setLoading] = useState(true);
+    const [registrationPending, setRegistrationPending] = useState(false);
+    const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
     const navigate = useNavigate();
 
     const handleNavigate = (path: string) => {
@@ -144,6 +161,27 @@ export default function App() {
                     if (usersError) throw usersError;
                     setAllUsers(users as UserProfile[]);
                         if (profile) {
+                            const { data: pendingReg, error: regErr } = await supabase
+                                .from('requests')
+                                .select('status')
+                                .eq('profile_id', profile.id)
+                                .eq('request_type', RequestType.REGISTRASI)
+                                .order('created_at', { ascending: false })
+                                .limit(1)
+                                .single();
+                            if (regErr && regErr.code !== 'PGRST116') logWarn('Failed to check registration status', regErr);
+                            const isRegistrationPending = pendingReg?.status === RequestStatus.PENDING;
+                            setRegistrationPending(isRegistrationPending);
+
+                            if (profile.approved === false) {
+                                setBlockedMessage('Akun menunggu persetujuan superadmin.');
+                                setRegistrationPending(true);
+                                await supabase.auth.signOut();
+                                setCurrentUser(null);
+                                setLoading(false);
+                                return;
+                            }
+
                             const { count, error: managerError } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('manager_id', profile.id);
                             if (managerError) logWarn('Could not determine manager status', managerError);
                             const isManager = (count ?? 0) > 0;
@@ -168,6 +206,8 @@ export default function App() {
             setAllUsers([]);
             setLoading(false);
             setNotifications([]);
+            setRegistrationPending(false);
+            // keep blockedMessage to show alert on login page
         }
     }, [session, loadNotifications]);
 
@@ -183,6 +223,10 @@ export default function App() {
                 <div className="text-xl font-semibold">Loading...</div>
             </div>
         );
+    }
+
+    if (currentUser && registrationPending) {
+        return <PendingApprovalPage onLogout={handleLogout} />;
     }
 
     return (
@@ -248,7 +292,7 @@ export default function App() {
                         />
                     </Route>
                 ) : (
-                    <Route path="*" element={<AuthRoutes />} />
+                    <Route path="*" element={<AuthRoutes blockedMessage={blockedMessage} clearBlockedMessage={() => setBlockedMessage(null)} />} />
                 )}
             </Routes>
         </ErrorBoundary>

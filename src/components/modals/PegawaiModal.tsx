@@ -13,10 +13,11 @@ interface PegawaiModalProps {
     positions: string[];
 }
 
-const defaultFormData: Omit<UserProfile, 'id'> = {
+export const pegawaiDefaultFormData: Omit<UserProfile, 'id'> = {
     full_name: '',
     nik: '',
     email: '',
+    approved: true,
     role: UserRole.USER,
     position: '',
     manager_id: null,
@@ -32,7 +33,7 @@ const defaultFormData: Omit<UserProfile, 'id'> = {
 };
 
 const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, initialData, allUsers, positions }) => {
-    const [formData, setFormData] = useState<Omit<UserProfile, 'id'>>(defaultFormData);
+    const [formData, setFormData] = useState<Omit<UserProfile, 'id'>>(pegawaiDefaultFormData);
     const [password, setPassword] = useState('');
 
     const isEditing = !!initialData;
@@ -40,7 +41,7 @@ const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, in
 
     useEffect(() => {
         if (isOpen) {
-            setFormData(initialData || defaultFormData);
+            setFormData(initialData || pegawaiDefaultFormData);
             setPassword(''); // Always reset password field
         }
     }, [isOpen, initialData]);

@@ -8,9 +8,12 @@ import Spinner from '@/components/ui/Spinner';
 
 interface LoginPageProps {
     onShowResetPassword: () => void;
+    onShowRegister: () => void;
+    infoMessage?: string | null;
+    onClearInfo?: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, onShowRegister, infoMessage, onClearInfo }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -41,6 +44,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword }) => {
                     <h1 className="text-3xl font-bold text-center text-slate-800 ml-2">HRIS App</h1>
                 </div>
                 <div className="bg-white p-8 rounded-xl shadow-lg">
+                    {infoMessage && (
+                        <div className="bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 flex justify-between items-start">
+                            <div className="pr-4">{infoMessage}</div>
+                            {onClearInfo && (
+                                <button onClick={onClearInfo} className="text-sm text-yellow-700 hover:text-yellow-900 font-semibold">
+                                    Tutup
+                                </button>
+                            )}
+                        </div>
+                    )}
                     <h2 className="text-2xl font-semibold text-center text-gray-700 mb-6">Login to your account</h2>
                     {error && (
                         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
@@ -84,16 +97,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword }) => {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-end">
-                            <div className="text-sm">
-                                <button
-                                    type="button"
-                                    onClick={onShowResetPassword}
-                                    className="font-medium text-blue-600 hover:text-blue-500"
-                                >
-                                    Forgot your password?
-                                </button>
-                            </div>
+                        <div className="flex items-center justify-between">
+                            <button
+                                type="button"
+                                onClick={onShowRegister}
+                                className="text-sm font-medium text-slate-700 hover:text-slate-900"
+                            >
+                                Daftar akun baru
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onShowResetPassword}
+                                className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                            >
+                                Forgot your password?
+                            </button>
                         </div>
 
                         <div>

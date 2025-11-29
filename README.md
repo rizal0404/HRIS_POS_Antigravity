@@ -126,6 +126,49 @@ Jika Anda telah menjalankan skema sebelumnya, jalankan perintah SQL berikut:
   `ALTER TABLE public.profiles ADD COLUMN place_of_birth TEXT;`
   `ALTER TABLE public.profiles ADD COLUMN date_of_birth DATE;`
 - **Tambah fungsi hapus pengguna**: Salin dan jalankan skrip SQL untuk fungsi `delete_user` dari `LANGKAH 4` (`STEP 4`) di bawah ini.
+- **Aktifkan approval akun baru & request registrasi** (tambahkan kolom `approved`, nilai enum, dan kebijakan RLS) — jalankan di SQL Editor:
+
+```sql
+-- Kolom approval pada profiles
+alter table public.profiles
+  add column if not exists approved boolean not null default false;
+
+-- Enum request_type perlu memiliki nilai Registrasi Pegawai (sesuaikan tipe jika namanya berbeda)
+do $$
+begin
+  if not exists (
+    select 1 from pg_enum e
+    join pg_type t on t.oid = e.enumtypid
+    where t.typname = 'request_type' and e.enumlabel = 'Registrasi Pegawai'
+  ) then
+    alter type public.request_type add value 'Registrasi Pegawai';
+  end if;
+end$$;
+
+-- RLS: hanya akun approved yang bisa membaca/mengubah profiles (sesuaikan role/claim superadmin Anda)
+alter table public.profiles enable row level security;
+
+drop policy if exists "Read approved profiles" on public.profiles;
+drop policy if exists "Update own profile when approved" on public.profiles;
+drop policy if exists "Service role full access profiles" on public.profiles;
+
+create policy "Read approved profiles"
+  on public.profiles
+  for select
+  using (approved = true);
+
+create policy "Update own profile when approved"
+  on public.profiles
+  for update
+  using (auth.uid() = id and approved = true)
+  with check (auth.uid() = id and approved = true);
+
+-- Opsional: beri akses penuh untuk service_role (atau klaim lain yang Anda pakai untuk superadmin)
+create policy "Service role full access profiles"
+  on public.profiles
+  using (auth.role() = 'service_role')
+  with check (auth.role() = 'service_role');
+```
 
 
 ```sql

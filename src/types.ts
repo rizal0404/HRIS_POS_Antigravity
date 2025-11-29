@@ -2,6 +2,7 @@ import React from 'react';
 
 export enum UserRole {
   SUPERADMIN = 'superadmin',
+  PENDING = 'pending',
   USER = 'user',
 }
 
@@ -11,6 +12,7 @@ export interface UserProfile {
   full_name: string; // Corresponds to full_name in DB
   email: string;
   role: UserRole;
+  approved?: boolean;
   position: string;
   manager_id: string | null;
   avatar_url: string; // Corresponds to avatar_url in DB
@@ -42,6 +44,7 @@ export enum RequestType {
     IZIN = 'Izin',
     SAKIT = 'Sakit',
     KOREKSI = 'Koreksi Absensi',
+    REGISTRASI = 'Registrasi Pegawai',
 }
 
 export enum RequestStatus {
