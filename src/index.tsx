@@ -24,6 +24,16 @@ try {
       </BrowserRouter>
     </React.StrictMode>
   );
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/service-worker.js")
+        .catch((error) =>
+          logError("Service worker registration failed", error as Error)
+        );
+    });
+  }
 } catch (error) {
   logError('Failed during initial React render', error);
 }
