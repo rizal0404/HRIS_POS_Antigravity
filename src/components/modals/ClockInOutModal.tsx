@@ -36,7 +36,7 @@ const WORKPLACES = [
   { name: 'Tonasa 5', lat: -4.790931202719051, lon: 119.61694886888938 },
   { name: 'Crusher', lat: -4.7893251806455295, lon: 119.62039780223822 },
   { name: 'Kantor Staf', lat: -4.788360643865878, lon: 119.61309925103656 },
-  //{ name: 'Palmer', lat: -4.799717216, lon: 119.60308636409 },
+  { name: 'Palmer', lat: -4.799717216, lon: 119.60308636409 },
 ];
 const MAX_DISTANCE_METERS = 350;
 const DEFAULT_MAP_CENTER: [number, number] = [-4.819, 119.640];
