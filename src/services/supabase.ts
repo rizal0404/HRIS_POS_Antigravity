@@ -7,5 +7,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
 }
 
-// Menginisialisasi klien Supabase nyata untuk digunakan di seluruh aplikasi.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Menginisialisasi klien Supabase dengan global headers untuk memastikan Accept header selalu dikirim
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    }
+  }
+});

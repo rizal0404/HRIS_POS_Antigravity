@@ -168,7 +168,7 @@ export default function App() {
                                 .eq('request_type', RequestType.REGISTRASI)
                                 .order('created_at', { ascending: false })
                                 .limit(1)
-                                .single();
+                                .maybeSingle();
                             if (regErr && regErr.code !== 'PGRST116') logWarn('Failed to check registration status', regErr);
                             const isRegistrationPending = pendingReg?.status === RequestStatus.PENDING;
                             setRegistrationPending(isRegistrationPending);

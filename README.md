@@ -61,6 +61,18 @@ Aplikasi ini memerlukan bucket penyimpanan untuk mengunggah lampiran (misalnya, 
 3.  Salin seluruh konten dari bagian **[6. Skema Database (Supabase)](#6-skema-database-supabase)** di bawah ini.
 4.  Tempelkan ke editor SQL, lalu klik **RUN**. Skrip ini akan membuat semua tabel, peran, dan kebijakan keamanan yang diperlukan untuk database dan storage.
 
+### Langkah 6: Tambahkan Request Type Baru ke Database (Jika Diperlukan)
+
+Jika Anda melihat error **406 (Not Acceptable)** saat fetch request dengan tipe `'Registrasi Pegawai'`, jalankan SQL berikut di **Supabase SQL Editor**:
+
+```sql
+-- Tambahkan 'Registrasi Pegawai' ke enum request_type
+CREATE TYPE request_type_new AS ENUM ('Cuti', 'Lembur', 'Izin', 'Sakit', 'Koreksi Absensi', 'Registrasi Pegawai');
+ALTER TABLE requests ALTER COLUMN request_type TYPE request_type_new USING (request_type::text::request_type_new);
+DROP TYPE request_type;
+ALTER TYPE request_type_new RENAME TO request_type;
+```
+
 Setelah langkah-langkah ini selesai, aplikasi Anda siap dijalankan dan akan terhubung ke backend Supabase Anda.
 
 ### Menjalankan Aplikasi (Vite)
