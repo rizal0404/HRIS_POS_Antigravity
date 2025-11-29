@@ -106,6 +106,8 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const toastTimerRef = React.useRef<number | null>(null);
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -136,9 +138,18 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
 
+  const showToast = useCallback((type: 'success' | 'error', message: string) => {
+    if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+    }
+    setToast({ type, message });
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 2000);
+  }, []);
+
   const handleSuccess = () => {
     handleCloseModal();
     fetchRequests(); // Re-fetch data after a new submission
+    showToast('success', 'Ajuan berhasil dikirim ke atasan.');
   };
   
   const handleClearFilters = () => {
@@ -163,8 +174,23 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
     });
   }, [userRequests, startDate, endDate, searchTerm]);
 
+  useEffect(() => {
+    return () => {
+        if (toastTimerRef.current) {
+            window.clearTimeout(toastTimerRef.current);
+        }
+    };
+  }, []);
+
   return (
     <div className="p-6">
+        {toast && (
+            <div
+                className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-md shadow-md text-sm text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
+            >
+                {toast.message}
+            </div>
+        )}
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Daftar Pengajuan Saya</h2>
             <button 
@@ -232,6 +258,7 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
             isOpen={isModalOpen}
             onClose={handleCloseModal}
             onSuccess={handleSuccess}
+            onError={(msg) => showToast('error', msg || 'Gagal mengirim pengajuan.')}
             user={user}
         />
     </div>

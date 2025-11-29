@@ -13,6 +13,7 @@ interface RequestModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    onError?: (message: string) => void;
     user: UserProfile;
 }
 
@@ -104,7 +105,7 @@ interface DailySubstitute {
     night?: string | null;
 }
 
-const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess, user }) => {
+const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess, onError, user }) => {
     const [requestType, setRequestType] = useState<RequestType>(RequestType.SAKIT);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -389,6 +390,9 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
         } catch (err: any) {
             logError('Failed to submit request', { error: err, userId: user.id });
             setError(err.message || 'Gagal mengirim pengajuan.');
+            if (onError) {
+                onError(err.message || 'Gagal mengirim pengajuan.');
+            }
             console.error(err);
         } finally {
             setLoading(false);
