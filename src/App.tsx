@@ -9,6 +9,7 @@ import { apiService } from './services/apiService';
 import { getAllSubordinates } from './lib/utils';
 import { logInfo, logError, logWarn } from './lib/logger';
 import ErrorBoundary from './components/ErrorBoundary';
+import PasswordResetModal from './components/PasswordResetModal';
 
 // Import pages
 import AbsensiPage from './app/(app)/(bawahan)/absensiPage';
@@ -106,6 +107,7 @@ export default function App() {
     const [loading, setLoading] = useState(true);
     const [registrationPending, setRegistrationPending] = useState(false);
     const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+    const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
     const navigate = useNavigate();
 
     const handleNavigate = (path: string) => {
@@ -142,6 +144,9 @@ export default function App() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             logInfo(`Auth state changed: ${_event}`, { hasSession: !!session });
             setSession(session);
+            if (_event === 'PASSWORD_RECOVERY') {
+                setShowPasswordResetModal(true);
+            }
         });
         return () => {
             logInfo('App component unmounting. Unsubscribing from auth changes.');
@@ -234,6 +239,13 @@ export default function App() {
 
     return (
         <ErrorBoundary>
+            {showPasswordResetModal && (
+                <PasswordResetModal
+                    email={session?.user?.email}
+                    onClose={() => setShowPasswordResetModal(false)}
+                    onSuccess={() => setShowPasswordResetModal(false)}
+                />
+            )}
             <Routes>
                 {currentUser ? (
                     <Route path="/" element={<AppLayout currentUser={currentUser} allUsers={allUsers} notifications={notifications} handleLogout={handleLogout} />}>

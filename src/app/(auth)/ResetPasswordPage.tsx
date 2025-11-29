@@ -21,7 +21,8 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onShowLogin }) =>
         setMessage(null);
         setLoading(true);
 
-        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        const redirectTo = `${window.location.origin}/`;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
         
         if (error) {
             setError(error.message);
