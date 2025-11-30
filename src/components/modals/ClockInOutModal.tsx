@@ -47,6 +47,12 @@ const WORKPLACES = [
 const MAX_DISTANCE_METERS = 350;
 const DEFAULT_MAP_CENTER: [number, number] = [-4.819, 119.64];
 const ACCURACY_THRESHOLD_METERS = 250;
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // Helper function to calculate distance
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -116,7 +122,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const [notes, setNotes] = useState('');
 
   const todaySchedule = useMemo(() => {
-    const todayStr = currentTime.toISOString().split('T')[0];
+    const todayStr = formatLocalDate(currentTime);
     return jadwal.find((j) => j.date === todayStr);
   }, [jadwal, currentTime]);
 
@@ -287,7 +293,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
       } else {
         // workLocation === 'Lainnya'
         const today = new Date();
-        const tanggalPembetulan = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        const tanggalPembetulan = formatLocalDate(today); // YYYY-MM-DD
         const jamPembetulan = today.toTimeString().split(' ')[0].substring(0, 5); // HH:mm
 
         await apiService.addPembetulanPresensi({
