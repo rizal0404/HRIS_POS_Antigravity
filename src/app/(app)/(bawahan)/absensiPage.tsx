@@ -89,6 +89,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const todayISO = useMemo(() => currentTime.toISOString().split('T')[0], [currentTime]);
   const todaySchedule = useMemo(() => jadwal.find(j => j.date === todayISO), [jadwal, todayISO]);
   const isOffDay = todaySchedule?.shift === 'OFF';
+  const hasActiveSession = status === AttendanceStatus.CLOCKED_IN && !!todayAttendance && !todayAttendance.clock_out;
 
   const handleOpenModal = (type: 'in' | 'out') => {
     setActionType(type);
@@ -162,7 +163,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
               </button>
               <button 
                   onClick={() => handleOpenModal('out')}
-                  disabled={status !== AttendanceStatus.CLOCKED_IN || isOnApprovedLeave || isOffDay}
+                  disabled={status !== AttendanceStatus.CLOCKED_IN || isOnApprovedLeave || (!hasActiveSession && isOffDay)}
                   className="w-full py-4 px-6 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105"
               >
                   Clock Out
