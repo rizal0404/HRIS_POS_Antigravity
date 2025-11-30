@@ -267,7 +267,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           color: 'bg-red-100 text-red-800',
         };
       }
-      return { text: `Lokasi Anda dengan akurasi ${accuracy.toFixed(2)} meter.`, color: 'bg-green-50 text-green-800' };
+      return { text: `Akurasi lokasi ${accuracy.toFixed(2)} meter.`, color: 'bg-green-50 text-green-800' };
     }
     return { text: 'Lokasi tidak tersedia.', color: 'bg-gray-100 text-gray-800' };
   };
@@ -357,7 +357,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           <p className="font-semibold">{locText}</p>
           {!isFetchingLocation && (
             <button onClick={fetchLocation} className="text-blue-600 font-semibold hover:underline">
-              Klik disini untuk refresh lokasi Anda!
+              Tekan u/ refresh lokasi Ta!
             </button>
           )}
         </div>
