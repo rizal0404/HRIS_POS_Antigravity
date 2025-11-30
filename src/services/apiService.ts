@@ -13,6 +13,7 @@ import {
     Holiday,
     OvertimeConfiguration,
     RequestType,
+    NotificationPreferences,
 } from '../types';
 
 // Helper untuk penanganan error yang konsisten
@@ -54,6 +55,39 @@ export const apiService = {
         }
 
         return data?.[0] || null;
+    },
+
+    async getNotificationPreferences(): Promise<NotificationPreferences> {
+        const { data, error } = await supabase.rpc('get_notification_preferences');
+        if (error) {
+            console.error('Error fetching notification preferences:', error);
+            throw new Error(error.message || 'Gagal memuat pengaturan notifikasi.');
+        }
+        return data || { new_request: true, request_approved: true, request_rejected: true };
+    },
+
+    async updateNotificationPreferences(prefs: NotificationPreferences): Promise<NotificationPreferences> {
+        const { data, error } = await supabase.rpc('update_notification_preferences', {
+            p_new_request: prefs.new_request,
+            p_request_approved: prefs.request_approved,
+            p_request_rejected: prefs.request_rejected,
+        });
+        if (error) {
+            console.error('Error updating notification preferences:', error);
+            throw new Error(error.message || 'Gagal menyimpan pengaturan notifikasi.');
+        }
+        return data || prefs;
+    },
+
+    async updateTelegramChatId(chatId: string | null): Promise<NotificationPreferences> {
+        const { data, error } = await supabase.rpc('update_telegram_chat_id', {
+            p_telegram_chat_id: chatId,
+        });
+        if (error) {
+            console.error('Error updating Telegram chat ID:', error);
+            throw new Error(error.message || 'Gagal menyimpan chat ID Telegram.');
+        }
+        return data || { new_request: true, request_approved: true, request_rejected: true, telegram_chat_id: chatId };
     },
 
     async submitClockIn(attendanceData: Partial<Attendance>): Promise<Attendance> {

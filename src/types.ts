@@ -184,3 +184,10 @@ export interface OvertimeConfiguration {
   max_hours_per_month_non_shift: number;
   max_hours_per_month_shift: number;
 }
+
+export interface NotificationPreferences {
+  new_request: boolean;
+  request_approved: boolean;
+  request_rejected: boolean;
+  telegram_chat_id?: string | null;
+}

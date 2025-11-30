@@ -46,7 +46,7 @@ const WORKPLACES = [
 ];
 const MAX_DISTANCE_METERS = 350;
 const DEFAULT_MAP_CENTER: [number, number] = [-4.819, 119.64];
-const ACCURACY_THRESHOLD_METERS = 150;
+const ACCURACY_THRESHOLD_METERS = 250;
 
 // Helper function to calculate distance
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -138,17 +138,17 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
         const latDecimals = String(latitude).split('.')[1]?.length || 0;
         const lonDecimals = String(longitude).split('.')[1]?.length || 0;
         if (latDecimals > 8 || lonDecimals > 8) {
-          reasons.push('presisi koordinat tinggi');
+          reasons.push('kondisi koordinat tidak wajar');
         }
 
         // 2. Check for "perfect" integer accuracy values (e.g., 5.0, 10.0)
         if (Number.isInteger(accuracy) && accuracy > 0) {
-          reasons.push('nilai akurasi tidak wajar');
+          reasons.push('kondisi akurasi tidak wajar');
         }
 
         // 3. Check for "perfect" integer altitude values
         if (altitude !== null && Number.isInteger(altitude)) {
-          reasons.push('nilai ketinggian tidak wajar');
+          reasons.push('kondisi ketinggian tidak wajar');
         }
 
         // If a combination of suspicious factors is found (at least 2), flag as mock.
@@ -157,7 +157,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           setLocationError(
             `Kemungkinan lokasi palsu terdeteksi (90%): ${reasons.join(
               ', ',
-            )}. Harap matikan aplikasi mock location.`,
+            )}. Pastikan tidak menggunakan aplikasi mock lokasi.`,
           );
         }
 
@@ -298,7 +298,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           alasan: notes,
           todayAttendanceId: todayAttendance?.id,
         });
-        onSuccess(`Ajuan clock-${actionType} dari lokasi 'Lainnya' telah dikirim untuk persetujuan.`, null);
+        onSuccess(`Ajuan clock-${actionType} dari lokasi 'Lainnya' telah dikirim ke atasan untuk persetujuan.`, null);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan.';

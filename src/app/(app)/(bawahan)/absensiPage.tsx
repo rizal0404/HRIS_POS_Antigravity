@@ -37,13 +37,20 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const [isOnApprovedLeave, setIsOnApprovedLeave] = useState(false);
   const [jadwal, setJadwal] = useState<JadwalKerjaTim[]>([]);
 
+  const formatLocalDate = useCallback((date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+  }, []);
+
   const checkAttendanceStatus = useCallback(async () => {
       setStatus(AttendanceStatus.LOADING);
       try {
           const today = new Date();
-          const todayISO = today.toISOString().split('T')[0];
-          const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-          const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+          const todayISO = formatLocalDate(today);
+          const startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 1));
+          const endDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
           const [attendance, approvedLeaves, scheduleData] = await Promise.all([
              apiService.getActiveAttendance(user.id),
@@ -71,7 +78,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
           setStatus(AttendanceStatus.ERROR);
           setToastMessage({ type: 'error', message: error.message || 'Gagal mengambil status presensi.' });
       }
-  }, [user.id]);
+  }, [user.id, formatLocalDate]);
 
   useEffect(() => {
     checkAttendanceStatus();
@@ -86,7 +93,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
     }
   }, [toastMessage]);
   
-  const todayISO = useMemo(() => currentTime.toISOString().split('T')[0], [currentTime]);
+  const todayISO = useMemo(() => formatLocalDate(currentTime), [currentTime, formatLocalDate]);
   const todaySchedule = useMemo(() => jadwal.find(j => j.date === todayISO), [jadwal, todayISO]);
   const isOffDay = todaySchedule?.shift === 'OFF';
   const hasActiveSession = status === AttendanceStatus.CLOCKED_IN && !!todayAttendance && !todayAttendance.clock_out;

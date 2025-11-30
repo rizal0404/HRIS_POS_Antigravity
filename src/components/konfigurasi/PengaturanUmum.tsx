@@ -4,6 +4,28 @@ import React, { useEffect, useState } from 'react';
 import { CogIcon, LocationMarkerIcon, BellIcon, SaveIcon, PencilIcon, UploadIcon, CheckCircleIcon } from '../icons';
 import { supabase } from '@/services/supabase';
 import { BRAND_BUCKET, BRAND_LOGO_PATH, getBrandLogoUrl } from '@/lib/branding';
+import { apiService } from '@/services/apiService';
+import { NotificationPreferences } from '@/types';
+
+const ToggleRow: React.FC<{ label: string; checked: boolean; disabled?: boolean; onChange: () => void }> = ({ label, checked, disabled, onChange }) => (
+    <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
+        <span className="font-medium text-gray-700">{label}</span>
+        <button
+            type="button"
+            onClick={onChange}
+            disabled={disabled}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                checked ? 'bg-green-500' : 'bg-gray-300'
+            } ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+        >
+            <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    checked ? 'translate-x-5' : 'translate-x-1'
+                }`}
+            />
+        </button>
+    </div>
+);
 
 const PengaturanUmum: React.FC = () => {
     const [radius, setRadius] = useState<number>(350);
@@ -12,6 +34,15 @@ const PengaturanUmum: React.FC = () => {
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [logoUploading, setLogoUploading] = useState(false);
     const [logoMessage, setLogoMessage] = useState<string | null>(null);
+    const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({ new_request: true, request_approved: true, request_rejected: true });
+    const [notifLoading, setNotifLoading] = useState<boolean>(true);
+    const [notifSaving, setNotifSaving] = useState<boolean>(false);
+    const [notifMessage, setNotifMessage] = useState<string | null>(null);
+    const [notifError, setNotifError] = useState<string | null>(null);
+    const [chatId, setChatId] = useState<string>('');
+    const [chatSaving, setChatSaving] = useState<boolean>(false);
+    const [chatMessage, setChatMessage] = useState<string | null>(null);
+    const [chatError, setChatError] = useState<string | null>(null);
 
     const handleSaveRadius = () => {
         setRadius(tempRadius);
@@ -25,6 +56,57 @@ const PengaturanUmum: React.FC = () => {
             setLogoUrl(null);
         }
     }, []);
+
+    useEffect(() => {
+        const fetchPrefs = async () => {
+            setNotifLoading(true);
+            setNotifError(null);
+            try {
+                const prefs = await apiService.getNotificationPreferences();
+                setNotifPrefs(prefs);
+                setChatId(prefs.telegram_chat_id || '');
+            } catch (error: any) {
+                setNotifError(error.message || 'Gagal memuat pengaturan notifikasi.');
+            } finally {
+                setNotifLoading(false);
+            }
+        };
+        fetchPrefs();
+    }, []);
+
+    const handleNotifToggle = async (key: keyof NotificationPreferences) => {
+        setNotifMessage(null);
+        setNotifError(null);
+        const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
+        setNotifPrefs(updated);
+        setNotifSaving(true);
+        try {
+            const saved = await apiService.updateNotificationPreferences(updated);
+            setNotifPrefs(saved);
+            setNotifMessage('Pengaturan notifikasi disimpan.');
+        } catch (error: any) {
+            setNotifError(error.message || 'Gagal menyimpan pengaturan notifikasi.');
+            setNotifPrefs(notifPrefs); // revert
+        } finally {
+            setNotifSaving(false);
+        }
+    };
+
+    const handleSaveChatId = async () => {
+        setChatMessage(null);
+        setChatError(null);
+        setChatSaving(true);
+        try {
+            const saved = await apiService.updateTelegramChatId(chatId.trim() || null);
+            setNotifPrefs(saved);
+            setChatId(saved.telegram_chat_id || '');
+            setChatMessage('Chat ID Telegram berhasil disimpan.');
+        } catch (error: any) {
+            setChatError(error.message || 'Gagal menyimpan Chat ID Telegram.');
+        } finally {
+            setChatSaving(false);
+        }
+    };
 
     const handleUploadLogo = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -129,18 +211,59 @@ const PengaturanUmum: React.FC = () => {
                 </div>
 
                 {/* Pengaturan Notifikasi */}
-                <div className="bg-gray-50 rounded-lg p-4 opacity-60">
+                <div className="bg-gray-50 rounded-lg p-4">
                      <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2 mb-2">
                         <BellIcon className="h-5 w-5"/> Pengaturan Notifikasi
                     </h3>
-                     <p className="text-sm text-gray-500 mb-4">Aktifkan atau non-aktifkan notifikasi email/aplikasi untuk berbagai kejadian (segera hadir).</p>
-                    <div className="flex items-center justify-between p-3 bg-gray-200 rounded-md">
-                        <span className="font-medium text-gray-600">Notifikasi Pengajuan Baru</span>
-                        <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                            <input type="checkbox" name="toggle" id="toggle" className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-not-allowed" disabled/>
-                            <label htmlFor="toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-not-allowed"></label>
+                     <p className="text-sm text-gray-500 mb-4">Aktifkan notifikasi email untuk pengajuan baru, persetujuan, atau penolakan. Preferensi ini tersimpan per pengguna.</p>
+                     
+                     <div className="space-y-3">
+                        {notifError && <p className="text-sm text-red-600">{notifError}</p>}
+                        {notifMessage && <p className="text-sm text-green-600">{notifMessage}</p>}
+                        <ToggleRow 
+                            label="Notifikasi Pengajuan Baru" 
+                            checked={notifPrefs.new_request} 
+                            disabled={notifLoading || notifSaving} 
+                            onChange={() => handleNotifToggle('new_request')}
+                        />
+                        <ToggleRow 
+                            label="Notifikasi Pengajuan Disetujui" 
+                            checked={notifPrefs.request_approved} 
+                            disabled={notifLoading || notifSaving} 
+                            onChange={() => handleNotifToggle('request_approved')}
+                        />
+                        <ToggleRow 
+                            label="Notifikasi Pengajuan Ditolak" 
+                            checked={notifPrefs.request_rejected} 
+                            disabled={notifLoading || notifSaving} 
+                            onChange={() => handleNotifToggle('request_rejected')}
+                        />
+                        {notifLoading && <p className="text-sm text-gray-500">Memuat pengaturan...</p>}
+                        <div className="pt-3 border-t border-gray-200 mt-3">
+                            <p className="text-sm font-medium text-gray-700 mb-1">Telegram Chat ID</p>
+                            <p className="text-xs text-gray-500 mb-2">Masukkan Chat ID dari bot Telegram untuk menerima notifikasi via Telegram.</p>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <input 
+                                    type="text"
+                                    value={chatId}
+                                    onChange={(e) => setChatId(e.target.value)}
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="contoh: 123456789"
+                                    disabled={notifLoading || chatSaving}
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={handleSaveChatId}
+                                    disabled={notifLoading || chatSaving}
+                                    className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
+                                >
+                                    {chatSaving ? 'Menyimpan...' : 'Simpan Chat ID'}
+                                </button>
+                            </div>
+                            {chatMessage && <p className="text-sm text-green-600 mt-1">{chatMessage}</p>}
+                            {chatError && <p className="text-sm text-red-600 mt-1">{chatError}</p>}
                         </div>
-                    </div>
+                     </div>
                 </div>
 
             </div>
