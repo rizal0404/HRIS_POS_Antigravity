@@ -398,45 +398,56 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
     const handleExportPDF = () => {
         if (!reportData) return;
         setIsGeneratingPDF(true);
-    
+
         const input = document.getElementById('print-area');
-    
+
         if (!input) {
             setIsGeneratingPDF(false);
             return;
         }
-    
-        html2canvas(input, { scale: 2, logging: false, useCORS: true }).then((canvas) => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    
-            let heightLeft = pdfHeight;
-            let position = 0;
-            
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-            heightLeft -= pdf.internal.pageSize.getHeight();
-    
-            while (heightLeft > 0) {
-                position -= pdf.internal.pageSize.getHeight();
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                heightLeft -= pdf.internal.pageSize.getHeight();
-            }
-    
-            const monthStr = String(selectedMonth + 1).padStart(2, '0');
-            const fileName = `Monitoring_Presensi_Lembur_${selectedEmployee?.full_name}_${selectedYear}-${monthStr}.pdf`;
-            pdf.save(fileName);
-            
-            setIsGeneratingPDF(false);
-        }).catch(err => {
-            console.error("Error generating PDF:", err);
-            setIsGeneratingPDF(false);
-        });
+
+        html2canvas(input, { scale: 2, logging: false, useCORS: true })
+            .then((canvas) => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+
+                const imgProps = pdf.getImageProperties(imgData);
+
+                // Ukuran gambar jika pakai lebar full halaman
+                const imgWidthFull = pageWidth;
+                const imgHeightFull = (imgProps.height * imgWidthFull) / imgProps.width;
+
+                // Hitung scale supaya tinggi gambar tidak melebihi tinggi halaman
+                let finalWidth = imgWidthFull;
+                let finalHeight = imgHeightFull;
+
+                if (imgHeightFull > pageHeight) {
+                    const scale = pageHeight / imgHeightFull;
+                    finalWidth = imgWidthFull * scale;
+                    finalHeight = imgHeightFull * scale;
+                }
+
+                // Optional: tengahin gambar di halaman
+                const x = (pageWidth - finalWidth) / 2;
+                const y = (pageHeight - finalHeight) / 2;
+
+                pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
+
+                const monthStr = String(selectedMonth + 1).padStart(2, '0');
+                const fileName = `Monitoring_Presensi_Lembur_${selectedEmployee?.full_name}_${selectedYear}-${monthStr}.pdf`;
+                pdf.save(fileName);
+
+                setIsGeneratingPDF(false);
+            })
+            .catch((err) => {
+                console.error("Error generating PDF:", err);
+                setIsGeneratingPDF(false);
+            });
     };
+
 
     const handleDownload = () => {
         if (!reportData) return;

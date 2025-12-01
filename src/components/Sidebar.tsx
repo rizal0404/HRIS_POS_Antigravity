@@ -149,16 +149,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                 </div>
                 )}
-                <div>
-                <h3 className={`px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''} pt-2`}>
-                    <span className={isCollapsed ? 'hidden' : 'inline'}>Layanan Pribadi</span>
-                </h3>
-                <div className="space-y-1">
-                    {/* Jika bukan atasan, tampilkan Presensi di sini */}
-                    {!isManager && renderLink(presensiLink)}
-                    {privateServiceLinks.map(renderLink)}
-                </div>
-                </div>
             </div>
             ) : (
             <div className="space-y-4">
