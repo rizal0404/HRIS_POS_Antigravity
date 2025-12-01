@@ -29,6 +29,12 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
     const today = new Date();
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+    const formatLocalDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
     
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     const [usersToDisplay, setUsersToDisplay] = useState<UserProfile[]>([]);
@@ -133,13 +139,13 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
         const fetchDataForReport = async () => {
             setLoading(true);
             setError(null);
+            const startDate = new Date(selectedYear, selectedMonth, 1);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(selectedYear, selectedMonth + 1, 0);
+            endDate.setHours(23, 59, 59, 999);
             
-            const startDate = new Date(Date.UTC(selectedYear, selectedMonth, 1));
-            const endDate = new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999));
-            
-            const startDateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
-            const monthEndDateObj = new Date(selectedYear, selectedMonth + 1, 0);
-            const endDateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(monthEndDateObj.getDate()).padStart(2, '0')}`;
+            const startDateStr = formatLocalDate(startDate);
+            const endDateStr = formatLocalDate(endDate);
 
             try {
                 const [attendance, overtime, schedule, corrections, otherReqs] = await Promise.all([
