@@ -479,16 +479,34 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                         <h2 className="font-bold text-sm">MONITORING DAFTAR HADIR & SURAT PERINTAH LEMBUR (SPL)</h2>
                     </header>
                     
-                    <div className="grid grid-cols-2 gap-x-8 mb-2">
-                        <div className="grid grid-cols-[90px,1fr] gap-x-2 gap-y-1 leading-tight">
-                            <span>Nama</span><span>: {reportData.header.nama}</span>
-                            <span>No. ID</span><span>: {reportData.header.noId}</span>
-                            <span>Pola Shift</span><span>: {reportData.header.polaShift}</span>
+                    <div className="grid grid-cols-2 gap-x-8 mb-2 text-sm leading-tight">
+                        <div className="space-y-1">
+                            <div className="flex gap-2 items-baseline">
+                                <span className="w-24">Nama</span>
+                                <span className="flex-1">: {reportData.header.nama}</span>
+                            </div>
+                            <div className="flex gap-2 items-baseline">
+                                <span className="w-24">No. ID</span>
+                                <span className="flex-1">: {reportData.header.noId}</span>
+                            </div>
+                            <div className="flex gap-2 items-baseline">
+                                <span className="w-24">Pola Shift</span>
+                                <span className="flex-1">: {reportData.header.polaShift}</span>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-[90px,1fr] gap-x-2 gap-y-1 leading-tight">
-                            <span>Seksi</span><span>: {reportData.header.seksi}</span>
-                            <span>Unit</span><span>: {reportData.header.unit}</span>
-                            <span>Departemen</span><span>: {reportData.header.departemen}</span>
+                        <div className="space-y-1">
+                            <div className="flex gap-2 items-baseline">
+                                <span className="w-24">Seksi</span>
+                                <span className="flex-1">: {reportData.header.seksi}</span>
+                            </div>
+                            <div className="flex gap-2 items-baseline">
+                                <span className="w-24">Unit</span>
+                                <span className="flex-1">: {reportData.header.unit}</span>
+                            </div>
+                            <div className="flex gap-2 items-baseline">
+                                <span className="w-24">Departemen</span>
+                                <span className="flex-1">: {reportData.header.departemen}</span>
+                            </div>
                         </div>
                     </div>
 
