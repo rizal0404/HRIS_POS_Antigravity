@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { UserProfile, Attendance, JadwalKerjaTim, UserRole, Request } from '../../types';
+import { UserProfile, Attendance, JadwalKerjaTim, UserRole, Request, Department } from '../../types';
 import { apiService } from '../../services/apiService';
 import { SearchIcon, ExcelIcon, PrintIcon, XIcon } from '../icons';
 import { getAllSubordinates } from '../../lib/utils';
@@ -18,7 +18,11 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
     
     const [usersToDisplay, setUsersToDisplay] = useState<UserProfile[]>([]);
+    const [availableEmployees, setAvailableEmployees] = useState<UserProfile[]>([]);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+    const [orgStructure, setOrgStructure] = useState<Department[]>([]);
+    const [selectedBureauId, setSelectedBureauId] = useState<number | 'all'>('all');
+    const [selectedSectionId, setSelectedSectionId] = useState<number | 'all'>('all');
     const [attendanceData, setAttendanceData] = useState<Attendance[]>([]);
     const [scheduleData, setScheduleData] = useState<JadwalKerjaTim[]>([]);
     const [correctionData, setCorrectionData] = useState<Request[]>([]);
@@ -27,10 +31,50 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
     const [error, setError] = useState<string | null>(null);
     const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
 
+    const matchOrgIds = (employee: UserProfile, structure: Department[]) => {
+        const position = (employee.position || '').toLowerCase();
+        let matchedSectionId: number | null = null;
+        let matchedBureauId: number | null = null;
+
+        for (const dept of structure) {
+            for (const bureau of dept.bureaus) {
+                if (position.includes(bureau.name.toLowerCase())) {
+                    matchedBureauId = bureau.id;
+                }
+                for (const section of bureau.sections) {
+                    if (position.includes(section.name.toLowerCase())) {
+                        matchedSectionId = section.id;
+                        matchedBureauId = bureau.id;
+                    }
+                }
+            }
+        }
+
+        return { bureauId: matchedBureauId, sectionId: matchedSectionId };
+    };
+
+    const filterEmployeesByOrg = (employees: UserProfile[], structure: Department[], bureauId: number | 'all', sectionId: number | 'all') => {
+        return employees.filter(emp => {
+            const { bureauId: empBureauId, sectionId: empSectionId } = matchOrgIds(emp, structure);
+
+            if (sectionId !== 'all') {
+                return empSectionId === sectionId;
+            }
+            if (bureauId !== 'all') {
+                return empBureauId === bureauId;
+            }
+            return true;
+        });
+    };
+
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const users = await apiService.getProfiles();
+                const [users, structure] = await Promise.all([
+                    apiService.getProfiles(),
+                    apiService.getOrganizationStructure()
+                ]);
+                setOrgStructure(structure);
                 let employees: UserProfile[];
 
                 if (mode === 'self') {
@@ -45,12 +89,11 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
                     }
                 }
                 
-                setUsersToDisplay(employees);
-                if (employees.length > 0) {
-                    setSelectedEmployeeId(employees[0].id);
-                } else {
-                    setLoading(false);
-                }
+                setAvailableEmployees(employees);
+                const filteredEmployees = filterEmployeesByOrg(employees, structure, selectedBureauId, selectedSectionId);
+                setUsersToDisplay(filteredEmployees);
+                setSelectedEmployeeId(filteredEmployees[0]?.id || '');
+                setLoading(false);
             } catch (err) {
                 setError("Gagal memuat data pegawai.");
                 setLoading(false);
@@ -58,6 +101,12 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
         };
         fetchInitialData();
     }, [user, isPrivileged, mode]);
+
+    useEffect(() => {
+        const filteredEmployees = filterEmployeesByOrg(availableEmployees, orgStructure, selectedBureauId, selectedSectionId);
+        setUsersToDisplay(filteredEmployees);
+        setSelectedEmployeeId(prev => filteredEmployees.find(e => e.id === prev)?.id || filteredEmployees[0]?.id || '');
+    }, [selectedBureauId, selectedSectionId, availableEmployees, orgStructure]);
 
     useEffect(() => {
         if (!selectedEmployeeId) return;
@@ -226,10 +275,46 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
                             {Array.from({length: 12}).map((_, i) => <option key={i} value={i}>{new Date(0, i).toLocaleString('id-ID', {month: 'long'})}</option>)}
                         </select>
                     </div>
-                     <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                         <label className="text-sm font-medium">Tahun</label>
                         <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="p-2 border rounded-md text-sm">
                             {Array.from({length: 5}).map((_, i) => <option key={i} value={today.getFullYear() - i}>{today.getFullYear() - i}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium">Biro</label>
+                        <select
+                            value={selectedBureauId === 'all' ? 'all' : String(selectedBureauId)}
+                            onChange={e => {
+                                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                                setSelectedBureauId(val);
+                                setSelectedSectionId('all');
+                            }}
+                            className="p-2 border rounded-md text-sm"
+                        >
+                            <option value="all">Semua Biro</option>
+                            {orgStructure.flatMap(dept => dept.bureaus).map(bureau => (
+                                <option key={bureau.id} value={bureau.id}>{bureau.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium">Seksi</label>
+                        <select
+                            value={selectedSectionId === 'all' ? 'all' : String(selectedSectionId)}
+                            onChange={e => {
+                                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                                setSelectedSectionId(val);
+                            }}
+                            className="p-2 border rounded-md text-sm"
+                        >
+                            <option value="all">Semua Seksi</option>
+                            {(selectedBureauId === 'all'
+                                ? orgStructure.flatMap(dept => dept.bureaus.flatMap(b => b.sections))
+                                : orgStructure.flatMap(dept => dept.bureaus.filter(b => b.id === selectedBureauId).flatMap(b => b.sections))
+                            ).map(section => (
+                                <option key={section.id} value={section.id}>{section.name}</option>
+                            ))}
                         </select>
                     </div>
                     {usersToDisplay.length > 1 && (

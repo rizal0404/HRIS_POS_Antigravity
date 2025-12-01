@@ -343,22 +343,49 @@ CREATE INDEX idx_profiles_manager_id ON profiles(manager_id);
 -- ========= STEP 4: HELPER FUNCTIONS & RLS POLICIES (KRITERIA #8) =========
 -- NOTE: Enable RLS on all tables and define policies for secure, role-based access.
 
+-- Helper: read role from JWT claims; returns '' if missing
+CREATE OR REPLACE FUNCTION app_user_role()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT coalesce(current_setting('request.jwt.claims', true)::json->>'role', '');
+$$;
+
 -- Helper function to check if the current user is a superadmin
--- This function should be created by a superuser (e.g., postgres)
+-- Uses JWT claim first, then falls back to profiles (SECURITY DEFINER)
 CREATE OR REPLACE FUNCTION is_superadmin()
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
-  is_admin BOOLEAN;
+  jwt_role text;
+  by_profile boolean;
 BEGIN
-  -- Bypasses RLS to check the role column in the profiles table.
-  -- SECURITY DEFINER is crucial for this to work correctly.
-  SELECT role = 'superadmin' INTO is_admin
+  jwt_role := app_user_role();
+  IF jwt_role = 'superadmin' THEN
+    RETURN TRUE;
+  END IF;
+
+  SELECT role = 'superadmin' INTO by_profile
   FROM public.profiles
   WHERE id = auth.uid();
-  
-  RETURN COALESCE(is_admin, FALSE);
+
+  RETURN coalesce(by_profile, FALSE);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+-- Helper to check admin or superadmin via JWT claim (for read-only admin access)
+CREATE OR REPLACE FUNCTION is_admin_or_superadmin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT app_user_role() IN ('admin','superadmin');
+$$;
 
 -- Helper function to get all subordinates (direct and indirect) for the current user
 -- This function should also be created by a superuser
@@ -519,7 +546,7 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 -- ==== 1. PROFILES ====
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Superadmins can manage all profiles" ON profiles
-  FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
+  FOR ALL USING (app_user_role() = 'superadmin') WITH CHECK (app_user_role() = 'superadmin');
 CREATE POLICY "Users can view their own, subordinates and colleagues profiles" ON profiles
   FOR SELECT USING (id = auth.uid() OR id IN (SELECT * FROM get_my_subordinates()) OR id IN (SELECT * FROM get_my_colleagues()));
 CREATE POLICY "Users can update their own profile" ON profiles
@@ -529,37 +556,37 @@ CREATE POLICY "Users can update their own profile" ON profiles
 -- ==== 2. MASTER DATA & ORGANIZATIONAL STRUCTURE ====
 -- SHIFTS
 ALTER TABLE shifts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users to read shifts" ON shifts FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to read shifts" ON shifts FOR SELECT USING (auth.role() = 'authenticated' OR is_admin_or_superadmin());
 CREATE POLICY "Allow superadmins to manage shifts" ON shifts FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
 
 -- DEPARTMENTS
 ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users to read departments" ON departments FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to read departments" ON departments FOR SELECT USING (auth.role() = 'authenticated' OR is_admin_or_superadmin());
 CREATE POLICY "Allow superadmins to manage departments" ON departments FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
   
 -- BUREAUS
 ALTER TABLE bureaus ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users to read bureaus" ON bureaus FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to read bureaus" ON bureaus FOR SELECT USING (auth.role() = 'authenticated' OR is_admin_or_superadmin());
 CREATE POLICY "Allow superadmins to manage bureaus" ON bureaus FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
 
 -- SECTIONS
 ALTER TABLE sections ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users to read sections" ON sections FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to read sections" ON sections FOR SELECT USING (auth.role() = 'authenticated' OR is_admin_or_superadmin());
 CREATE POLICY "Allow superadmins to manage sections" ON sections FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
   
 -- LEAVE_TYPES
 ALTER TABLE leave_types ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users to read leave_types" ON leave_types FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to read leave_types" ON leave_types FOR SELECT USING (auth.role() = 'authenticated' OR is_admin_or_superadmin());
 CREATE POLICY "Allow superadmins to manage leave_types" ON leave_types FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
   
 -- HOLIDAYS
 ALTER TABLE holidays ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users to read holidays" ON holidays FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to read holidays" ON holidays FOR SELECT USING (auth.role() = 'authenticated' OR is_admin_or_superadmin());
 CREATE POLICY "Allow superadmins to manage holidays" ON holidays FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
 
 -- OVERTIME_CONFIGURATION
 ALTER TABLE overtime_configuration ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated users to read overtime_configuration" ON overtime_configuration FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to read overtime_configuration" ON overtime_configuration FOR SELECT USING (auth.role() = 'authenticated' OR is_admin_or_superadmin());
 CREATE POLICY "Allow superadmins to manage overtime_configuration" ON overtime_configuration FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
 
 
@@ -567,6 +594,8 @@ CREATE POLICY "Allow superadmins to manage overtime_configuration" ON overtime_c
 ALTER TABLE work_schedules ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Superadmins can manage all work schedules" ON work_schedules
   FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
+CREATE POLICY "Admins can read all work schedules" ON work_schedules
+  FOR SELECT USING (is_admin_or_superadmin());
 -- UPDATED POLICY: Now allows viewing colleagues' schedules
 CREATE POLICY "Users can view own, subordinates, and colleagues schedules" ON work_schedules
   FOR SELECT USING (
@@ -582,6 +611,8 @@ CREATE POLICY "Managers can manage their subordinates' schedules" ON work_schedu
 ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Superadmins can manage all attendance records" ON attendance
   FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
+CREATE POLICY "Admins can read attendance" ON attendance
+  FOR SELECT USING (is_admin_or_superadmin());
 CREATE POLICY "Users can view their own and subordinates' attendance" ON attendance
   FOR SELECT USING (profile_id = auth.uid() OR profile_id IN (SELECT * FROM get_my_subordinates()));
 CREATE POLICY "Users can insert their own attendance" ON attendance
@@ -595,6 +626,8 @@ CREATE POLICY "Users can update their own and subordinates' attendance records" 
 ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Superadmins can manage all requests" ON requests
   FOR ALL USING (is_superadmin()) WITH CHECK (is_superadmin());
+CREATE POLICY "Admins can read requests" ON requests
+  FOR SELECT USING (is_admin_or_superadmin());
 CREATE POLICY "Users can view their own and subordinates' requests" ON requests
   FOR SELECT USING (profile_id = auth.uid() OR profile_id IN (SELECT * FROM get_my_subordinates()));
 CREATE POLICY "Users can insert their own requests" ON requests

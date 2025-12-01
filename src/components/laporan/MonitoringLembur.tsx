@@ -19,6 +19,8 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
     const today = new Date();
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+    const [selectedBureauId, setSelectedBureauId] = useState<number | 'all'>('all');
+    const [selectedSectionId, setSelectedSectionId] = useState<number | 'all'>('all');
     
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
@@ -32,6 +34,42 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
     const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
+
+    const matchOrgIds = (employee: UserProfile, structure: Department[]) => {
+        const position = (employee.position || '').toLowerCase();
+        let matchedSectionId: number | null = null;
+        let matchedBureauId: number | null = null;
+
+        for (const dept of structure) {
+            for (const bureau of dept.bureaus) {
+                if (position.includes(bureau.name.toLowerCase())) {
+                    matchedBureauId = bureau.id;
+                }
+                for (const section of bureau.sections) {
+                    if (position.includes(section.name.toLowerCase())) {
+                        matchedSectionId = section.id;
+                        matchedBureauId = bureau.id;
+                    }
+                }
+            }
+        }
+
+        return { bureauId: matchedBureauId, sectionId: matchedSectionId };
+    };
+
+    const filterEmployeesByOrg = (employees: UserProfile[], structure: Department[], bureauId: number | 'all', sectionId: number | 'all') => {
+        return employees.filter(emp => {
+            const { bureauId: empBureauId, sectionId: empSectionId } = matchOrgIds(emp, structure);
+
+            if (sectionId !== 'all') {
+                return empSectionId === sectionId;
+            }
+            if (bureauId !== 'all') {
+                return empBureauId === bureauId;
+            }
+            return true;
+        });
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -61,7 +99,8 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
                         employees = [user];
                     }
                 }
-                const employeeIds = employees.map(s => s.id);
+                const filteredEmployees = filterEmployeesByOrg(employees, structure, selectedBureauId, selectedSectionId);
+                const employeeIds = filteredEmployees.map(s => s.id);
                 
                 if (employeeIds.length > 0 && config) {
                     const monthStartDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
@@ -116,7 +155,7 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
                         return { bureau: 'Tidak Ditemukan', department: 'Tidak Ditemukan' };
                     };
 
-                    const data = employees.map(sub => {
+                    const data = filteredEmployees.map(sub => {
                         const subMonthlyHours = monthRequests
                             .filter(r => r.profile_id === sub.id)
                             .reduce((sum, r) => sum + calculateHours(r), 0);
@@ -152,7 +191,7 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
             }
         };
         fetchData();
-    }, [user, selectedMonth, selectedYear, isPrivileged, mode]);
+    }, [user, selectedMonth, selectedYear, isPrivileged, mode, selectedBureauId, selectedSectionId]);
 
     
     const paginatedData = useMemo(() => {
@@ -252,6 +291,36 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
                     </select>
                      <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="p-2 border rounded-md text-sm">
                         {Array.from({length: 12}).map((_, i) => <option key={i} value={i}>{new Date(0, i).toLocaleString('id-ID', {month: 'long'})}</option>)}
+                    </select>
+                     <select
+                        value={selectedBureauId === 'all' ? 'all' : String(selectedBureauId)}
+                        onChange={e => {
+                            const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                            setSelectedBureauId(val);
+                            setSelectedSectionId('all');
+                        }}
+                        className="p-2 border rounded-md text-sm"
+                    >
+                        <option value="all">Semua Biro</option>
+                        {orgStructure.flatMap(dept => dept.bureaus).map(bureau => (
+                            <option key={bureau.id} value={bureau.id}>{bureau.name}</option>
+                        ))}
+                    </select>
+                     <select
+                        value={selectedSectionId === 'all' ? 'all' : String(selectedSectionId)}
+                        onChange={e => {
+                            const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                            setSelectedSectionId(val);
+                        }}
+                        className="p-2 border rounded-md text-sm"
+                    >
+                        <option value="all">Semua Seksi</option>
+                        {(selectedBureauId === 'all'
+                            ? orgStructure.flatMap(dept => dept.bureaus.flatMap(b => b.sections))
+                            : orgStructure.flatMap(dept => dept.bureaus.filter(b => b.id === selectedBureauId).flatMap(b => b.sections))
+                        ).map(section => (
+                            <option key={section.id} value={section.id}>{section.name}</option>
+                        ))}
                     </select>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

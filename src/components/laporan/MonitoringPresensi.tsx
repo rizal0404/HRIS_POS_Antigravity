@@ -29,6 +29,8 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
     const today = new Date();
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+    const [selectedBureauId, setSelectedBureauId] = useState<number | 'all'>('all');
+    const [selectedSectionId, setSelectedSectionId] = useState<number | 'all'>('all');
     const formatLocalDate = (date: Date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -37,6 +39,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
     };
     
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+    const [availableEmployees, setAvailableEmployees] = useState<UserProfile[]>([]);
     const [usersToDisplay, setUsersToDisplay] = useState<UserProfile[]>([]);
     const [selectedEmployee, setSelectedEmployee] = useState<UserProfile | null>(null);
     const [orgStructure, setOrgStructure] = useState<Department[]>([]);
@@ -46,6 +49,42 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
     const [reportData, setReportData] = useState<any | null>(null);
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
     const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
+
+    const matchOrgIds = (employee: UserProfile, structure: Department[]) => {
+        const position = (employee.position || '').toLowerCase();
+        let matchedSectionId: number | null = null;
+        let matchedBureauId: number | null = null;
+
+        for (const dept of structure) {
+            for (const bureau of dept.bureaus) {
+                if (position.includes(bureau.name.toLowerCase())) {
+                    matchedBureauId = bureau.id;
+                }
+                for (const section of bureau.sections) {
+                    if (position.includes(section.name.toLowerCase())) {
+                        matchedSectionId = section.id;
+                        matchedBureauId = bureau.id;
+                    }
+                }
+            }
+        }
+
+        return { bureauId: matchedBureauId, sectionId: matchedSectionId };
+    };
+
+    const filterEmployeesByOrg = (employees: UserProfile[], structure: Department[], bureauId: number | 'all', sectionId: number | 'all') => {
+        return employees.filter(emp => {
+            const { bureauId: empBureauId, sectionId: empSectionId } = matchOrgIds(emp, structure);
+
+            if (sectionId !== 'all') {
+                return empSectionId === sectionId;
+            }
+            if (bureauId !== 'all') {
+                return empBureauId === bureauId;
+            }
+            return true;
+        });
+    };
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -71,12 +110,11 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                     }
                 }
                 
-                setUsersToDisplay(employees);
-                if (employees.length > 0) {
-                    setSelectedEmployee(employees[0]);
-                } else {
-                    setLoading(false);
-                }
+                setAvailableEmployees(employees);
+                const filtered = filterEmployeesByOrg(employees, structure, selectedBureauId, selectedSectionId);
+                setUsersToDisplay(filtered);
+                setSelectedEmployee(filtered[0] || null);
+                setLoading(false);
             } catch (err) {
                 setError("Gagal memuat data pegawai.");
                 setLoading(false);
@@ -84,6 +122,16 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
         };
         fetchInitialData();
     }, [user, isPrivileged, mode]);
+
+    useEffect(() => {
+        const filtered = filterEmployeesByOrg(availableEmployees, orgStructure, selectedBureauId, selectedSectionId);
+        setUsersToDisplay(filtered);
+        if (filtered.length > 0) {
+            setSelectedEmployee(prev => filtered.find(emp => emp.id === prev?.id) || filtered[0]);
+        } else {
+            setSelectedEmployee(null);
+        }
+    }, [selectedBureauId, selectedSectionId, availableEmployees, orgStructure]);
     
     const managerName = useMemo(() => {
         if (!selectedEmployee) return '...';
@@ -436,7 +484,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
         <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex flex-wrap items-center gap-3 sm:justify-between mb-4">
                  <h3 className="text-lg font-bold text-gray-800">Monitoring Daftar Hadir & Surat Perintah Lembur (SPL)</h3>
-                 <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <button 
                         onClick={handleDownload}
                         className="flex items-center gap-2 bg-green-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700"
@@ -477,6 +525,42 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                         <label className="text-sm font-medium">Tahun</label>
                         <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="p-2 border rounded-md text-sm">
                             {Array.from({length: 5}).map((_, i) => <option key={i} value={today.getFullYear() - i}>{today.getFullYear() - i}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium">Biro</label>
+                        <select
+                            value={selectedBureauId === 'all' ? 'all' : String(selectedBureauId)}
+                            onChange={e => {
+                                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                                setSelectedBureauId(val);
+                                setSelectedSectionId('all');
+                            }}
+                            className="p-2 border rounded-md text-sm"
+                        >
+                            <option value="all">Semua Biro</option>
+                            {orgStructure.flatMap(dept => dept.bureaus).map(bureau => (
+                                <option key={bureau.id} value={bureau.id}>{bureau.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium">Seksi</label>
+                        <select
+                            value={selectedSectionId === 'all' ? 'all' : String(selectedSectionId)}
+                            onChange={e => {
+                                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                                setSelectedSectionId(val);
+                            }}
+                            className="p-2 border rounded-md text-sm"
+                        >
+                            <option value="all">Semua Seksi</option>
+                            {(selectedBureauId === 'all'
+                                ? orgStructure.flatMap(dept => dept.bureaus.flatMap(b => b.sections))
+                                : orgStructure.flatMap(dept => dept.bureaus.filter(b => b.id === selectedBureauId).flatMap(b => b.sections))
+                            ).map(section => (
+                                <option key={section.id} value={section.id}>{section.name}</option>
+                            ))}
                         </select>
                     </div>
                     {usersToDisplay.length > 1 && (
