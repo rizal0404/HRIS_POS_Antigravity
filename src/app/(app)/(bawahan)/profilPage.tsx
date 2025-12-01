@@ -143,7 +143,7 @@ const ProfilSayaPage: React.FC<ProfilSayaPageProps> = ({ user }) => {
                     
                     <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <InfoField label="Nama Lengkap" value={formData.full_name} disabled />
-                        <InfoField label="NIK" value={formData.nik || '-'} disabled />
+                        <InfoField label="NIK" name="nik" value={formData.nik || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
                         <InfoField label="Jabatan" value={formData.position} disabled />
                         <InfoField label="Email" name="email" value={formData.email} onChange={handleFormChange} disabled={!isEditing} />
                         <InfoField label="Nomor HP" name="phone_number" value={formData.phone_number || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
@@ -151,7 +151,7 @@ const ProfilSayaPage: React.FC<ProfilSayaPageProps> = ({ user }) => {
                         <InfoField type="date" label="Tanggal Lahir" name="date_of_birth" value={formData.date_of_birth || ''} onChange={handleFormChange} disabled={!isEditing} />
                         <InfoField label="Pendidikan Terakhir" name="education_level" value={formData.education_level || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
                         <InfoField label="Jurusan Pendidikan" name="education_major" value={formData.education_major || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
-                        <InfoField label="Status" name="employment_status" value={formData.employment_status || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Contoh: Tetap / Kontrak / Menikah" />
+                        <InfoField label="Status" name="employment_status" value={formData.employment_status || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Contoh: Single / Cerai / Menikah" />
                         <InfoField label="Alamat" name="address" value={formData.address || ''} onChange={handleFormChange} disabled={!isEditing} multiline placeholder="Belum diatur" />
                     </div>
                 </div>

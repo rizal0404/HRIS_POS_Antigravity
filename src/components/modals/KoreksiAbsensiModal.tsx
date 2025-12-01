@@ -103,6 +103,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
     const [reason, setReason] = useState('');
     const [attachment, setAttachment] = useState<File | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [showReview, setShowReview] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -134,10 +135,10 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
         return newDate && newTime && reason.trim() && attachment;
     }, [newDate, newTime, reason, attachment]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleOpenReview = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isFormValid || !attachment) return; // Added null check for attachment
-        onSubmit({ clockType, newDate, newTime, reason, attachment });
+        if (!isFormValid) return;
+        setShowReview(true);
     };
 
     if (!isOpen) return null;
@@ -156,7 +157,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                         <XIcon className="h-6 w-6" />
                     </button>
                 </div>
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleOpenReview}>
                     <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                         <div>
                             <p className="font-semibold">Hari, Tanggal</p>
@@ -252,6 +253,62 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                 </form>
             </div>
             {isCameraOpen && <CameraCapture onCapture={handleCapture} onClose={() => setIsCameraOpen(false)} />}
+            {showReview && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg">
+                        <div className="flex justify-between items-center p-4 border-b">
+                            <h4 className="text-lg font-semibold text-gray-800">Kirim Pembetulan ke Atasan?</h4>
+                            <button onClick={() => setShowReview(false)} className="text-gray-400 hover:text-gray-600">
+                                <XIcon className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-3 text-sm text-gray-700">
+                            <div className="flex justify-between">
+                                <span className="font-medium">Clock Type</span>
+                                <span className="text-gray-900">{clockType === 'in' ? 'Clock In' : 'Clock Out'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-medium">Periode Presensi</span>
+                                <span className="text-gray-900">{newDate}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-medium">Jam (WIB)</span>
+                                <span className="text-gray-900">{newTime}</span>
+                            </div>
+                            <div>
+                                <p className="font-medium">Alasan</p>
+                                <p className="text-gray-800 whitespace-pre-line">{reason}</p>
+                            </div>
+                            {attachment && (
+                                <div className="flex justify-between items-center">
+                                    <span className="font-medium">Lampiran</span>
+                                    <span className="text-gray-900 text-xs">{attachment.name} ({(attachment.size / 1024).toFixed(1)} KB)</span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-4 bg-gray-50 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowReview(false)}
+                                className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                                Revisi
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!isFormValid || !attachment) return;
+                                    onSubmit({ clockType, newDate, newTime, reason, attachment });
+                                    setShowReview(false);
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+                            >
+                                Yakin Kirim ke Atasan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
