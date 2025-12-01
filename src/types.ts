@@ -2,6 +2,7 @@ import React from 'react';
 
 export enum UserRole {
   SUPERADMIN = 'superadmin',
+  ADMIN = 'admin',
   PENDING = 'pending',
   USER = 'user',
 }

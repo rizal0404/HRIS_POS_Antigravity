@@ -60,6 +60,11 @@ const superadminLinks: NavLinkItem[] = [
     { key: 'laporan_semua', label: 'Semua Laporan', icon: DocumentReportIcon, path: '/superadmin/laporan-semua' },
 ];
 
+const adminLinks: NavLinkItem[] = [
+    { key: 'laporan_semua', label: 'Semua Laporan', icon: DocumentReportIcon, path: '/admin/laporan-semua' },
+    { key: 'jadwal_admin', label: 'Jadwal Shift', icon: CalendarIcon, path: '/admin/jadwal-shift' },
+];
+
 const Sidebar: React.FC<SidebarProps> = ({ 
     user,
     isCollapsed, setIsCollapsed, isMobileMenuOpen, setIsMobileMenuOpen, onLogout
@@ -123,6 +128,37 @@ const Sidebar: React.FC<SidebarProps> = ({
             {user.role === UserRole.SUPERADMIN ? (
             <div className="space-y-2">
                 {superadminLinks.map(renderLink)}
+            </div>
+            ) : user.role === UserRole.ADMIN ? (
+            <div className="space-y-4">
+                <div>
+                    <h3 className={`px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
+                        <span className={isCollapsed ? 'hidden' : 'inline'}>Menu Admin</span>
+                    </h3>
+                    <div className="space-y-1">
+                        {adminLinks.map(renderLink)}
+                    </div>
+                </div>
+                {isManager && (
+                <div>
+                    <h3 className={`px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
+                        <span className={isCollapsed ? 'hidden' : 'inline'}>Layanan Tim</span>
+                    </h3>
+                    <div className="space-y-1">
+                    {managerLinks.map(renderLink)}
+                    </div>
+                </div>
+                )}
+                <div>
+                <h3 className={`px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''} pt-2`}>
+                    <span className={isCollapsed ? 'hidden' : 'inline'}>Layanan Pribadi</span>
+                </h3>
+                <div className="space-y-1">
+                    {/* Jika bukan atasan, tampilkan Presensi di sini */}
+                    {!isManager && renderLink(presensiLink)}
+                    {privateServiceLinks.map(renderLink)}
+                </div>
+                </div>
             </div>
             ) : (
             <div className="space-y-4">

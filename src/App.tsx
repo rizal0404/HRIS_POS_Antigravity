@@ -27,6 +27,7 @@ import SuperadminDashboardPage from './app/(app)/(superadmin)/dashboardPage';
 import KonfigurasiPegawaiPage from './app/(app)/(superadmin)/pegawaiPage';
 import KonfigurasiSistemPage from './app/(app)/(superadmin)/sistemPage';
 import SemuaLaporanPage from './app/(app)/(superadmin)/laporan_semuaPage';
+import JadwalAdminPage from './app/(app)/(admin)/jadwal_adminPage';
 import LoginPage from './app/(auth)/LoginPage';
 import ResetPasswordPage from './app/(auth)/ResetPasswordPage';
 import SignupPage from './app/(auth)/SignupPage';
@@ -117,9 +118,11 @@ export default function App() {
     const roleLandingPath = currentUser
         ? currentUser.role === UserRole.SUPERADMIN
             ? '/superadmin/dashboard'
-            : currentUser.isManager
-                ? '/dashboard'
-                : '/absensi'
+            : currentUser.role === UserRole.ADMIN
+                ? '/admin/laporan-semua'
+                : currentUser.isManager
+                    ? '/dashboard'
+                    : '/absensi'
         : '/';
 
     const requireManager = <T,>(node: React.ReactElement<T>) =>
@@ -127,6 +130,11 @@ export default function App() {
 
     const requireSuperadmin = <T,>(node: React.ReactElement<T>) =>
         currentUser?.role === UserRole.SUPERADMIN ? node : <Navigate to={roleLandingPath} replace />;
+
+    const requirePrivileged = <T,>(node: React.ReactElement<T>) =>
+        (currentUser?.role === UserRole.SUPERADMIN || currentUser?.role === UserRole.ADMIN)
+            ? node
+            : <Navigate to={roleLandingPath} replace />;
 
     const loadNotifications = useCallback(async (user: UserProfile, users: UserProfile[]) => {
         try {
@@ -293,6 +301,10 @@ export default function App() {
                         <Route path="superadmin/pegawai" element={requireSuperadmin(<KonfigurasiPegawaiPage user={currentUser} />)} />
                         <Route path="superadmin/sistem" element={requireSuperadmin(<KonfigurasiSistemPage user={currentUser} />)} />
                         <Route path="superadmin/laporan-semua" element={requireSuperadmin(<SemuaLaporanPage user={currentUser} />)} />
+
+                        {/* Admin Routes */}
+                        <Route path="admin/laporan-semua" element={requirePrivileged(<SemuaLaporanPage user={currentUser} />)} />
+                        <Route path="admin/jadwal-shift" element={requirePrivileged(<JadwalAdminPage user={currentUser} />)} />
 
                         {/* General Routes */}
                         <Route path="presensi" element={<PresensiPage user={currentUser} />} />

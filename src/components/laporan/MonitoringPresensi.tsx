@@ -45,7 +45,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
     const [error, setError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<any | null>(null);
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-    const isSuperAdmin = user.role === UserRole.SUPERADMIN;
+    const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -62,7 +62,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                 if (mode === 'self') {
                     employees = users.filter(u => u.id === user.id);
                 } else {
-                    if (isSuperAdmin) {
+                    if (isPrivileged) {
                         employees = users;
                     } else if (user.isManager) {
                         employees = getAllSubordinates(user.id, users);
@@ -83,7 +83,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
             }
         };
         fetchInitialData();
-    }, [user, isSuperAdmin, mode]);
+    }, [user, isPrivileged, mode]);
     
     const managerName = useMemo(() => {
         if (!selectedEmployee) return '...';

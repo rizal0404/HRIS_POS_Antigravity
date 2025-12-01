@@ -9,7 +9,7 @@ import { getSubordinatesWithLevels, getAllSubordinates } from '../../lib/utils';
 
 interface JadwalTimViewProps {
   user: UserProfile;
-  mode: 'team' | 'colleagues';
+  mode: 'team' | 'colleagues' | 'all';
 }
 
 const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
@@ -25,6 +25,11 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
     const [allShifts, setAllShifts] = useState<Shift[]>([]);
     const [holidays, setHolidays] = useState<Holiday[]>([]);
     const [usersToDisplay, setUsersToDisplay] = useState<UserProfile[]>([]);
+
+    const canEdit = mode === 'team';
+    const canUpload = mode === 'team';
+    const canDownload = mode === 'team' || mode === 'all';
+    const showLevelFilter = mode === 'team';
 
 
     const today = useMemo(() => {
@@ -84,6 +89,8 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
                 } else {
                     usersForSchedule = [user]; // If no manager, just show self
                 }
+            } else if (mode === 'all') {
+                usersForSchedule = users;
             } else { // mode === 'team'
                 usersForSchedule = getAllSubordinates(user.id, users);
             }
@@ -183,7 +190,7 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
     }, [subordinatesWithLevels]);
 
     const filteredUsersToDisplay = useMemo(() => {
-        if (mode !== 'team') return usersToDisplay; // No level filtering for colleagues
+        if (!showLevelFilter) return usersToDisplay; // No level filtering for colleagues/admin
 
         const users = levelFilter === 'all'
             ? subordinatesWithLevels.map(s => s.user)
@@ -227,7 +234,7 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
     }, [currentDate, today, todayISO, holidaysMap]);
 
     const handleCellClick = (employee: UserProfile, date: string, shiftCode: string) => {
-        if (mode === 'colleagues') return; // Disable editing for colleagues view
+        if (!canEdit) return; // Disable editing for read-only modes
         setSelectedShiftData({ employee, date, shiftCode });
         setEditModalOpen(true);
     };
@@ -367,7 +374,7 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
                         <button onClick={handleNextMonth} className={`p-2 rounded-full ${mode === 'team' ? 'hover:bg-red-600' : 'hover:bg-blue-600'} transition-colors`}>
                             <ChevronRightIcon className="h-6 w-6" />
                         </button>
-                        {mode === 'team' && (
+                        {showLevelFilter && (
                         <div className="flex items-center gap-2">
                             <label htmlFor="level-filter" className="text-sm font-medium sr-only">Level Bawahan</label>
                             <select
@@ -384,17 +391,21 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
                         </div>
                         )}
                     </div>
-                    {mode === 'team' && (
+                    {canDownload && (
                     <div className="flex flex-wrap items-center gap-2 justify-start md:justify-end">
-                        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} />
                         <button onClick={handleDownload} className="flex items-center gap-2 bg-white text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-100">
                             <DownloadIcon className="h-5 w-5"/><span className="hidden sm:inline">Download</span>
                             <span className="inline sm:hidden">DL</span>
                         </button>
+                        {canUpload && (
+                        <>
+                        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} />
                         <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 bg-white text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed">
                             <UploadIcon className="h-5 w-5"/><span className="hidden sm:inline">{isUploading ? 'Mengunggah...' : 'Upload'}</span>
                             <span className="inline sm:hidden">{isUploading ? '...' : 'UP'}</span>
                         </button>
+                        </>
+                        )}
                     </div>
                     )}
                 </header>
@@ -441,7 +452,7 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
 
                                             return (
                                                 <td key={day.fullDate} 
-                                                    className={`p-0.5 border-r ${cellBgClass} ${style.border} ${mode === 'team' ? 'cursor-pointer hover:ring-2 hover:ring-blue-500' : ''} hover:z-20 relative transition-colors ${day.isToday ? 'ring-2 ring-blue-500' : 'border-b'}`}
+                                                    className={`p-0.5 border-r ${cellBgClass} ${style.border} ${canEdit ? 'cursor-pointer hover:ring-2 hover:ring-blue-500' : ''} hover:z-20 relative transition-colors ${day.isToday ? 'ring-2 ring-blue-500' : 'border-b'}`}
                                                     onClick={() => handleCellClick(sub, day.fullDate, daySchedule?.shift || 'OFF')}>
                                                     <div className={`font-bold text-[11px] ${style.text}`}>{daySchedule?.shift || '-'}</div>
                                                     {daySchedule?.start_time && (
@@ -462,7 +473,7 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
                     )}
                 </div>
             </div>
-            {selectedShiftData && (
+            {canEdit && selectedShiftData && (
                 <EditShiftModal 
                     isOpen={isEditModalOpen}
                     onClose={() => setEditModalOpen(false)}

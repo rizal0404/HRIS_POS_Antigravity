@@ -21,7 +21,7 @@ const QuotaCuti: React.FC<QuotaCutiProps> = ({ user, mode = 'team' }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<any[]>([]);
-    const isSuperAdmin = user.role === UserRole.SUPERADMIN;
+    const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
 
     useEffect(() => {
         const fetchData = async () => {
@@ -36,7 +36,7 @@ const QuotaCuti: React.FC<QuotaCutiProps> = ({ user, mode = 'team' }) => {
                     employees = [user];
                     employeeIds = [user.id];
                 } else {
-                    if (isSuperAdmin) {
+                    if (isPrivileged) {
                         employees = users;
                         employeeIds = users.map(u => u.id);
                     } else if (user.isManager) {
@@ -115,7 +115,7 @@ const QuotaCuti: React.FC<QuotaCutiProps> = ({ user, mode = 'team' }) => {
         };
 
         fetchData();
-    }, [user, selectedYear, isSuperAdmin, mode]);
+    }, [user, selectedYear, isPrivileged, mode]);
 
     
     const paginatedData = useMemo(() => {

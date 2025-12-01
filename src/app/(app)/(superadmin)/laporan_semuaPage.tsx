@@ -29,9 +29,9 @@ const SemuaLaporanPage: React.FC<SemuaLaporanPageProps> = ({ user }) => {
 
     // This function determines which report component to render based on the active tab.
     const renderContent = () => {
-        // Since this is the superadmin view, the underlying components should ideally fetch all data.
+        // Admin/superadmin views rely on the underlying components to fetch all data.
         // For this prototype, we reuse the manager's components. They will display mock data
-        // as if the superadmin is a manager of everyone, as the components are designed to accept a manager's user object.
+        // as if privileged users manage everyone, as the components are designed to accept a manager's user object.
         switch (activeTab) {
             case 'presensi':
                 // The PresensiBawahan component will need to be adjusted in a real app

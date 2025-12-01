@@ -25,7 +25,7 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const isSuperAdmin = user.role === UserRole.SUPERADMIN;
+    const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -36,7 +36,7 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
                 if (mode === 'self') {
                     employees = [user];
                 } else {
-                    if (isSuperAdmin) {
+                    if (isPrivileged) {
                         employees = users;
                     } else if (user.isManager) {
                         employees = getAllSubordinates(user.id, users);
@@ -57,7 +57,7 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
             }
         };
         fetchInitialData();
-    }, [user, isSuperAdmin, mode]);
+    }, [user, isPrivileged, mode]);
 
     useEffect(() => {
         if (!selectedEmployeeId) return;

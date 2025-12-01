@@ -39,7 +39,7 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
                 ]);
 
                 let employees: UserProfile[];
-                if (user.role === UserRole.SUPERADMIN) {
+                if (user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN) {
                     employees = users;
                 } else if (user.isManager) {
                     const subordinates = getAllSubordinates(user.id, users);

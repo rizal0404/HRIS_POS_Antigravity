@@ -24,7 +24,7 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [overtimeRequests, setOvertimeRequests] = useState<Request[]>([]);
-    const isSuperAdmin = user.role === UserRole.SUPERADMIN;
+    const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
     
     useEffect(() => {
         const fetchData = async () => {
@@ -37,7 +37,7 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
                 if (mode === 'self') {
                     employeeIds = [user.id];
                 } else {
-                    if (isSuperAdmin) {
+                    if (isPrivileged) {
                         employeeIds = users.map(u => u.id);
                     } else if (user.isManager) {
                         const subordinates = getAllSubordinates(user.id, users);
@@ -62,7 +62,7 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
             }
         };
         fetchData();
-    }, [user, selectedMonth, selectedYear, isSuperAdmin, mode]);
+    }, [user, selectedMonth, selectedYear, isPrivileged, mode]);
 
     const processedData = useMemo(() => {
         let accumulatedHours: { [key: string]: number } = {};

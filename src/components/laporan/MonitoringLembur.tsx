@@ -31,7 +31,7 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
     const [orgStructure, setOrgStructure] = useState<Department[]>([]);
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-    const isSuperAdmin = user.role === UserRole.SUPERADMIN;
+    const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
 
     useEffect(() => {
         const fetchData = async () => {
@@ -53,7 +53,7 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
                 if (mode === 'self') {
                     employees = [user];
                 } else {
-                    if (isSuperAdmin) {
+                    if (isPrivileged) {
                         employees = users;
                     } else if (user.isManager) {
                         employees = getAllSubordinates(user.id, users);
@@ -152,7 +152,7 @@ const MonitoringLembur: React.FC<MonitoringLemburProps> = ({ user, mode = 'team'
             }
         };
         fetchData();
-    }, [user, selectedMonth, selectedYear, isSuperAdmin, mode]);
+    }, [user, selectedMonth, selectedYear, isPrivileged, mode]);
 
     
     const paginatedData = useMemo(() => {
