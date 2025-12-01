@@ -17,6 +17,7 @@ import {
     XIcon,
     CalendarIcon,
     AcademicCapIcon,
+    CalculatorIcon,
 } from './icons';
 import { defaultLogo, getBrandLogoUrl } from '@/lib/branding';
 
@@ -42,6 +43,7 @@ const privateServiceLinks: NavLinkItem[] = [
     { key: 'pengajuan', label: 'Pengajuan Saya', icon: DocumentAddIcon, path: '/pengajuan' },
     { key: 'riwayat', label: 'Riwayat Saya', icon: CollectionIcon, path: '/riwayat' },
     { key: 'laporan_saya', label: 'Laporan Saya', icon: DocumentReportIcon, path: '/laporan' },
+    { key: 'kpi', label: 'Hitung KPI', icon: CalculatorIcon, path: '/kpi' },
     { key: 'profil', label: 'Profil Saya', icon: AcademicCapIcon, path: '/profil' },
 ];
 
@@ -59,11 +61,13 @@ const superadminLinks: NavLinkItem[] = [
     { key: 'pegawai', label: 'Konfigurasi Pegawai', icon: UsersIcon, path: '/superadmin/pegawai' },
     { key: 'sistem', label: 'Konfigurasi Sistem', icon: CogIcon, path: '/superadmin/sistem' },
     { key: 'laporan_semua', label: 'Semua Laporan', icon: DocumentReportIcon, path: '/superadmin/laporan-semua' },
+    { key: 'kpi', label: 'Hitung KPI', icon: CalculatorIcon, path: '/kpi' },
 ];
 
 const adminLinks: NavLinkItem[] = [
     { key: 'laporan_semua', label: 'Semua Laporan', icon: DocumentReportIcon, path: '/admin/laporan-semua' },
     { key: 'jadwal_admin', label: 'Jadwal Shift', icon: CalendarIcon, path: '/admin/jadwal-shift' },
+    { key: 'kpi', label: 'Hitung KPI', icon: CalculatorIcon, path: '/kpi' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ 

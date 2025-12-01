@@ -28,6 +28,7 @@ import KonfigurasiPegawaiPage from './app/(app)/(superadmin)/pegawaiPage';
 import KonfigurasiSistemPage from './app/(app)/(superadmin)/sistemPage';
 import SemuaLaporanPage from './app/(app)/(superadmin)/laporan_semuaPage';
 import JadwalAdminPage from './app/(app)/(admin)/jadwal_adminPage';
+import KpiPage from './app/(app)/kpiPage';
 import LoginPage from './app/(auth)/LoginPage';
 import ResetPasswordPage from './app/(auth)/ResetPasswordPage';
 import SignupPage from './app/(auth)/SignupPage';
@@ -308,6 +309,7 @@ export default function App() {
 
                         {/* General Routes */}
                         <Route path="presensi" element={<PresensiPage user={currentUser} />} />
+                        <Route path="kpi" element={<KpiPage user={currentUser} />} />
                         
                         {/* Redirect any other authenticated path to role-specific landing */}
                         <Route
