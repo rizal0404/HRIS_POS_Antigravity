@@ -98,15 +98,49 @@ const JadwalTimView: React.FC<JadwalTimViewProps> = ({ user, mode }) => {
                 const endDateObj = new Date(year, month + 1, 0);
                 const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
                 
-                const schedulesFromApi = await apiService.getTeamSchedules(userIds, startDate, endDate);
-                const schedulesByUser: Record<string, JadwalKerjaTim[]> = {};
-                for (const schedule of schedulesFromApi) {
-                    const profileId = schedule.profile_id;
-                    if (!schedulesByUser[profileId]) {
-                        schedulesByUser[profileId] = [];
+                const [schedulesFromApi, approvedSubs] = await Promise.all([
+                    apiService.getTeamSchedules(userIds, startDate, endDate),
+                    apiService.getApprovedSubstitutionRequests(userIds, startDate, endDate),
+                ]);
+
+                // Apply approved Substitusi to schedules
+                const shiftMap = new Map(shifts.map(s => [s.code, s]));
+                const scheduleMap = new Map<string, JadwalKerjaTim>();
+                schedulesFromApi.forEach(s => {
+                    scheduleMap.set(`${s.profile_id}-${s.date}`, { ...s });
+                });
+                approvedSubs.forEach(req => {
+                    let newShiftCode = '';
+                    try {
+                        const parsed = JSON.parse(req.reason);
+                        newShiftCode = parsed?.shift_baru?.code || parsed?.shift_baru || '';
+                    } catch (e) {
+                        // ignore malformed payload
                     }
-                    schedulesByUser[profileId].push(schedule);
-                }
+                    if (!newShiftCode) return;
+                    const shiftMeta = shiftMap.get(newShiftCode);
+                    const start = new Date(req.start_date);
+                    const end = new Date(req.end_date);
+                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        const key = `${req.profile_id}-${dateStr}`;
+                        const existing = scheduleMap.get(key) || { profile_id: req.profile_id, date: dateStr, shift: '' };
+                        scheduleMap.set(key, {
+                            ...existing,
+                            shift: newShiftCode,
+                            start_time: shiftMeta?.start_time ?? existing.start_time,
+                            end_time: shiftMeta?.end_time ?? existing.end_time,
+                        });
+                    }
+                });
+
+                const schedulesByUser: Record<string, JadwalKerjaTim[]> = {};
+                Array.from(scheduleMap.values()).forEach(schedule => {
+                    if (!schedulesByUser[schedule.profile_id]) {
+                        schedulesByUser[schedule.profile_id] = [];
+                    }
+                    schedulesByUser[schedule.profile_id].push(schedule);
+                });
                 setTeamScheduleData(schedulesByUser);
             } else {
                 setTeamScheduleData({});

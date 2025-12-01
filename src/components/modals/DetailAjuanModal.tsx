@@ -77,14 +77,26 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
         }
     }, [request]);
 
+    const substitusiDetails = useMemo(() => {
+        if (!request || request.request_type !== RequestType.SUBSTITUSI) return null;
+        try {
+            return JSON.parse(request.reason) as { shift_awal?: { code?: string; name?: string }; shift_baru?: { code?: string; name?: string }; keterangan?: string };
+        } catch (e) {
+            return null;
+        }
+    }, [request]);
+
     const reasonText = useMemo(() => {
         if (!request) return '';
         if (cutiDetails) {
             return `"${cutiDetails.reason || 'Tidak ada alasan'}"`;
         }
+        if (substitusiDetails) {
+            return `"${substitusiDetails.keterangan || request.reason}"`;
+        }
         // Fallback for non-JSON or other request types
         return `"${request.reason}"`;
-    }, [request, cutiDetails]);
+    }, [request, cutiDetails, substitusiDetails]);
 
     const actionDate = useMemo(() => {
         // updated_at is the timestamp for the approval/rejection action
@@ -107,6 +119,12 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
 
 
     if (!isOpen || !request) return null;
+
+    const formatShiftInfo = (shift?: { code?: string; name?: string }) => {
+        if (!shift) return '-';
+        if (shift.name && shift.code) return `${shift.name} (${shift.code})`;
+        return shift.name || shift.code || '-';
+    };
 
     const findUserNameById = (id?: string) => allUsers.find(u => u.id === id)?.full_name || 'N/A';
 
@@ -136,6 +154,13 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                 );
             case RequestType.LEMBUR:
                 return <InfoRow label="Waktu Lembur" value={`${request.start_time} - ${request.end_time}`} />;
+            case RequestType.SUBSTITUSI:
+                return (
+                    <>
+                        <InfoRow label="Shift Awal" value={formatShiftInfo(substitusiDetails?.shift_awal)} />
+                        <InfoRow label="Shift Baru" value={formatShiftInfo(substitusiDetails?.shift_baru)} />
+                    </>
+                );
             case RequestType.SAKIT:
             case RequestType.KOREKSI: // Also show attachment for Koreksi
                  return (
@@ -182,6 +207,14 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                 </div>
             )
         }
+
+        if (request.request_type === RequestType.SUBSTITUSI && substitusiDetails) {
+            return (
+                <p className="text-md text-gray-800 bg-gray-50 p-3 rounded-md mt-1 italic whitespace-pre-line">
+                    "{substitusiDetails.keterangan || '-'}"
+                </p>
+            );
+        }
         
         return <p className="text-md text-gray-800 bg-gray-50 p-3 rounded-md mt-1 italic whitespace-pre-line">{reasonText}</p>
     };
@@ -194,6 +227,11 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
     const period = request.start_date === request.end_date 
         ? formattedStartDate 
         : `${formattedStartDate} - ${formattedEndDate}`;
+    const periodLabel = request.request_type === RequestType.LEMBUR 
+        ? "Tanggal Lembur" 
+        : request.request_type === RequestType.SUBSTITUSI 
+            ? "Tanggal" 
+            : "Periode";
 
     return (
         <>
@@ -212,7 +250,7 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                         </div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <InfoRow label={request.request_type === RequestType.LEMBUR ? "Tanggal Lembur" : "Periode"} value={period} />
+                            <InfoRow label={periodLabel} value={period} />
                             {renderRequestSpecificDetails()}
                         </div>
                         

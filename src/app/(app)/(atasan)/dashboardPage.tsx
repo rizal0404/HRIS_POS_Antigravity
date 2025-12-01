@@ -114,6 +114,7 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
         [RequestType.LEMBUR]: <ClockIcon className="h-6 w-6 text-orange-600" />,
         [RequestType.SAKIT]: <DocumentAddIcon className="h-6 w-6 text-red-600" />,
         [RequestType.IZIN]: <DocumentAddIcon className="h-6 w-6 text-yellow-600" />,
+        [RequestType.SUBSTITUSI]: <DocumentAddIcon className="h-6 w-6 text-indigo-600" />,
         [RequestType.KOREKSI]: <CheckCircleIcon className="h-6 w-6 text-green-600" />,
     };
 

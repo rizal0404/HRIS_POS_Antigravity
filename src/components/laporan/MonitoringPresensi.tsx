@@ -148,12 +148,14 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
             const endDateStr = formatLocalDate(endDate);
 
             try {
-                const [attendance, overtime, schedule, corrections, otherReqs] = await Promise.all([
+                const [attendance, overtime, schedule, corrections, otherReqs, shifts, substitutions] = await Promise.all([
                     apiService.getAttendanceForSubordinates([selectedEmployee.id], startDate.toISOString(), endDate.toISOString()),
                     apiService.getOvertimeRequestsForSubordinates([selectedEmployee.id], startDateStr, endDateStr),
                     apiService.getTeamSchedules([selectedEmployee.id], startDateStr, endDateStr),
                     apiService.getCorrectionRequestsForSubordinates([selectedEmployee.id], startDateStr, endDateStr),
-                    apiService.getOtherApprovedRequestsForPeriod([selectedEmployee.id], startDateStr, endDateStr)
+                    apiService.getOtherApprovedRequestsForPeriod([selectedEmployee.id], startDateStr, endDateStr),
+                    apiService.getShifts(),
+                    apiService.getApprovedSubstitutionRequests([selectedEmployee.id], startDateStr, endDateStr),
                 ]);
 
                 const attendanceMap = new Map(attendance.map(a => {
@@ -162,7 +164,29 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                     return [key, a];
                 }));
                 const overtimeMap = new Map(overtime.map(o => [o.start_date, o]));
-                const scheduleMap = new Map(schedule.map(s => [s.date, s]));
+                const shiftMap = new Map(shifts.map(s => [s.code, s]));
+                const scheduleMap = new Map(schedule.map(s => [s.date, { ...s }]));
+                substitutions.forEach(req => {
+                    let newShiftCode = '';
+                    try {
+                        const parsed = JSON.parse(req.reason);
+                        newShiftCode = parsed?.shift_baru?.code || parsed?.shift_baru || '';
+                    } catch (e) {
+                        // ignore
+                    }
+                    if (!newShiftCode) return;
+                    const meta = shiftMap.get(newShiftCode);
+                    const d = new Date(req.start_date);
+                    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    const existing = scheduleMap.get(dateStr) || { profile_id: selectedEmployee.id, date: dateStr, shift: '' };
+                    scheduleMap.set(dateStr, {
+                        ...existing,
+                        shift: newShiftCode,
+                        start_time: meta?.start_time ?? existing.start_time,
+                        end_time: meta?.end_time ?? existing.end_time,
+                    });
+                });
+                const substitutionMap = new Map(substitutions.map(req => [req.start_date, req]));
                 const correctionMap = new Map(corrections.map(c => [String(c.attendance_id_to_correct), c]));
                 
                 const findRequestForDate = (dateStr: string, requests: Request[]): Request | null => {
@@ -184,6 +208,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                     const ot = overtimeMap.get(dateStr);
                     const sch = scheduleMap.get(dateStr);
                     const otherReq = findRequestForDate(dateStr, otherReqs);
+                    const substitution = substitutionMap.get(dateStr);
                     const correction = att ? correctionMap.get(String(att.id)) : null;
 
                     let jamLembur = '';
@@ -197,7 +222,9 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                     }
 
                     let keterangan = '';
-                    if (otherReq) {
+                    if (substitution) {
+                        keterangan = RequestType.SUBSTITUSI.toUpperCase();
+                    } else if (otherReq) {
                         keterangan = otherReq.request_type.toUpperCase();
                     } else if (att) {
                         if (att.status.toUpperCase() !== 'HADIR') {

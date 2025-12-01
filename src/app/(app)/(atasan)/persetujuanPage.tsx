@@ -19,6 +19,26 @@ const RequestApprovalCard: React.FC<{
     onAction: (id: string, newStatus: RequestStatus) => void;
     onViewDetails: () => void;
 }> = ({ request, requester, onAction, onViewDetails }) => {
+    const reasonPreview = useMemo(() => {
+        if (request.request_type === RequestType.SUBSTITUSI) {
+            try {
+                const parsed = JSON.parse(request.reason);
+                return parsed.keterangan || request.reason;
+            } catch (e) {
+                return request.reason;
+            }
+        }
+        if (request.request_type === RequestType.CUTI && request.reason.startsWith('{')) {
+            try {
+                const parsed = JSON.parse(request.reason);
+                return parsed.reason || request.reason;
+            } catch (e) {
+                return request.reason;
+            }
+        }
+        return request.reason;
+    }, [request]);
+
     return (
         <div 
             className={`bg-white rounded-lg shadow-sm p-5 flex flex-col justify-between transition-shadow hover:shadow-lg cursor-pointer ${request.status === RequestStatus.PENDING ? 'border-2 border-blue-500' : 'border-2 border-transparent'}`}
@@ -41,7 +61,7 @@ const RequestApprovalCard: React.FC<{
                     <p><span className="font-semibold">Periode:</span> {formatDate(new Date(request.start_date))}{request.end_date !== request.start_date ? ` - ${formatDate(new Date(request.end_date))}` : ''}</p>
                     <p>
                         <span className="font-semibold">Alasan:</span> 
-                        <span className="italic">"{request.reason.length > 100 ? `${request.reason.substring(0, 100)}...` : request.reason}"</span>
+                        <span className="italic">"{reasonPreview.length > 100 ? `${reasonPreview.substring(0, 100)}...` : reasonPreview}"</span>
                     </p>
                 </div>
             </div>

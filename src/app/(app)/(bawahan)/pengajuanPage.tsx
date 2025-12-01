@@ -16,7 +16,32 @@ const RequestCard: React.FC<{ request: Request; allUsers: UserProfile[] }> = ({ 
     const usersMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.full_name])), [allUsers]);
 
     const renderReasonDetails = () => {
+        const renderShiftLabel = (shift?: { code?: string; name?: string }) => {
+            if (!shift) return '-';
+            if (shift.name && shift.code) return `${shift.name} (${shift.code})`;
+            return shift.name || shift.code || '-';
+        };
+
         if (request.request_type !== RequestType.CUTI || !request.reason.startsWith('{')) {
+            if (request.request_type === RequestType.SUBSTITUSI) {
+                try {
+                    const parsed = JSON.parse(request.reason);
+                    return (
+                        <div className="mt-2 space-y-1">
+                            <p><span className="font-semibold">Keterangan:</span> {parsed.keterangan || request.reason}</p>
+                            <p className="text-sm text-gray-600">Shift Awal: {renderShiftLabel(parsed.shift_awal)}</p>
+                            <p className="text-sm text-gray-600">Shift Baru: {renderShiftLabel(parsed.shift_baru)}</p>
+                        </div>
+                    );
+                } catch (e) {
+                    return (
+                        <p className="mt-2">
+                            <span className="font-semibold">Alasan:</span> {request.reason}
+                        </p>
+                    );
+                }
+            }
+
             return (
                 <p className="mt-2">
                     <span className="font-semibold">Alasan:</span> {request.reason}

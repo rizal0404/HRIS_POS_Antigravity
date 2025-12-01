@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Request, RequestType, UserProfile, JadwalKerjaTim, Holiday, RequestStatus } from '../../types';
+import { Request, RequestType, UserProfile, Shift } from '../../types';
 import { XIcon, UploadIcon, CameraIcon } from '../icons';
 import { supabase } from '../../services/supabase';
 import { apiService } from '../../services/apiService';
@@ -132,14 +132,22 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
     const [leaveDays, setLeaveDays] = useState<number | null>(null);
     const [dailySubstitutes, setDailySubstitutes] = useState<Record<string, DailySubstitute>>({});
     const [workingDates, setWorkingDates] = useState<string[]>([]);
+    const [shifts, setShifts] = useState<Shift[]>([]);
+    const [currentShiftCode, setCurrentShiftCode] = useState('');
+    const [newShiftCode, setNewShiftCode] = useState('');
+    const [isLoadingCurrentShift, setIsLoadingCurrentShift] = useState(false);
 
 
     useEffect(() => {
         if (isOpen) {
             const fetchPrerequisites = async () => {
                 try {
-                    const users = await apiService.getProfiles();
+                    const [users, shiftList] = await Promise.all([
+                        apiService.getProfiles(),
+                        apiService.getShifts(),
+                    ]);
                     setAllUsers(users.filter(u => u.id !== user.id));
+                    setShifts(shiftList || []);
                 } catch (err) {
                     logError("Failed to fetch prerequisites for request modal", err);
                     setError("Gagal memuat data pendukung.");
@@ -174,6 +182,35 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
         
         fetchScheduleForDate();
     }, [requestType, startDate, user.id]);
+
+    useEffect(() => {
+        const fetchCurrentShift = async () => {
+            if (!isOpen || requestType !== RequestType.SUBSTITUSI) {
+                setCurrentShiftCode('');
+                return;
+            }
+            if (!startDate) return;
+            setIsLoadingCurrentShift(true);
+            setValidationError(null);
+            setEndDate(startDate);
+            try {
+                const schedules = await apiService.getTeamSchedules([user.id], startDate, startDate);
+                const shiftCode = schedules && schedules.length > 0 ? schedules[0].shift : '';
+                setCurrentShiftCode(shiftCode || '');
+                if (!shiftCode) {
+                    setValidationError('Tidak ada jadwal kerja pada tanggal ini.');
+                }
+            } catch (err) {
+                logError("Failed to fetch schedule for substitusi date", err);
+                setValidationError('Gagal memuat jadwal shift.');
+                setCurrentShiftCode('');
+            } finally {
+                setIsLoadingCurrentShift(false);
+            }
+        };
+
+        fetchCurrentShift();
+    }, [isOpen, requestType, startDate, user.id]);
 
     const checkValidity = useCallback(async () => {
         const effectiveEndDate = (requestType === RequestType.LEMBUR || !endDate) ? startDate : endDate;
@@ -217,6 +254,13 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                 }
             }
             
+            if (requestType === RequestType.SUBSTITUSI) {
+                if (!currentShiftCode && !isLoadingCurrentShift) {
+                    setValidationError('Tidak ada jadwal kerja pada tanggal ini.');
+                }
+                return;
+            }
+
             if (requestType === RequestType.CUTI) {
                 // Fetch schedules for all potential substitutes
                 if (allUsers.length > 0) {
@@ -273,7 +317,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
         } finally {
             setIsChecking(false);
         }
-    }, [startDate, endDate, user.id, requestType, allUsers]);
+    }, [startDate, endDate, user.id, requestType, allUsers, currentShiftCode, isLoadingCurrentShift]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -302,6 +346,9 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
             setDailySubstitutes({});
             setWorkingDates([]);
             setAllSchedules({});
+            setCurrentShiftCode('');
+            setNewShiftCode('');
+            setIsLoadingCurrentShift(false);
         }
     }, [isOpen, user.id]);
 
@@ -325,6 +372,13 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
             }
         }));
     };
+
+    const formatShiftLabel = useCallback((code: string) => {
+        if (!code) return '';
+        const found = shifts.find(s => s.code === code);
+        if (!found) return code;
+        return found.name ? `${found.name} (${found.code})` : found.code;
+    }, [shifts]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -373,6 +427,17 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                         end_time: endTime,
                     };
                     break;
+                case RequestType.SUBSTITUSI:
+                    finalRequestData = {
+                        ...baseRequestData,
+                        end_date: startDate,
+                        reason: JSON.stringify({
+                            shift_awal: { code: currentShiftCode, name: formatShiftLabel(currentShiftCode) },
+                            shift_baru: { code: newShiftCode, name: formatShiftLabel(newShiftCode) },
+                            keterangan: reason,
+                        }),
+                    };
+                    break;
                 case RequestType.SAKIT:
                     finalRequestData = {
                         ...baseRequestData,
@@ -401,6 +466,10 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
 
     const isFormValid = useMemo(() => {
         if (!startDate || !reason.trim()) return false;
+
+        if (requestType === RequestType.SUBSTITUSI) {
+            return !!(currentShiftCode && newShiftCode && newShiftCode !== currentShiftCode);
+        }
         
         if (requestType !== RequestType.LEMBUR) {
             if (!endDate || new Date(endDate) < new Date(startDate)) return false;
@@ -417,7 +486,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
         }
 
         return false;
-    }, [startDate, endDate, reason, requestType, startTime, endTime, attachment, leaveDays]);
+    }, [startDate, endDate, reason, requestType, startTime, endTime, attachment, leaveDays, currentShiftCode, newShiftCode]);
 
 
     if (!isOpen) return null;
@@ -475,6 +544,49 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed" 
                                             disabled 
                                         />
+                                    </div>
+                                </div>
+                            ) : requestType === RequestType.SUBSTITUSI ? (
+                                <div className="sm:col-span-2 space-y-4">
+                                    <div>
+                                        <label htmlFor="substituteDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                            Tanggal <span className="text-red-500">*</span>
+                                        </label>
+                                        <input 
+                                            type="date" 
+                                            id="substituteDate" 
+                                            value={startDate} 
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Shift Awal <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={isLoadingCurrentShift ? 'Memuat shift...' : (formatShiftLabel(currentShiftCode) || 'Tidak ada jadwal')}
+                                            readOnly
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Shift Baru <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            value={newShiftCode}
+                                            onChange={(e) => setNewShiftCode(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                        >
+                                            <option value="">Pilih Shift Baru</option>
+                                            {shifts.map(shift => (
+                                                <option key={shift.code} value={shift.code}>
+                                                    {shift.name} ({shift.code})
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             ) : (
@@ -614,9 +726,11 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                         )}
 
                         <div>
-                            <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">Alasan</label>
+                            <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
+                                {requestType === RequestType.SUBSTITUSI ? 'Keterangan' : 'Alasan'}
+                            </label>
                             <textarea id="reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
-                                placeholder="Jelaskan alasan pengajuan Anda..."
+                                placeholder={requestType === RequestType.SUBSTITUSI ? 'Keterangan' : 'Jelaskan alasan pengajuan Anda...'}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                                 required
                             ></textarea>

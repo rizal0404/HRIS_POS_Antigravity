@@ -627,4 +627,17 @@ export const apiService = {
             .gte('end_date', startDate);  // Request ends on or after the period starts
         return handleSupabaseError({ data, error }, 'getOtherApprovedRequestsForPeriod');
     },
+
+    async getApprovedSubstitutionRequests(profileIds: string[], startDate: string, endDate: string): Promise<Request[]> {
+        if (profileIds.length === 0) return [];
+        const { data, error } = await supabase
+            .from('requests')
+            .select('*, approvers:approver_id(full_name)')
+            .in('profile_id', profileIds)
+            .eq('request_type', RequestType.SUBSTITUSI)
+            .eq('status', RequestStatus.APPROVED)
+            .lte('start_date', endDate)
+            .gte('end_date', startDate);
+        return handleSupabaseError({ data, error }, 'getApprovedSubstitutionRequests');
+    },
 };

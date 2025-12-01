@@ -42,6 +42,7 @@ export enum RequestType {
     CUTI = 'Cuti',
     LEMBUR = 'Lembur',
     IZIN = 'Izin',
+    SUBSTITUSI = 'Substitusi',
     SAKIT = 'Sakit',
     KOREKSI = 'Koreksi Absensi',
     REGISTRASI = 'Registrasi Pegawai',

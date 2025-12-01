@@ -47,6 +47,29 @@ const renderDetails = (item: HistoryEvent, usersMap: Map<string, string>) => {
     }
     
     // It's a request
+    if (item.request_type === RequestType.SUBSTITUSI) {
+        try {
+            const parsed = JSON.parse(item.reason);
+            const renderShiftLabel = (shift?: { code?: string; name?: string }) => {
+                if (!shift) return '-';
+                if (shift.name && shift.code) return `${shift.name} (${shift.code})`;
+                return shift.name || shift.code || '-';
+            };
+
+            return (
+                <div>
+                    <p className="text-sm text-gray-600 italic">"{parsed.keterangan || item.reason}"</p>
+                    <div className="mt-2 text-xs text-gray-600 space-y-1">
+                        <p>Shift Awal: <span className="font-semibold text-gray-800">{renderShiftLabel(parsed.shift_awal)}</span></p>
+                        <p>Shift Baru: <span className="font-semibold text-gray-800">{renderShiftLabel(parsed.shift_baru)}</span></p>
+                    </div>
+                </div>
+            );
+        } catch (e) {
+            return <p className="text-sm text-gray-600 italic">"{item.reason}"</p>;
+        }
+    }
+
     if (item.request_type === RequestType.CUTI && item.reason.startsWith('{')) {
          try {
             const parsed = JSON.parse(item.reason);

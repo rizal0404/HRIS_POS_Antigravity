@@ -73,13 +73,40 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
             const endDateStr = endDate.toISOString().split('T')[0];
 
             try {
-                const [attendance, schedules, corrections] = await Promise.all([
+                const [attendance, schedules, corrections, shiftsResp, substitutions] = await Promise.all([
                     apiService.getAttendanceForSubordinates([selectedEmployeeId], startDate.toISOString(), endDate.toISOString()),
                     apiService.getTeamSchedules([selectedEmployeeId], startDateStr, endDateStr),
-                    apiService.getCorrectionRequestsForSubordinates([selectedEmployeeId], startDateStr, endDateStr)
+                    apiService.getCorrectionRequestsForSubordinates([selectedEmployeeId], startDateStr, endDateStr),
+                    apiService.getShifts(),
+                    apiService.getApprovedSubstitutionRequests([selectedEmployeeId], startDateStr, endDateStr),
                 ]);
                 setAttendanceData(attendance);
-                setScheduleData(schedules);
+
+                const shiftMap = new Map(shiftsResp.map(s => [s.code, s]));
+                const scheduleMap = new Map<string, JadwalKerjaTim>();
+                schedules.forEach(s => scheduleMap.set(`${s.profile_id}-${s.date}`, { ...s }));
+                substitutions.forEach(req => {
+                    let newShiftCode = '';
+                    try {
+                        const parsed = JSON.parse(req.reason);
+                        newShiftCode = parsed?.shift_baru?.code || parsed?.shift_baru || '';
+                    } catch (e) {
+                        // ignore
+                    }
+                    if (!newShiftCode) return;
+                    const meta = shiftMap.get(newShiftCode);
+                    const d = new Date(req.start_date);
+                    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    const key = `${req.profile_id}-${dateStr}`;
+                    const existing = scheduleMap.get(key) || { profile_id: req.profile_id, date: dateStr, shift: '' };
+                    scheduleMap.set(key, {
+                        ...existing,
+                        shift: newShiftCode,
+                        start_time: meta?.start_time ?? existing.start_time,
+                        end_time: meta?.end_time ?? existing.end_time,
+                    });
+                });
+                setScheduleData(Array.from(scheduleMap.values()));
                 setCorrectionData(corrections);
             } catch (err) {
                 setError("Gagal memuat data presensi.");
