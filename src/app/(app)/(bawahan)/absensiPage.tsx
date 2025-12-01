@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { formatDate, formatTime } from '../../../lib/utils';
 import { ClockIcon, LocationMarkerIcon } from '../../../components/icons';
-import { UserProfile, Attendance, JadwalKerjaTim } from '../../../types';
+import { UserProfile, Attendance, JadwalKerjaTim, Shift } from '../../../types';
 import { ClockInModal } from '../../../components/modals/ClockInOutModal';
 import { apiService } from '../../../services/apiService';
 
@@ -36,6 +36,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const [toastMessage, setToastMessage] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [isOnApprovedLeave, setIsOnApprovedLeave] = useState(false);
   const [jadwal, setJadwal] = useState<JadwalKerjaTim[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
 
   const formatLocalDate = useCallback((date: Date) => {
       const year = date.getFullYear();
@@ -52,13 +53,43 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
           const startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 1));
           const endDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
-          const [attendance, approvedLeaves, scheduleData] = await Promise.all([
+          const [attendance, approvedLeaves, scheduleData, shiftList, substitutions] = await Promise.all([
              apiService.getActiveAttendance(user.id),
              apiService.getApprovedLeaves(user.id, todayISO),
-             apiService.getTeamSchedules([user.id], startDate, endDate)
+             apiService.getTeamSchedules([user.id], startDate, endDate),
+             apiService.getShifts(),
+             apiService.getApprovedSubstitutionRequests([user.id], startDate, endDate),
           ]);
           
-          setJadwal(scheduleData);
+          setShifts(shiftList);
+
+          const shiftMap = new Map(shiftList.map(s => [s.code, s]));
+          const scheduleMap = new Map<string, JadwalKerjaTim>();
+          scheduleData.forEach(s => scheduleMap.set(s.date, { ...s }));
+          substitutions.forEach(req => {
+              let newShiftCode = '';
+              try {
+                  const parsed = JSON.parse(req.reason);
+                  newShiftCode = parsed?.shift_baru?.code || parsed?.shift_baru || '';
+              } catch (e) {
+                  // ignore malformed payloads
+              }
+              if (!newShiftCode) return;
+              const meta = shiftMap.get(newShiftCode);
+              const start = new Date(req.start_date);
+              const end = new Date(req.end_date);
+              for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                  const dateStr = formatLocalDate(d);
+                  const existing = scheduleMap.get(dateStr) || { profile_id: user.id, date: dateStr, shift: '' } as JadwalKerjaTim;
+                  scheduleMap.set(dateStr, {
+                      ...existing,
+                      shift: newShiftCode,
+                      start_time: meta?.start_time ?? existing.start_time,
+                      end_time: meta?.end_time ?? existing.end_time,
+                  });
+              }
+          });
+          setJadwal(Array.from(scheduleMap.values()));
 
           if (approvedLeaves.length > 0) {
               setIsOnApprovedLeave(true);

@@ -81,12 +81,37 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
             const userIds = usersToDisplay.map(u => u.id);
 
             try {
-                const [attendance, schedules] = await Promise.all([
-                    apiService.getAttendanceForSubordinates(userIds, startOfDay, endOfDay),
-                    apiService.getTeamSchedules(userIds, dateStr, dateStr),
-                ]);
+            const [attendance, schedules, substitutions] = await Promise.all([
+                apiService.getAttendanceForSubordinates(userIds, startOfDay, endOfDay),
+                apiService.getTeamSchedules(userIds, dateStr, dateStr),
+                apiService.getApprovedSubstitutionRequests(userIds, dateStr, dateStr),
+            ]);
+                const shiftMap = new Map(allShifts.map(s => [s.code, s]));
+                const scheduleMap = new Map<string, JadwalKerjaTim>();
+                schedules.forEach(s => scheduleMap.set(s.profile_id, { ...s }));
+                substitutions.forEach(req => {
+                    let newShiftCode = '';
+                    try {
+                        const parsed = JSON.parse(req.reason);
+                        newShiftCode = parsed?.shift_baru?.code || parsed?.shift_baru || '';
+                    } catch (e) {
+                        // ignore malformed payloads
+                    }
+                    if (!newShiftCode) return;
+                    const meta = shiftMap.get(newShiftCode);
+                    const key = req.profile_id;
+                    const existing = scheduleMap.get(key) || { profile_id: req.profile_id, date: dateStr, shift: '' };
+                    scheduleMap.set(key, {
+                        ...existing,
+                        date: dateStr,
+                        shift: newShiftCode,
+                        start_time: meta?.start_time ?? existing.start_time,
+                        end_time: meta?.end_time ?? existing.end_time,
+                    });
+                });
+
                 setAttendanceData(attendance);
-                setScheduleData(schedules);
+                setScheduleData(Array.from(scheduleMap.values()));
             } catch (err) {
                 setError("Gagal memuat data presensi dan jadwal.");
             } finally {
@@ -95,7 +120,7 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
         };
 
         fetchDataForDate();
-    }, [selectedDate, usersToDisplay]);
+    }, [selectedDate, usersToDisplay, allShifts]);
 
     // For scrolling to the active date
     useEffect(() => {
