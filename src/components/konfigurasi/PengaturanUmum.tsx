@@ -7,6 +7,8 @@ import { BRAND_BUCKET, BRAND_LOGO_PATH, getBrandLogoUrl } from '@/lib/branding';
 import { apiService } from '@/services/apiService';
 import { NotificationPreferences } from '@/types';
 
+const ADMIN_PRIVATE_SECTION_KEY = 'hris_admin_private_services';
+
 const ToggleRow: React.FC<{ label: string; checked: boolean; disabled?: boolean; onChange: () => void }> = ({ label, checked, disabled, onChange }) => (
     <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
         <span className="font-medium text-gray-700">{label}</span>
@@ -43,6 +45,7 @@ const PengaturanUmum: React.FC = () => {
     const [chatSaving, setChatSaving] = useState<boolean>(false);
     const [chatMessage, setChatMessage] = useState<string | null>(null);
     const [chatError, setChatError] = useState<string | null>(null);
+    const [adminPrivateEnabled, setAdminPrivateEnabled] = useState<boolean>(true);
 
     const handleSaveRadius = () => {
         setRadius(tempRadius);
@@ -73,6 +76,21 @@ const PengaturanUmum: React.FC = () => {
         };
         fetchPrefs();
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const val = localStorage.getItem(ADMIN_PRIVATE_SECTION_KEY);
+        setAdminPrivateEnabled(val !== 'off');
+    }, []);
+
+    const handleAdminPrivateToggle = () => {
+        const next = !adminPrivateEnabled;
+        setAdminPrivateEnabled(next);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(ADMIN_PRIVATE_SECTION_KEY, next ? 'on' : 'off');
+            window.dispatchEvent(new Event('admin-private-section-changed'));
+        }
+    };
 
     const handleNotifToggle = async (key: keyof NotificationPreferences) => {
         setNotifMessage(null);
@@ -266,6 +284,20 @@ const PengaturanUmum: React.FC = () => {
                      </div>
                 </div>
 
+                {/* Tampilkan/Layanan Pribadi untuk Admin */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2 mb-2">
+                        <CogIcon className="h-5 w-5" /> Layanan Pribadi untuk Admin
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-3">
+                        Kontrol apakah menu “Layanan Pribadi” muncul di sidebar pengguna dengan peran admin. Pengaturan ini disimpan di browser.
+                    </p>
+                    <ToggleRow 
+                        label="Tampilkan Layanan Pribadi pada admin" 
+                        checked={adminPrivateEnabled} 
+                        onChange={handleAdminPrivateToggle}
+                    />
+                </div>
             </div>
         </div>
     );

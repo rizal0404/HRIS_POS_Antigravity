@@ -33,6 +33,7 @@ type NavLinkItem = { key: string; label: string; icon: React.ComponentType<{ cla
 
 // pisahkan link yang spesifik dan yang umum
 const presensiLink: NavLinkItem = { key: 'presensi', label: 'Presensi', icon: UsersIcon, path: '/presensi' };
+const ADMIN_PRIVATE_SECTION_KEY = 'hris_admin_private_services';
 
 // Link ini hanya untuk layanan pribadi dasar, tanpa profil & presensi
 const privateServiceLinks: NavLinkItem[] = [
@@ -73,6 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [logoUrl, setLogoUrl] = React.useState<string>(defaultLogo);
+  const [showAdminPrivateSection, setShowAdminPrivateSection] = React.useState<boolean>(true);
 
   React.useEffect(() => {
     try {
@@ -81,6 +83,22 @@ const Sidebar: React.FC<SidebarProps> = ({
     } catch (err) {
         // fallback silently
     }
+  }, []);
+
+  React.useEffect(() => {
+    const readToggle = () => {
+        if (typeof window === 'undefined') return;
+        const val = localStorage.getItem(ADMIN_PRIVATE_SECTION_KEY);
+        setShowAdminPrivateSection(val !== 'off');
+    };
+    readToggle();
+    const handler = () => readToggle();
+    window.addEventListener('storage', handler);
+    window.addEventListener('admin-private-section-changed', handler);
+    return () => {
+        window.removeEventListener('storage', handler);
+        window.removeEventListener('admin-private-section-changed', handler);
+    };
   }, []);
 
   const renderLink = (link: NavLinkItem) => {
@@ -147,6 +165,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="space-y-1">
                     {managerLinks.map(renderLink)}
                     </div>
+                </div>
+                )}
+                {showAdminPrivateSection && (
+                <div>
+                <h3 className={`px-4 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider ${isCollapsed ? 'text-center' : ''} pt-2`}>
+                    <span className={isCollapsed ? 'hidden' : 'inline'}>Layanan Pribadi</span>
+                </h3>
+                <div className="space-y-1">
+                    {/* Jika bukan atasan, tampilkan Presensi di sini */}
+                    {!isManager && renderLink(presensiLink)}
+                    {privateServiceLinks.map(renderLink)}
+                </div>
                 </div>
                 )}
             </div>
