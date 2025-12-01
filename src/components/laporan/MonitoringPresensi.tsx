@@ -480,12 +480,12 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                     </header>
                     
                     <div className="grid grid-cols-2 gap-x-8 mb-2">
-                        <div className="grid grid-cols-[max-content,1fr] gap-x-2">
+                        <div className="grid grid-cols-[90px,1fr] gap-x-2 gap-y-1 leading-tight">
                             <span>Nama</span><span>: {reportData.header.nama}</span>
                             <span>No. ID</span><span>: {reportData.header.noId}</span>
                             <span>Pola Shift</span><span>: {reportData.header.polaShift}</span>
                         </div>
-                        <div className="grid grid-cols-[max-content,1fr] gap-x-2">
+                        <div className="grid grid-cols-[90px,1fr] gap-x-2 gap-y-1 leading-tight">
                             <span>Seksi</span><span>: {reportData.header.seksi}</span>
                             <span>Unit</span><span>: {reportData.header.unit}</span>
                             <span>Departemen</span><span>: {reportData.header.departemen}</span>
