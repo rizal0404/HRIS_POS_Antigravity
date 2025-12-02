@@ -180,7 +180,8 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
                     }
                 } catch (processError) {
                     console.error("Failed to process attendance correction:", processError);
-                    // Optionally show a specific error to the manager.
+                    setError(processError instanceof Error ? processError.message : 'Gagal memproses koreksi ke data presensi.');
+                    return; // Skip refresh to keep context on the error
                 }
             }
             

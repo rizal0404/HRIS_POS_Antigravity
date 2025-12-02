@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { UserProfile, Request, RequestType, RequestStatus, Attendance } from '../../../types';
 import { apiService } from '../../../services/apiService';
 import { ClockIcon, DocumentAddIcon, CheckCircleIcon } from '../../../components/icons';
-import { getAllSubordinates, timeAgo } from '../../../lib/utils';
+import { getAllSubordinates, timeAgo, getStartOfDayISO, getEndOfDayISO, formatDateKey, formatTime } from '../../../lib/utils';
 import Spinner from '../../../components/ui/Spinner';
 
 interface DashboardPageProps {
@@ -49,8 +49,8 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
 
             if (subIds.length > 0) {
                 const today = new Date();
-                const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-                const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
+                const startOfDay = getStartOfDayISO(today);
+                const endOfDay = getEndOfDayISO(today);
                 
                 const [allSubordinateRequests, attendanceToday] = await Promise.all([
                     apiService.getSubordinateRequests(subIds),
@@ -59,19 +59,19 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
 
                 setPendingRequests(allSubordinateRequests.filter(r => r.status === RequestStatus.PENDING));
 
-                const todayStr = today.toISOString().split('T')[0];
+                const todayStr = formatDateKey(today);
                 const usersMap = new Map(users.map(u => [u.id, u]));
 
                 const attendanceActivities: Activity[] = attendanceToday.map(att => ({
                     type: 'Presensi',
                     user: usersMap.get(att.profile_id)!,
                     timestamp: att.clock_in,
-                    details: `melakukan clock-in pada jam ${new Date(att.clock_in).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`,
+                    details: `melakukan clock-in pada jam ${formatTime(new Date(att.clock_in))}`,
                     key: `att-${att.id}`
                 }));
 
                 const requestActivities: Activity[] = allSubordinateRequests
-                    .filter(req => new Date(req.created_at).toISOString().split('T')[0] === todayStr)
+                    .filter(req => formatDateKey(new Date(req.created_at)) === todayStr)
                     .map(req => ({
                         type: req.request_type,
                         user: usersMap.get(req.profile_id)!,

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { UserProfile, Attendance, JadwalKerjaTim, Shift, UserRole } from '@/types';
 import { apiService } from '@/services/apiService';
-import { getAllSubordinates } from '@/lib/utils';
+import { getAllSubordinates, APP_TIME_ZONE } from '@/lib/utils';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@/components/icons';
 import Spinner from '@/components/ui/Spinner';
 import DetailAbsensiModal from '@/components/modals/DetailAbsensiModal';
@@ -277,7 +277,7 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
                                             <div className="text-center">
                                                 {clockInTime ? (
                                                     <p className={`font-mono text-lg font-bold ${isEarlyClockIn ? 'text-green-600' : 'text-gray-800'}`}>
-                                                        {clockInTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}
+                                                        {clockInTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE })}
                                                     </p>
                                                 ) : (
                                                     <p className="font-mono text-lg text-gray-400">--:--</p>
@@ -287,7 +287,7 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
                                             <div className="text-center">
                                                 {clockOutTime ? (
                                                     <p className="font-mono text-lg font-bold text-gray-800">
-                                                        {clockOutTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}
+                                                        {clockOutTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE })}
                                                     </p>
                                                 ) : (
                                                     <p className="font-mono text-lg text-gray-400">--:--</p>

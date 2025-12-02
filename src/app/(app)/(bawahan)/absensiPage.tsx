@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { formatDate, formatTime } from '../../../lib/utils';
+import { formatDate, formatTime, formatDateKey, APP_TIME_ZONE } from '../../../lib/utils';
 import { ClockIcon, LocationMarkerIcon } from '../../../components/icons';
 import { UserProfile, Attendance, JadwalKerjaTim, Shift } from '../../../types';
 import { ClockInModal } from '../../../components/modals/ClockInOutModal';
@@ -31,6 +31,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [status, setStatus] = useState<AttendanceStatus>(AttendanceStatus.LOADING);
   const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null);
+  const [activeAttendance, setActiveAttendance] = useState<Attendance | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionType, setActionType] = useState<'in' | 'out'>('in');
   const [toastMessage, setToastMessage] = useState<{type: 'success' | 'error', message: string} | null>(null);
@@ -38,23 +39,16 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const [jadwal, setJadwal] = useState<JadwalKerjaTim[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
 
-  const formatLocalDate = useCallback((date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-  }, []);
-
   const checkAttendanceStatus = useCallback(async () => {
       setStatus(AttendanceStatus.LOADING);
       try {
           const today = new Date();
-          const todayISO = formatLocalDate(today);
-          const startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 1));
-          const endDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+          const todayISO = formatDateKey(today);
+          const startDate = formatDateKey(new Date(today.getFullYear(), today.getMonth(), 1));
+          const endDate = formatDateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
           const [attendance, approvedLeaves, scheduleData, shiftList, substitutions] = await Promise.all([
-             apiService.getAttendanceForDate(user.id, todayISO),
+             apiService.getActiveAttendance(user.id),
              apiService.getApprovedLeaves(user.id, todayISO),
              apiService.getTeamSchedules([user.id], startDate, endDate),
              apiService.getShifts(),
@@ -79,7 +73,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
               const start = new Date(req.start_date);
               const end = new Date(req.end_date);
               for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                  const dateStr = formatLocalDate(d);
+                  const dateStr = formatDateKey(d, APP_TIME_ZONE);
                   const existing = scheduleMap.get(dateStr) || { profile_id: user.id, date: dateStr, shift: '' } as JadwalKerjaTim;
                   scheduleMap.set(dateStr, {
                       ...existing,
@@ -97,7 +91,11 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
               setIsOnApprovedLeave(false);
           }
 
-          setTodayAttendance(attendance);
+          setActiveAttendance(attendance);
+          const attendanceDateKey = attendance ? formatDateKey(new Date(attendance.clock_in), APP_TIME_ZONE) : null;
+          const attendanceForToday = attendanceDateKey === todayISO ? attendance : null;
+          setTodayAttendance(attendanceForToday);
+
           if (!attendance) {
               setStatus(AttendanceStatus.NOT_CLOCKED_IN);
           } else if (attendance.clock_out) {
@@ -109,7 +107,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
           setStatus(AttendanceStatus.ERROR);
           setToastMessage({ type: 'error', message: error.message || 'Gagal mengambil status presensi.' });
       }
-  }, [user.id, formatLocalDate]);
+  }, [user.id]);
 
   useEffect(() => {
     checkAttendanceStatus();
@@ -124,10 +122,10 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
     }
   }, [toastMessage]);
   
-  const todayISO = useMemo(() => formatLocalDate(currentTime), [currentTime, formatLocalDate]);
+  const todayISO = useMemo(() => formatDateKey(currentTime), [currentTime]);
   const todaySchedule = useMemo(() => jadwal.find(j => j.date === todayISO), [jadwal, todayISO]);
   const isOffDay = todaySchedule?.shift === 'OFF';
-  const hasActiveSession = status === AttendanceStatus.CLOCKED_IN && !!todayAttendance && !todayAttendance.clock_out;
+  const hasActiveSession = !!activeAttendance && !activeAttendance.clock_out;
 
   const handleOpenModal = (type: 'in' | 'out') => {
     setActionType(type);
@@ -141,7 +139,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const handleSuccess = (message: string, newAttendance?: Attendance | null) => {
     setToastMessage({type: 'success', message});
     if (newAttendance) {
-        setTodayAttendance(newAttendance);
+        setActiveAttendance(newAttendance);
+        const attendanceDateKey = formatDateKey(new Date(newAttendance.clock_in));
+        setTodayAttendance(attendanceDateKey === formatDateKey(new Date()) ? newAttendance : null);
         if (actionType === 'in') {
           setStatus(AttendanceStatus.CLOCKED_IN);
         } else {
@@ -159,6 +159,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   };
   
   const currentStatusInfo = statusInfo[status];
+  const summaryAttendance = todayAttendance || activeAttendance;
+  const attendanceDateKey = summaryAttendance ? formatDateKey(new Date(summaryAttendance.clock_in)) : null;
+  const isCrossDaySession = summaryAttendance ? attendanceDateKey !== todayISO : false;
 
   return (
     <>
@@ -172,7 +175,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
 
         <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
           <div className="text-center">
-              <p className="text-lg font-medium text-gray-600">{formatDate(currentTime)}</p>
+                  <p className="text-lg font-medium text-gray-600">{formatDate(currentTime)}</p>
               <p className="text-6xl font-bold text-gray-800 my-2 tracking-wider">{formatTime(currentTime)}</p>
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white ${currentStatusInfo.color}`}>
                   {currentStatusInfo.text}
@@ -207,23 +210,28 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                   Clock Out
               </button>
           </div>
-        </div>
+          </div>
         
         <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
           <h3 className="text-xl font-semibold text-gray-800 border-b pb-3 mb-4">Ringkasan Absensi Hari Ini</h3>
+          {isCrossDaySession && summaryAttendance && (
+            <div className="mb-4 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 text-sm">
+              Sesi aktif berasal dari {formatDate(new Date(summaryAttendance.clock_in))} (WITA). Silakan clock-out untuk menutup sesi sebelumnya.
+            </div>
+          )}
           <div className="space-y-4">
               <div className="flex items-start">
                   <ClockIcon className="h-6 w-6 text-green-500 mt-1 mr-4 flex-shrink-0" />
                   <div>
                       <p className="font-semibold text-gray-700">Absen Masuk</p>
-                      {todayAttendance?.clock_in ? (
+                      {summaryAttendance?.clock_in ? (
                           <>
-                              <p className="text-gray-600">{formatTime(new Date(todayAttendance.clock_in))}</p>
+                              <p className="text-gray-600">{formatTime(new Date(summaryAttendance.clock_in))}</p>
                                <div className="flex items-start text-sm text-gray-500 mt-1">
                                  <LocationMarkerIcon className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0"/>
                                  <p>
-                                    {todayAttendance.lokasi_kerja === 'Bekerja di Pabrik' && todayAttendance.tempat_kerja && <span className="font-semibold text-gray-800 block">{todayAttendance.tempat_kerja}</span>}
-                                    {todayAttendance.clock_in_address || 'Lokasi tercatat'}
+                                    {summaryAttendance.lokasi_kerja === 'Bekerja di Pabrik' && summaryAttendance.tempat_kerja && <span className="font-semibold text-gray-800 block">{summaryAttendance.tempat_kerja}</span>}
+                                    {summaryAttendance.clock_in_address || 'Lokasi tercatat'}
                                  </p>
                               </div>
                           </>
@@ -234,14 +242,14 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                   <ClockIcon className="h-6 w-6 text-red-500 mt-1 mr-4 flex-shrink-0" />
                   <div>
                       <p className="font-semibold text-gray-700">Absen Pulang</p>
-                       {todayAttendance?.clock_out ? (
+                       {summaryAttendance?.clock_out ? (
                           <>
-                              <p className="text-gray-600">{formatTime(new Date(todayAttendance.clock_out))}</p>
+                              <p className="text-gray-600">{formatTime(new Date(summaryAttendance.clock_out))}</p>
                               <div className="flex items-start text-sm text-gray-500 mt-1">
                                  <LocationMarkerIcon className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0"/>
                                   <p>
-                                    {todayAttendance.lokasi_kerja === 'Bekerja di Pabrik' && todayAttendance.tempat_kerja && <span className="font-semibold text-gray-800 block">{todayAttendance.tempat_kerja}</span>}
-                                    {todayAttendance.clock_out_address || 'Lokasi tercatat'}
+                                    {summaryAttendance.lokasi_kerja === 'Bekerja di Pabrik' && summaryAttendance.tempat_kerja && <span className="font-semibold text-gray-800 block">{summaryAttendance.tempat_kerja}</span>}
+                                    {summaryAttendance.clock_out_address || 'Lokasi tercatat'}
                                  </p>
                               </div>
                           </>
@@ -259,7 +267,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
         user={user}
         actionType={actionType}
         jadwal={jadwal}
-        todayAttendance={todayAttendance}
+        todayAttendance={activeAttendance}
       />
     </>
   );

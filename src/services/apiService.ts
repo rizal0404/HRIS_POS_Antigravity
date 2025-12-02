@@ -43,27 +43,6 @@ async function getAddressFromCoords(lat: number, lon: number): Promise<string> {
 
 export const apiService = {
     // ==== ATTENDANCE ====
-    async getAttendanceForDate(profileId: string, dateStr: string): Promise<Attendance | null> {
-        // Fetch attendance record for a specific local date (00:00-23:59)
-        const start = `${dateStr}T00:00:00`;
-        const end = `${dateStr}T23:59:59.999`;
-        const { data, error } = await supabase
-            .from('attendance')
-            .select('*')
-            .eq('profile_id', profileId)
-            .gte('clock_in', start)
-            .lte('clock_in', end)
-            .order('clock_in', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-        if (error && error.code !== 'PGRST116') {
-            console.error('Error fetching attendance for date:', error);
-            throw new Error(error.message || 'Gagal mengambil data absensi hari ini.');
-        }
-        return data || null;
-    },
-
     async getActiveAttendance(profileId: string): Promise<Attendance | null> {
         const { data, error } = await supabase
             .rpc('get_active_attendance_for_user', {
@@ -145,6 +124,37 @@ export const apiService = {
         return data[0];
     },
 
+    async updateAttendanceAsManager(attendanceId: string, updateData: Partial<Attendance>): Promise<Attendance> {
+        // Manager-safe path via RPC to avoid RLS blocks when updating subordinate records.
+        const idValue = typeof attendanceId === 'string' && attendanceId.includes('-')
+            ? attendanceId // likely UUID
+            : Number(attendanceId);
+        if (Number.isNaN(idValue as number)) {
+            throw new Error('ID absensi tidak valid untuk koreksi.');
+        }
+        const { data, error } = await supabase.rpc('update_attendance_as_manager', {
+            p_attendance_id: idValue,
+            p_clock_in: updateData.clock_in ?? null,
+            p_clock_out: updateData.clock_out ?? null,
+            p_status: updateData.status ?? null,
+            p_lokasi_kerja: updateData.lokasi_kerja ?? null,
+            p_tempat_kerja: updateData.tempat_kerja ?? null,
+            p_clock_in_coords: updateData.clock_in_coords ?? null,
+            p_clock_out_coords: updateData.clock_out_coords ?? null,
+            p_clock_in_address: updateData.clock_in_address ?? null,
+            p_clock_out_address: updateData.clock_out_address ?? null,
+        });
+        if (error) {
+            console.error('Error in updateAttendanceAsManager RPC:', error);
+            throw new Error(error.message || 'Failed to update attendance via RPC.');
+        }
+        if (!data || data.length === 0) {
+            throw new Error('RPC update_attendance_as_manager did not return the updated record.');
+        }
+        // Some Supabase RPCs return array of rows; normalize to single record.
+        return Array.isArray(data) ? data[0] : data;
+    },
+
     async submitClockOut(attendanceId: string, clockOutData: { clock_out: string, clock_out_coords?: any, clock_out_address?: string }): Promise<Attendance> {
         const { data, error } = await supabase
             .from('attendance')
@@ -165,13 +175,6 @@ export const apiService = {
         const address = await getAddressFromCoords(position.coords.latitude, position.coords.longitude);
 
         if (actionType === 'in') {
-            const today = new Date();
-            const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
-            const existingToday = await this.getAttendanceForDate(user.id, todayStr);
-            if (existingToday) {
-                throw new Error('Clock-in gagal: Anda sudah memiliki absensi untuk hari ini.');
-            }
-
             const clockInData: Partial<Attendance> = {
                 profile_id: user.id,
                 clock_in: new Date().toISOString(),

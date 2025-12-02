@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserProfile, JadwalKerjaTim, Attendance } from '../../types';
 import { apiService } from '../../services/apiService';
+import { APP_TIME_ZONE, formatDateKey, formatTime } from '../../lib/utils';
 import Modal from '../Modal';
 import { MapContainer, TileLayer, Marker, Circle, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -47,12 +48,7 @@ const WORKPLACES = [
 const MAX_DISTANCE_METERS = 350;
 const DEFAULT_MAP_CENTER: [number, number] = [-4.819, 119.64];
 const ACCURACY_THRESHOLD_METERS = 250;
-const formatLocalDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const formatLocalDate = (date: Date) => formatDateKey(date, APP_TIME_ZONE);
 
 // Helper function to calculate distance
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -293,8 +289,13 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
       } else {
         // workLocation === 'Lainnya'
         const today = new Date();
-        const tanggalPembetulan = formatLocalDate(today); // YYYY-MM-DD
-        const jamPembetulan = today.toTimeString().split(' ')[0].substring(0, 5); // HH:mm
+        const tanggalPembetulan = formatLocalDate(today); // YYYY-MM-DD in app timezone
+        const jamPembetulan = new Intl.DateTimeFormat('id-ID', {
+          timeZone: APP_TIME_ZONE,
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }).format(today); // HH:mm in app timezone
 
         await apiService.addPembetulanPresensi({
           user: user,
@@ -368,13 +369,14 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
               day: 'numeric',
               month: 'short',
               year: 'numeric',
+              timeZone: APP_TIME_ZONE,
             })}{' '}
             <span className="text-blue-600">{todaySchedule?.shift || 'OFF'}</span>
           </p>
           <p className="font-mono text-2xl font-bold tracking-wider">
-            {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
+            {formatTime(currentTime, { second: '2-digit' })} WITA
           </p>
-          <p className="text-xs text-slate-500">{new Date().toString()}</p>
+          <p className="text-xs text-slate-500">Zona: {APP_TIME_ZONE}</p>
         </div>
 
         <div>

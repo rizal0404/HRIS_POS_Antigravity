@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { UserProfile, Attendance, Request, JadwalKerjaTim, UserRole, Department, RequestType } from '../../types';
 import { apiService } from '../../services/apiService';
-import { getAllSubordinates } from '../../lib/utils';
+import { getAllSubordinates, APP_TIME_ZONE, formatDateKey, getStartOfDayISO, getEndOfDayISO } from '../../lib/utils';
 import { PrintIcon, ExcelIcon } from '../icons';
 import Spinner from '../ui/Spinner';
 import html2canvas from 'html2canvas';
@@ -31,12 +31,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
     const [selectedBureauId, setSelectedBureauId] = useState<number | 'all'>('all');
     const [selectedSectionId, setSelectedSectionId] = useState<number | 'all'>('all');
-    const formatLocalDate = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
+    const formatLocalDate = (date: Date) => formatDateKey(date, APP_TIME_ZONE);
     
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     const [availableEmployees, setAvailableEmployees] = useState<UserProfile[]>([]);
@@ -194,10 +189,12 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
             
             const startDateStr = formatLocalDate(startDate);
             const endDateStr = formatLocalDate(endDate);
+            const startDateISO = getStartOfDayISO(startDate);
+            const endDateISO = getEndOfDayISO(endDate);
 
             try {
                 const [attendance, overtime, schedule, corrections, otherReqs, shifts, substitutions] = await Promise.all([
-                    apiService.getAttendanceForSubordinates([selectedEmployee.id], startDate.toISOString(), endDate.toISOString()),
+                    apiService.getAttendanceForSubordinates([selectedEmployee.id], startDateISO, endDateISO),
                     apiService.getOvertimeRequestsForSubordinates([selectedEmployee.id], startDateStr, endDateStr),
                     apiService.getTeamSchedules([selectedEmployee.id], startDateStr, endDateStr),
                     apiService.getCorrectionRequestsForSubordinates([selectedEmployee.id], startDateStr, endDateStr),
@@ -207,8 +204,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                 ]);
 
                 const attendanceMap = new Map(attendance.map(a => {
-                    const localDate = new Date(a.clock_in);
-                    const key = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+                    const key = formatDateKey(new Date(a.clock_in), APP_TIME_ZONE);
                     return [key, a];
                 }));
                 const overtimeMap = new Map(overtime.map(o => [o.start_date, o]));
@@ -225,7 +221,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                     if (!newShiftCode) return;
                     const meta = shiftMap.get(newShiftCode);
                     const d = new Date(req.start_date);
-                    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    const dateStr = formatDateKey(d, APP_TIME_ZONE);
                     const existing = scheduleMap.get(dateStr) || { profile_id: selectedEmployee.id, date: dateStr, shift: '' };
                     scheduleMap.set(dateStr, {
                         ...existing,
@@ -250,7 +246,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                 const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
                 const daysData = Array.from({ length: daysInMonth }, (_, i) => {
                     const date = new Date(selectedYear, selectedMonth, i + 1);
-                    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    const dateStr = formatDateKey(date, APP_TIME_ZONE);
                     
                     const att = attendanceMap.get(dateStr);
                     const ot = overtimeMap.get(dateStr);
@@ -306,7 +302,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                         tgl: `${i + 1}`,
                         shiftMasuk: sch?.start_time || '-',
                         shiftPulang: sch?.end_time || '-',
-                        jamKerjaAktual: att ? `${new Date(att.clock_in).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })} - ${att.clock_out ? new Date(att.clock_out).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) : ''}` : '',
+                        jamKerjaAktual: att ? `${new Date(att.clock_in).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE })} - ${att.clock_out ? new Date(att.clock_out).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE }) : ''}` : '',
                         lemburMulai: ot?.start_time || '',
                         lemburSelesai: ot?.end_time || '',
                         jamLembur,
@@ -379,7 +375,7 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                     footer: {
                         vendor: 'KOPKAR SEMEN TONASA',
                         signature1Name: 'Muh. Kasim',
-                        signature2Title: `Pangkep, ${endDateForDisplay.getDate()} ${endDateForDisplay.toLocaleString('id-ID', { month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' })}`,
+                        signature2Title: `Pangkep, ${endDateForDisplay.getDate()} ${endDateForDisplay.toLocaleString('id-ID', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}`,
                         signature2Name: managerName,
                         totalJamLembur: `${totalOvertimeHours.toFixed(2)} Jam`,
                     }

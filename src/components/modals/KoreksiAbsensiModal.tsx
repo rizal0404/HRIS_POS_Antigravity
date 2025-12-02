@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Attendance } from '../../types';
 import { XIcon, CalendarIcon, TimeIcon, UploadIcon, CameraIcon } from '../icons';
+import { APP_TIME_ZONE, formatDateKey } from '../../lib/utils';
 
 interface KoreksiAbsensiModalProps {
     isOpen: boolean;
@@ -111,8 +112,15 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
         if (isOpen && attendanceData) {
             // FIX: Changed attendanceData.clockIn to attendanceData.clock_in
             const originalDate = new Date(attendanceData.clock_in);
-            setNewDate(originalDate.toISOString().split('T')[0]);
-            setNewTime(originalDate.toTimeString().substring(0, 5));
+            setNewDate(formatDateKey(originalDate));
+            setNewTime(
+                new Intl.DateTimeFormat('en-GB', {
+                    timeZone: APP_TIME_ZONE,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                }).format(originalDate),
+            );
             setReason('');
             setAttachment(null);
             setClockType('in');
@@ -145,8 +153,13 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
 
     // FIX: Changed attendanceData.clockIn to attendanceData.clock_in
     const originalDate = new Date(attendanceData.clock_in);
-    const formattedDate = originalDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const originalTime = originalDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const formattedDate = originalDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: APP_TIME_ZONE });
+    const originalTime = new Intl.DateTimeFormat('id-ID', {
+        timeZone: APP_TIME_ZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).format(originalDate);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
@@ -169,8 +182,8 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                                 <h4 className="font-semibold text-lg mb-4">Presensi</h4>
                                 <div className="space-y-3">
                                     <InfoField label="Clock Type" value="Clock In" />
-                                    <InfoField label="Periode Presensi" value={originalDate.toLocaleDateString('id-ID')} />
-                                    <InfoField label="Jam (WIB)" value={originalTime} />
+                                    <InfoField label="Periode Presensi" value={originalDate.toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE })} />
+                                    <InfoField label="Jam (WITA)" value={originalTime} />
                                     {/* FIX: Changed attendanceData.lokasiKerja to attendanceData.lokasi_kerja */}
                                     <InfoField label="Lokasi Kerja" value={attendanceData.lokasi_kerja || '-'} />
                                     {/* FIX: Changed attendanceData.tempatKerja to attendanceData.tempat_kerja */}
@@ -196,7 +209,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                                     <CalendarIcon className="absolute right-3 top-8 h-5 w-5 text-gray-400" />
                                 </div>
                                 <div className="relative">
-                                    <label htmlFor="newTime" className="block text-sm font-medium text-gray-700">Jam (WIB)</label>
+                                    <label htmlFor="newTime" className="block text-sm font-medium text-gray-700">Jam (WITA)</label>
                                     <input type="time" id="newTime" value={newTime} onChange={e => setNewTime(e.target.value)}
                                         className="mt-1 block w-full pl-3 pr-10 py-2 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
                                     <TimeIcon className="absolute right-3 top-8 h-5 w-5 text-gray-400" />
@@ -272,7 +285,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                                 <span className="text-gray-900">{newDate}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="font-medium">Jam (WIB)</span>
+                                <span className="font-medium">Jam (WITA)</span>
                                 <span className="text-gray-900">{newTime}</span>
                             </div>
                             <div>

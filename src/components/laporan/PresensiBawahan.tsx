@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { UserProfile, Attendance, JadwalKerjaTim, UserRole, Request, Department } from '../../types';
 import { apiService } from '../../services/apiService';
 import { SearchIcon, ExcelIcon, PrintIcon, XIcon } from '../icons';
-import { getAllSubordinates } from '../../lib/utils';
+import { getAllSubordinates, APP_TIME_ZONE, formatDateKey, getStartOfDayISO, getEndOfDayISO } from '../../lib/utils';
 import Spinner from '../ui/Spinner';
 
 interface PresensiBawahanProps {
@@ -116,14 +116,15 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
             setError(null);
             const startDate = new Date(selectedYear, selectedMonth, 1);
             const endDate = new Date(selectedYear, selectedMonth + 1, 0);
-            endDate.setHours(23, 59, 59, 999); // Set to end of day
             
-            const startDateStr = startDate.toISOString().split('T')[0];
-            const endDateStr = endDate.toISOString().split('T')[0];
+            const startDateStr = formatDateKey(startDate, APP_TIME_ZONE);
+            const endDateStr = formatDateKey(endDate, APP_TIME_ZONE);
+            const startDateISO = getStartOfDayISO(startDate);
+            const endDateISO = getEndOfDayISO(endDate);
 
             try {
                 const [attendance, schedules, corrections, shiftsResp, substitutions] = await Promise.all([
-                    apiService.getAttendanceForSubordinates([selectedEmployeeId], startDate.toISOString(), endDate.toISOString()),
+                    apiService.getAttendanceForSubordinates([selectedEmployeeId], startDateISO, endDateISO),
                     apiService.getTeamSchedules([selectedEmployeeId], startDateStr, endDateStr),
                     apiService.getCorrectionRequestsForSubordinates([selectedEmployeeId], startDateStr, endDateStr),
                     apiService.getShifts(),
@@ -145,7 +146,7 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
                     if (!newShiftCode) return;
                     const meta = shiftMap.get(newShiftCode);
                     const d = new Date(req.start_date);
-                    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    const dateStr = formatDateKey(d, APP_TIME_ZONE);
                     const key = `${req.profile_id}-${dateStr}`;
                     const existing = scheduleMap.get(key) || { profile_id: req.profile_id, date: dateStr, shift: '' };
                     scheduleMap.set(key, {
@@ -175,16 +176,15 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
         
         const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
         const scheduleMap = new Map(scheduleData.map(s => [s.date, s]));
-        const attendanceMap = new Map(attendanceData.map(a => {
-            const localDate = new Date(a.clock_in);
-            const key = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
-            return [key, a];
-        }));
+                const attendanceMap = new Map(attendanceData.map(a => {
+                    const key = formatDateKey(new Date(a.clock_in), APP_TIME_ZONE);
+                    return [key, a];
+                }));
         const correctionMap = new Map(correctionData.map(c => [String(c.attendance_id_to_correct), c]));
         
         return Array.from({ length: daysInMonth }, (_, i) => {
             const date = new Date(selectedYear, selectedMonth, i + 1);
-            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const dateStr = formatDateKey(date, APP_TIME_ZONE);
             // FIX: Add explicit types to resolve 'unknown' type errors
             const schedule = scheduleMap.get(dateStr) as JadwalKerjaTim | undefined;
             const attendance = attendanceMap.get(dateStr) as Attendance | undefined;
@@ -207,12 +207,12 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
             return {
                 no: i + 1,
                 noKaryawan: selectedEmployee?.nik || '-',
-                tanggal: date.toLocaleDateString('id-ID'),
+                tanggal: date.toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE }),
                 shift: schedule?.shift || '-',
                 regularMasuk: schedule?.start_time || '-',
                 regularPulang: schedule?.end_time || '-',
-                realisasiMasuk: attendance ? new Date(attendance.clock_in).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
-                realisasiPulang: attendance?.clock_out ? new Date(attendance.clock_out).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
+                realisasiMasuk: attendance ? new Date(attendance.clock_in).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE }) : '-',
+                realisasiPulang: attendance?.clock_out ? new Date(attendance.clock_out).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE }) : '-',
                 keterangan,
                 ft: '', tt: '', dt: '', otNormal: '', otFlat: '', otStart: '', otEnd: '', kom: '', hariLiburNasional: ''
             };
