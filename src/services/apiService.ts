@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { APP_TIME_OFFSET } from '../lib/utils';
 import { 
     UserProfile, 
     Request, 
@@ -209,8 +210,8 @@ export const apiService = {
     }): Promise<Request> {
         const { user, tanggalPembetulan, jamPembetulan, clockType, alasan, todayAttendanceId } = payload;
         
-        // Create a definitive UTC timestamp for the intended correction time
-        const intendedDateTime = new Date(`${tanggalPembetulan}T${jamPembetulan}`);
+        // Create a definitive UTC timestamp for the intended correction time using fixed WITA offset
+        const intendedDateTime = new Date(`${tanggalPembetulan}T${jamPembetulan}${APP_TIME_OFFSET}`);
 
         const reasonPayload = JSON.stringify({
             type: clockType,

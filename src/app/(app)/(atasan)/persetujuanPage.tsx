@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { UserProfile, Request, RequestStatus, RequestType, Attendance } from '../../../types';
 import { apiService } from '../../../services/apiService';
-import { formatDate, getAllSubordinates } from '../../../lib/utils';
+import { formatDate, getAllSubordinates, APP_TIME_OFFSET } from '../../../lib/utils';
 import Badge from '../../../components/ui/Badge';
 import { SearchIcon, FilterIcon } from '../../../components/icons';
 import DetailAjuanModal from '../../../components/modals/DetailAjuanModal';
@@ -153,7 +153,7 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
                     const reasonParsed = JSON.parse(requestToUpdate.reason);
                     const newDateTime = reasonParsed.intended_iso 
                         ? reasonParsed.intended_iso 
-                        : new Date(`${requestToUpdate.start_date}T${requestToUpdate.start_time}`).toISOString();
+                        : new Date(`${requestToUpdate.start_date}T${requestToUpdate.start_time}${APP_TIME_OFFSET}`).toISOString();
                     
                     if (requestToUpdate.attendance_id_to_correct) {
                         // CASE 1: Update existing record (e.g., clock-out or a correction on an existing clock-in)
