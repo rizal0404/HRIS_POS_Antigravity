@@ -177,7 +177,7 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
     );
 
     const topFinalKpi = useMemo(
-        () => subordinateKpis.slice().sort((a, b) => b.final - a.final).slice(0, 3),
+        () => subordinateKpis.slice().sort((a, b) => b.final - a.final).slice(0, 5),
         [subordinateKpis],
     );
 
@@ -234,7 +234,7 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="p-4 rounded-lg border bg-slate-50">
-                                <h4 className="text-sm font-semibold text-gray-800 mb-3">Top 3 Kurang Disiplin</h4>
+                                <h4 className="text-sm font-semibold text-gray-800 mb-3">Top 5 Kurang Disiplin</h4>
                                 <div className="space-y-3">
                                     {leastDiscipline.map((item, idx) => (
                                         <div key={item.profile.id} className="flex items-center justify-between">
@@ -252,7 +252,7 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
                                 </div>
                             </div>
                             <div className="p-4 rounded-lg border bg-slate-50">
-                                <h4 className="text-sm font-semibold text-gray-800 mb-3">Top 3 Skor KPI Tertinggi</h4>
+                                <h4 className="text-sm font-semibold text-gray-800 mb-3">Top 5 Skor KPI Tertinggi</h4>
                                 <div className="space-y-3">
                                     {topFinalKpi.map((item, idx) => (
                                         <div key={item.profile.id} className="flex items-center justify-between">
