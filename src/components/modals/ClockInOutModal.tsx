@@ -133,10 +133,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     () => buildAttendanceWindow(scheduleForAction || null),
     [scheduleForAction],
   );
-  const windowError = useMemo(
-    () => validateClockWindow(actionType, currentTime, attendanceWindow),
-    [actionType, currentTime, attendanceWindow],
-  );
+  // TEMP: disable window enforcement
+  const windowError = null;
   const isOffDay = scheduleForAction?.shift === 'OFF';
   const windowLabel = useMemo(() => {
     const start = actionType === 'in' ? attendanceWindow.inStart : attendanceWindow.outStart;
@@ -229,7 +227,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const isActionDisabled = useMemo(() => {
     if (isMockDetected) return true;
     if (isSubmitting) return true;
-    if (windowError && workLocation === 'Bekerja di Pabrik') return true;
+    // windowError disabled temporarily
 
     const allowOffDayClockOut = actionType === 'out' && hasActiveAttendance;
 
@@ -389,11 +387,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             </button>
           )}
         </div>
-        {windowError ? (
-          <div className="text-center p-3 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
-            {windowError}
-          </div>
-        ) : windowLabel ? (
+        {windowLabel ? (
           <div className="text-center p-3 bg-emerald-50 text-emerald-800 rounded-lg text-sm">
             Window clock-{actionType.toUpperCase()} : {windowLabel}
           </div>
