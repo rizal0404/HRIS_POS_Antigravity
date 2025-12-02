@@ -9,6 +9,7 @@ import DetailAbsensiModal from '../../../components/modals/DetailAbsensiModal';
 import DetailAjuanModal from '../../../components/modals/DetailAjuanModal';
 import { SearchIcon, XIcon } from '../../../components/icons';
 import { supabase } from '../../../services/supabase';
+import { APP_TIME_OFFSET } from '../../../lib/utils';
 
 type HistoryEvent = (Request & { type: 'request' }) | (Attendance & { type: 'attendance' });
 
@@ -114,8 +115,8 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
             throw new Error("Lampiran bukti diperlukan.");
         }
         
-        // Create the date object from local parts, then convert to a definitive UTC ISO string.
-        const intendedDateTime = new Date(`${koreksiData.newDate}T${koreksiData.newTime}`);
+        // Create the date object from local parts with explicit WITA offset, then convert to definitive UTC ISO.
+        const intendedDateTime = new Date(`${koreksiData.newDate}T${koreksiData.newTime}${APP_TIME_OFFSET}`);
 
         const reasonPayload = JSON.stringify({
             type: koreksiData.clockType,
