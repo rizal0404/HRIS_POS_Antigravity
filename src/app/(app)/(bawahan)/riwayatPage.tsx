@@ -101,10 +101,7 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
   };
 
   const handleOpenKoreksiLatest = () => {
-    const latestAttendance = history.find(
-      (item): item is Attendance & { type: 'attendance' } => item.type === 'attendance',
-    );
-    const fallbackAttendance: Attendance = latestAttendance || {
+    const placeholder: Attendance = {
       id: 'placeholder',
       profile_id: user.id,
       clock_in: new Date().toISOString(),
@@ -112,7 +109,7 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
       lokasi_kerja: '',
       tempat_kerja: '',
     };
-    handleOpenKoreksiModal(fallbackAttendance);
+    handleOpenKoreksiModal(placeholder);
   };
 
   const handleCloseKoreksiModal = () => {

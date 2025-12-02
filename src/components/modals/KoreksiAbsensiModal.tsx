@@ -113,16 +113,17 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
 
     useEffect(() => {
         if (isOpen && attendanceData) {
-            // FIX: Changed attendanceData.clockIn to attendanceData.clock_in
-            const originalDate = new Date(attendanceData.clock_in);
+            const originalDate = new Date(attendanceData.clock_in || new Date().toISOString());
             setNewDate(formatDateKey(originalDate));
             setNewClockIn(
-                new Intl.DateTimeFormat('en-GB', {
-                    timeZone: APP_TIME_ZONE,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                }).format(originalDate),
+                attendanceData.clock_in
+                    ? new Intl.DateTimeFormat('en-GB', {
+                        timeZone: APP_TIME_ZONE,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                    }).format(originalDate)
+                    : ''
             );
             setNewClockOut(
                 attendanceData.clock_out
@@ -132,7 +133,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                         minute: '2-digit',
                         hour12: false,
                     }).format(new Date(attendanceData.clock_out))
-                    : '',
+                    : ''
             );
             setReason('');
             setAttachment(null);
