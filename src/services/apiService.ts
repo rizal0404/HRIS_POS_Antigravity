@@ -17,7 +17,7 @@ import {
     NotificationPreferences,
     AttendanceStatus,
 } from '../types';
-import { buildAttendanceWindow, computeAttendanceOutcome, CORRECTION_MAX_DAYS, deriveWorkDate, validateClockWindow } from '../lib/attendanceRules';
+import { buildAttendanceWindow, computeAttendanceOutcome, CORRECTION_MAX_DAYS, deriveWorkDate } from '../lib/attendanceRules';
 
 // Helper untuk penanganan error yang konsisten
 const handleSupabaseError = ({ error, data }: { error: any, data: any }, context: string) => {
@@ -209,11 +209,6 @@ export const apiService = {
 
         if (actionType === 'in') {
             const window = buildAttendanceWindow(scheduleForAction, shiftMeta || null);
-            const windowError = validateClockWindow('in', now, window);
-            if (windowError) {
-                throw new Error(windowError);
-            }
-
             const workDate = window.workDate || formatDateKey(now, APP_TIME_ZONE);
             const clockInData: Partial<Attendance> = {
                 profile_id: user.id,
@@ -234,11 +229,6 @@ export const apiService = {
             }
 
             const window = buildAttendanceWindow(scheduleForAction, shiftMeta || null);
-            const windowError = validateClockWindow('out', now, window);
-            if (windowError) {
-                throw new Error(windowError);
-            }
-
             if (new Date(openAttendance.clock_in) > now) {
                 throw new Error('Clock-out tidak boleh lebih awal dari clock-in.');
             }

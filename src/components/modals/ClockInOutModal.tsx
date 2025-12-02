@@ -8,7 +8,7 @@ import { APP_TIME_ZONE, formatDateKey, formatTime } from '../../lib/utils';
 import Modal from '../Modal';
 import { MapContainer, TileLayer, Marker, Circle, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import { buildAttendanceWindow, validateClockWindow } from '../../lib/attendanceRules';
+import { buildAttendanceWindow } from '../../lib/attendanceRules';
 
 // Fix for default marker icon in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -133,8 +133,6 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     () => buildAttendanceWindow(scheduleForAction || null),
     [scheduleForAction],
   );
-  // TEMP: disable window enforcement
-  const windowError = null;
   const isOffDay = scheduleForAction?.shift === 'OFF';
   const windowLabel = useMemo(() => {
     const start = actionType === 'in' ? attendanceWindow.inStart : attendanceWindow.outStart;
@@ -227,8 +225,6 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const isActionDisabled = useMemo(() => {
     if (isMockDetected) return true;
     if (isSubmitting) return true;
-    // windowError disabled temporarily
-
     const allowOffDayClockOut = actionType === 'out' && hasActiveAttendance;
 
     if (workLocation === 'Bekerja di Pabrik') {
@@ -258,7 +254,6 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     position,
     scheduleForAction,
     workLocation,
-    windowError,
   ]);
 
   const locationMessage = () => {
