@@ -749,3 +749,11 @@ const KpiCalculator: React.FC<KpiCalculatorProps> = ({ user }) => {
 };
 
 export default KpiCalculator;
+
+// Shared KPI helpers for other dashboards (keeps logic in one place)
+export {
+    DEFAULT_CONFIG as KPI_DEFAULT_CONFIG,
+    normalizeConfig as normalizeKpiConfig,
+    calculateKpi as computeKpiScore,
+    STORAGE_KEY as KPI_STORAGE_KEY,
+};

@@ -38,6 +38,7 @@ const ADMIN_PRIVATE_SECTION_KEY = 'hris_admin_private_services';
 
 // Link ini hanya untuk layanan pribadi dasar, tanpa profil & presensi
 const privateServiceLinks: NavLinkItem[] = [
+    { key: 'beranda', label: 'Dashboard Saya', icon: HomeIcon, path: '/beranda' },
     { key: 'absensi', label: 'Absensi', icon: ClockIcon, path: '/absensi' },
     { key: 'jadwal_shift', label: 'Jadwal Shift', icon: CalendarIcon, path: '/jadwal-shift' },
     { key: 'pengajuan', label: 'Pengajuan Saya', icon: DocumentAddIcon, path: '/pengajuan' },

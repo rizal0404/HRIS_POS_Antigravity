@@ -18,6 +18,7 @@ import RiwayatPage from './app/(app)/(bawahan)/riwayatPage';
 import LaporanSayaPage from './app/(app)/(bawahan)/laporanPage';
 import JadwalShiftPage from './app/(app)/(bawahan)/jadwal_shiftPage';
 import PresensiPage from './app/(app)/presensiPage';
+import DashboardBawahanPage from './app/(app)/(bawahan)/dashboardPage';
 import ProfilSayaPage from './app/(app)/(bawahan)/profilPage';
 import AtasanDashboardPage from './app/(app)/(atasan)/dashboardPage';
 import PersetujuanTimPage from './app/(app)/(atasan)/persetujuanPage';
@@ -123,7 +124,7 @@ export default function App() {
                 ? '/admin/laporan-semua'
                 : currentUser.isManager
                     ? '/dashboard'
-                    : '/absensi'
+                    : '/beranda'
         : '/';
 
     const requireManager = <T,>(node: React.ReactElement<T>) =>
@@ -284,6 +285,7 @@ export default function App() {
                         />
                         
                         {/* Bawahan Routes */}
+                        <Route path="beranda" element={<DashboardBawahanPage user={currentUser} />} />
                         <Route path="absensi" element={<AbsensiPage user={currentUser} />} />
                         <Route path="pengajuan" element={<PengajuanPage user={currentUser} />} />
                         <Route path="riwayat" element={<RiwayatPage user={currentUser} />} />

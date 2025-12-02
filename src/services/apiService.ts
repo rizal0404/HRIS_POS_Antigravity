@@ -375,7 +375,7 @@ export const apiService = {
             .single();
         return handleSupabaseError({ data, error }, 'submitRequest');
     },
-
+    
     async updateRequestStatus(requestId: string, newStatus: RequestStatus, approverId: string): Promise<Request> {
         const { data, error } = await supabase
             .from('requests')
@@ -384,6 +384,16 @@ export const apiService = {
             .select()
             .single();
         return handleSupabaseError({ data, error }, 'updateRequestStatus');
+    },
+
+    async getRequestsForUser(profileId: string, limit: number = 5): Promise<Request[]> {
+        const { data, error } = await supabase
+            .from('requests')
+            .select('*')
+            .eq('profile_id', profileId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        return handleSupabaseError({ data, error }, 'getRequestsForUser');
     },
 
     async getRequestPrerequisites(profileId: string, startDate: string, endDate: string): Promise<{ schedules: JadwalKerjaTim[], requests: Request[] }> {
