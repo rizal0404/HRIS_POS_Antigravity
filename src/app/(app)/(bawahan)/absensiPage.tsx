@@ -92,8 +92,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
           }
 
           setActiveAttendance(attendance);
+          const clockInDateKey = attendance ? formatDateKey(new Date(attendance.clock_in), APP_TIME_ZONE) : null;
           const attendanceDateKey = attendance
-              ? (attendance.work_date || formatDateKey(new Date(attendance.clock_in), APP_TIME_ZONE))
+              ? [attendance.work_date, clockInDateKey].filter(Boolean).sort().pop() || null
               : null;
           const attendanceForToday = attendanceDateKey === todayISO ? attendance : null;
           setTodayAttendance(attendanceForToday);
@@ -142,7 +143,8 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
     setToastMessage({type: 'success', message});
     if (newAttendance) {
         setActiveAttendance(newAttendance);
-        const attendanceDateKey = newAttendance.work_date || formatDateKey(new Date(newAttendance.clock_in), APP_TIME_ZONE);
+        const clockInDateKey = formatDateKey(new Date(newAttendance.clock_in), APP_TIME_ZONE);
+        const attendanceDateKey = [newAttendance.work_date, clockInDateKey].filter(Boolean).sort().pop() || clockInDateKey;
         setTodayAttendance(attendanceDateKey === formatDateKey(new Date(), APP_TIME_ZONE) ? newAttendance : null);
         if (actionType === 'in') {
           setStatus(AttendanceStatus.CLOCKED_IN);
@@ -162,8 +164,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   
   const currentStatusInfo = statusInfo[status];
   const summaryAttendance = todayAttendance || activeAttendance;
+  const clockInDateKey = summaryAttendance ? formatDateKey(new Date(summaryAttendance.clock_in), APP_TIME_ZONE) : null;
   const attendanceDateKey = summaryAttendance
-    ? (summaryAttendance.work_date || formatDateKey(new Date(summaryAttendance.clock_in), APP_TIME_ZONE))
+    ? [summaryAttendance.work_date, clockInDateKey].filter(Boolean).sort().pop() || null // pick the latest available date
     : null;
   const isCrossDaySession = summaryAttendance ? attendanceDateKey !== todayISO : false;
 

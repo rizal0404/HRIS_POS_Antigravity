@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { UserProfile, Attendance, JadwalKerjaTim, Shift, UserRole } from '@/types';
 import { apiService } from '@/services/apiService';
-import { getAllSubordinates, APP_TIME_ZONE } from '@/lib/utils';
+import { getAllSubordinates, APP_TIME_ZONE, getStartOfDayISO, getEndOfDayISO, formatDateKey } from '@/lib/utils';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@/components/icons';
 import Spinner from '@/components/ui/Spinner';
 import DetailAbsensiModal from '@/components/modals/DetailAbsensiModal';
@@ -73,10 +73,9 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
             const month = selectedDate.getMonth();
             const day = selectedDate.getDate();
 
-            const startOfDay = new Date(year, month, day, 0, 0, 0, 0).toISOString();
-            const endOfDay = new Date(year, month, day, 23, 59, 59, 999).toISOString();
-            
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const startOfDay = getStartOfDayISO(selectedDate, APP_TIME_ZONE);
+            const endOfDay = getEndOfDayISO(selectedDate, APP_TIME_ZONE);
+            const dateStr = formatDateKey(selectedDate, APP_TIME_ZONE);
 
             const userIds = usersToDisplay.map(u => u.id);
 

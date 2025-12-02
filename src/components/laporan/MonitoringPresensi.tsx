@@ -204,7 +204,8 @@ const MonitoringPresensi: React.FC<MonitoringPresensiProps> = ({ user, mode = 't
                 ]);
 
                 const attendanceMap = new Map(attendance.map(a => {
-                    const key = a.work_date || formatDateKey(new Date(a.clock_in), APP_TIME_ZONE);
+                    const clockKey = formatDateKey(new Date(a.clock_in), APP_TIME_ZONE);
+                    const key = clockKey || a.work_date || clockKey;
                     return [key, a];
                 }));
                 const overtimeMap = new Map(overtime.map(o => [o.start_date, o]));
