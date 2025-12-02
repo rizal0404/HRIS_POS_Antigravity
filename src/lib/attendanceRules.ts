@@ -97,14 +97,16 @@ export const validateClockWindow = (
     now: Date,
     window: WindowResult,
 ): string | null => {
+    // Normalize "now" to app timezone to avoid client local-tz drift
+    const nowInAppTz = new Date(now.toLocaleString('en-US', { timeZone: APP_TIME_ZONE }));
     const rangeStart = actionType === 'in' ? window.inStart : window.outStart;
     const rangeEnd = actionType === 'in' ? window.inEnd : window.outEnd;
 
     if (!rangeStart || !rangeEnd) return null; // tidak ada jadwal, tidak perlu validasi window
-    if (now < rangeStart) {
+    if (nowInAppTz < rangeStart) {
         return `Clock-${actionType} belum diperbolehkan. Window dibuka ${formatLocalTime(rangeStart)} WITA.`;
     }
-    if (now > rangeEnd) {
+    if (nowInAppTz > rangeEnd) {
         return `Clock-${actionType} sudah melewati window (tutup ${formatLocalTime(rangeEnd)} WITA). Ajukan koreksi.`;
     }
     return null;
