@@ -54,7 +54,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
           const endDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
           const [attendance, approvedLeaves, scheduleData, shiftList, substitutions] = await Promise.all([
-             apiService.getActiveAttendance(user.id),
+             apiService.getAttendanceForDate(user.id, todayISO),
              apiService.getApprovedLeaves(user.id, todayISO),
              apiService.getTeamSchedules([user.id], startDate, endDate),
              apiService.getShifts(),

@@ -43,6 +43,27 @@ async function getAddressFromCoords(lat: number, lon: number): Promise<string> {
 
 export const apiService = {
     // ==== ATTENDANCE ====
+    async getAttendanceForDate(profileId: string, dateStr: string): Promise<Attendance | null> {
+        // Fetch attendance record for a specific local date (00:00-23:59)
+        const start = `${dateStr}T00:00:00`;
+        const end = `${dateStr}T23:59:59.999`;
+        const { data, error } = await supabase
+            .from('attendance')
+            .select('*')
+            .eq('profile_id', profileId)
+            .gte('clock_in', start)
+            .lte('clock_in', end)
+            .order('clock_in', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching attendance for date:', error);
+            throw new Error(error.message || 'Gagal mengambil data absensi hari ini.');
+        }
+        return data || null;
+    },
+
     async getActiveAttendance(profileId: string): Promise<Attendance | null> {
         const { data, error } = await supabase
             .rpc('get_active_attendance_for_user', {
@@ -144,6 +165,13 @@ export const apiService = {
         const address = await getAddressFromCoords(position.coords.latitude, position.coords.longitude);
 
         if (actionType === 'in') {
+            const today = new Date();
+            const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+            const existingToday = await this.getAttendanceForDate(user.id, todayStr);
+            if (existingToday) {
+                throw new Error('Clock-in gagal: Anda sudah memiliki absensi untuk hari ini.');
+            }
+
             const clockInData: Partial<Attendance> = {
                 profile_id: user.id,
                 clock_in: new Date().toISOString(),
