@@ -9,9 +9,11 @@ import { APP_TIME_ZONE, formatDateKey } from '../../lib/utils';
 interface KoreksiAbsensiModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: { clockType: 'in' | 'out', newDate: string, newTime: string, reason: string, attachment: File }) => void;
+    onSubmit: (data: { correctionType: 'missed_in' | 'missed_out' | 'missed_both' | 'wrong_time', newDate: string, newClockIn?: string, newClockOut?: string, reason: string, attachment: File }) => void;
     attendanceData: Attendance;
 }
+
+type CorrectionType = 'missed_in' | 'missed_out' | 'missed_both' | 'wrong_time';
 
 const CameraCapture: React.FC<{ onCapture: (file: File) => void; onClose: () => void; }> = ({ onCapture, onClose }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -98,9 +100,10 @@ const CameraCapture: React.FC<{ onCapture: (file: File) => void; onClose: () => 
 
 
 const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClose, onSubmit, attendanceData }) => {
-    const [clockType, setClockType] = useState<'in' | 'out'>('in');
+    const [correctionType, setCorrectionType] = useState<CorrectionType>('missed_in');
     const [newDate, setNewDate] = useState('');
-    const [newTime, setNewTime] = useState('');
+    const [newClockIn, setNewClockIn] = useState('');
+    const [newClockOut, setNewClockOut] = useState('');
     const [reason, setReason] = useState('');
     const [attachment, setAttachment] = useState<File | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -113,7 +116,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
             // FIX: Changed attendanceData.clockIn to attendanceData.clock_in
             const originalDate = new Date(attendanceData.clock_in);
             setNewDate(formatDateKey(originalDate));
-            setNewTime(
+            setNewClockIn(
                 new Intl.DateTimeFormat('en-GB', {
                     timeZone: APP_TIME_ZONE,
                     hour: '2-digit',
@@ -121,9 +124,19 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                     hour12: false,
                 }).format(originalDate),
             );
+            setNewClockOut(
+                attendanceData.clock_out
+                    ? new Intl.DateTimeFormat('en-GB', {
+                        timeZone: APP_TIME_ZONE,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                    }).format(new Date(attendanceData.clock_out))
+                    : '',
+            );
             setReason('');
             setAttachment(null);
-            setClockType('in');
+            setCorrectionType(attendanceData.clock_out ? 'wrong_time' : 'missed_in');
             setIsCameraOpen(false);
         }
     }, [isOpen, attendanceData]);
@@ -140,8 +153,15 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
     };
 
     const isFormValid = useMemo(() => {
-        return newDate && newTime && reason.trim() && attachment;
-    }, [newDate, newTime, reason, attachment]);
+        const needClockIn = correctionType === 'missed_in' || correctionType === 'missed_both' || correctionType === 'wrong_time';
+        const needClockOut = correctionType === 'missed_out' || correctionType === 'missed_both' || correctionType === 'wrong_time';
+        const hasClockIn = !!newClockIn;
+        const hasClockOut = !!newClockOut;
+        const timesOk = correctionType === 'wrong_time'
+            ? (hasClockIn || hasClockOut)
+            : (!needClockIn || hasClockIn) && (!needClockOut || hasClockOut);
+        return Boolean(newDate && timesOk && reason.trim() && attachment);
+    }, [correctionType, newClockIn, newClockOut, newDate, reason, attachment]);
 
     const handleOpenReview = (e: React.FormEvent) => {
         e.preventDefault();
@@ -181,9 +201,17 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                             <div className="bg-gray-50 p-4 rounded-lg border">
                                 <h4 className="font-semibold text-lg mb-4">Presensi</h4>
                                 <div className="space-y-3">
-                                    <InfoField label="Clock Type" value="Clock In" />
                                     <InfoField label="Periode Presensi" value={originalDate.toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE })} />
-                                    <InfoField label="Jam (WITA)" value={originalTime} />
+                                    <InfoField label="Clock In (WITA)" value={originalTime} />
+                                    <InfoField
+                                        label="Clock Out (WITA)"
+                                        value={attendanceData.clock_out ? new Intl.DateTimeFormat('id-ID', {
+                                            timeZone: APP_TIME_ZONE,
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            hour12: false,
+                                        }).format(new Date(attendanceData.clock_out)) : '-'}
+                                    />
                                     {/* FIX: Changed attendanceData.lokasiKerja to attendanceData.lokasi_kerja */}
                                     <InfoField label="Lokasi Kerja" value={attendanceData.lokasi_kerja || '-'} />
                                     {/* FIX: Changed attendanceData.tempatKerja to attendanceData.tempat_kerja */}
@@ -195,11 +223,13 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                             <div className="space-y-4">
                                 <h4 className="font-semibold text-lg">Pembetulan</h4>
                                 <div>
-                                    <label htmlFor="clockType" className="block text-sm font-medium text-gray-700">Clock Type</label>
-                                    <select id="clockType" value={clockType} onChange={e => setClockType(e.target.value as 'in' | 'out')}
+                                    <label htmlFor="correctionType" className="block text-sm font-medium text-gray-700">Jenis Koreksi</label>
+                                    <select id="correctionType" value={correctionType} onChange={e => setCorrectionType(e.target.value as CorrectionType)}
                                         className="mt-1 w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                        <option value="in">Clock In</option>
-                                        <option value="out">Clock Out</option>
+                                        <option value="missed_in">Lupa Clock-In</option>
+                                        <option value="missed_out">Lupa Clock-Out</option>
+                                        <option value="missed_both">Lupa Clock-In & Clock-Out</option>
+                                        <option value="wrong_time">Salah Jam (koreksi waktu)</option>
                                     </select>
                                 </div>
                                 <div className="relative">
@@ -208,12 +238,22 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                                         className="mt-1 block w-full pl-3 pr-10 py-2 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
                                     <CalendarIcon className="absolute right-3 top-8 h-5 w-5 text-gray-400" />
                                 </div>
-                                <div className="relative">
-                                    <label htmlFor="newTime" className="block text-sm font-medium text-gray-700">Jam (WITA)</label>
-                                    <input type="time" id="newTime" value={newTime} onChange={e => setNewTime(e.target.value)}
-                                        className="mt-1 block w-full pl-3 pr-10 py-2 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-                                    <TimeIcon className="absolute right-3 top-8 h-5 w-5 text-gray-400" />
-                                </div>
+                                {(correctionType !== 'missed_out') && (
+                                    <div className="relative">
+                                        <label htmlFor="newClockIn" className="block text-sm font-medium text-gray-700">Jam Clock-In (WITA)</label>
+                                        <input type="time" id="newClockIn" value={newClockIn} onChange={e => setNewClockIn(e.target.value)}
+                                            className="mt-1 block w-full pl-3 pr-10 py-2 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                                        <TimeIcon className="absolute right-3 top-8 h-5 w-5 text-gray-400" />
+                                    </div>
+                                )}
+                                {(correctionType !== 'missed_in') && (
+                                    <div className="relative">
+                                        <label htmlFor="newClockOut" className="block text-sm font-medium text-gray-700">Jam Clock-Out (WITA)</label>
+                                        <input type="time" id="newClockOut" value={newClockOut} onChange={e => setNewClockOut(e.target.value)}
+                                            className="mt-1 block w-full pl-3 pr-10 py-2 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                                        <TimeIcon className="absolute right-3 top-8 h-5 w-5 text-gray-400" />
+                                    </div>
+                                )}
                                 <div>
                                     <label htmlFor="reason" className="block text-sm font-medium text-gray-700">Alasan/Keterangan Pembetulan</label>
                                     <textarea id="reason" rows={3} value={reason} onChange={e => setReason(e.target.value)}
@@ -277,17 +317,30 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                         </div>
                         <div className="p-4 space-y-3 text-sm text-gray-700">
                             <div className="flex justify-between">
-                                <span className="font-medium">Clock Type</span>
-                                <span className="text-gray-900">{clockType === 'in' ? 'Clock In' : 'Clock Out'}</span>
+                                <span className="font-medium">Jenis Koreksi</span>
+                                <span className="text-gray-900">
+                                    {correctionType === 'missed_in' && 'Lupa Clock-In'}
+                                    {correctionType === 'missed_out' && 'Lupa Clock-Out'}
+                                    {correctionType === 'missed_both' && 'Lupa Clock-In & Clock-Out'}
+                                    {correctionType === 'wrong_time' && 'Salah Jam'}
+                                </span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Periode Presensi</span>
                                 <span className="text-gray-900">{newDate}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Jam (WITA)</span>
-                                <span className="text-gray-900">{newTime}</span>
-                            </div>
+                            {newClockIn && (
+                                <div className="flex justify-between">
+                                    <span className="font-medium">Clock-In (WITA)</span>
+                                    <span className="text-gray-900">{newClockIn}</span>
+                                </div>
+                            )}
+                            {newClockOut && (
+                                <div className="flex justify-between">
+                                    <span className="font-medium">Clock-Out (WITA)</span>
+                                    <span className="text-gray-900">{newClockOut}</span>
+                                </div>
+                            )}
                             <div>
                                 <p className="font-medium">Alasan</p>
                                 <p className="text-gray-800 whitespace-pre-line">{reason}</p>
@@ -311,7 +364,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                                 type="button"
                                 onClick={() => {
                                     if (!isFormValid || !attachment) return;
-                                    onSubmit({ clockType, newDate, newTime, reason, attachment });
+                                    onSubmit({ correctionType, newDate, newClockIn, newClockOut, reason, attachment });
                                     setShowReview(false);
                                 }}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"

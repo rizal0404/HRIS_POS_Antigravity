@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { APP_TIME_OFFSET } from '../lib/utils';
+import { APP_TIME_OFFSET, APP_TIME_ZONE, formatDateKey } from '../lib/utils';
 import { 
     UserProfile, 
     Request, 
@@ -15,7 +15,9 @@ import {
     OvertimeConfiguration,
     RequestType,
     NotificationPreferences,
+    AttendanceStatus,
 } from '../types';
+import { buildAttendanceWindow, computeAttendanceOutcome, CORRECTION_MAX_DAYS, deriveWorkDate, validateClockWindow } from '../lib/attendanceRules';
 
 // Helper untuk penanganan error yang konsisten
 const handleSupabaseError = ({ error, data }: { error: any, data: any }, context: string) => {
@@ -58,6 +60,22 @@ export const apiService = {
         return data?.[0] || null;
     },
 
+    async getAttendanceById(attendanceId: string): Promise<Attendance | null> {
+        const { data, error } = await supabase
+            .from('attendance')
+            .select('*')
+            .eq('id', attendanceId)
+            .single();
+
+        if (error) {
+            if ((error as any).code === 'PGRST116') {
+                return null;
+            }
+            throw new Error(error.message || 'Gagal memuat data presensi.');
+        }
+        return data || null;
+    },
+
     async getNotificationPreferences(): Promise<NotificationPreferences> {
         const { data, error } = await supabase.rpc('get_notification_preferences');
         if (error) {
@@ -92,9 +110,14 @@ export const apiService = {
     },
 
     async submitClockIn(attendanceData: Partial<Attendance>): Promise<Attendance> {
+        const payload: Partial<Attendance> = { ...attendanceData };
+        if (!payload.work_date && payload.clock_in) {
+            payload.work_date = formatDateKey(new Date(payload.clock_in), APP_TIME_ZONE);
+        }
+
         const { data, error } = await supabase
             .from('attendance')
-            .insert([attendanceData])
+            .insert([payload])
             .select()
             .single();
         return handleSupabaseError({ data, error }, 'submitClockIn');
@@ -105,10 +128,12 @@ export const apiService = {
         if (!attendanceData.profile_id || !attendanceData.clock_in) {
             throw new Error('Profile ID and Clock In time are required to create attendance for a subordinate.');
         }
+        const workDate = attendanceData.work_date || formatDateKey(new Date(attendanceData.clock_in), APP_TIME_ZONE);
         const { data, error } = await supabase.rpc('create_attendance_as_manager', {
             p_profile_id: attendanceData.profile_id,
             p_clock_in: attendanceData.clock_in,
-            p_status: attendanceData.status || 'hadir',
+            p_work_date: workDate,
+            p_status: attendanceData.status || AttendanceStatus.IN_PROGRESS,
             p_lokasi_kerja: attendanceData.lokasi_kerja || null,
             p_tempat_kerja: attendanceData.tempat_kerja || null,
             p_clock_in_coords: attendanceData.clock_in_coords || null,
@@ -138,12 +163,17 @@ export const apiService = {
             p_clock_in: updateData.clock_in ?? null,
             p_clock_out: updateData.clock_out ?? null,
             p_status: updateData.status ?? null,
+            p_work_date: updateData.work_date ?? null,
             p_lokasi_kerja: updateData.lokasi_kerja ?? null,
             p_tempat_kerja: updateData.tempat_kerja ?? null,
             p_clock_in_coords: updateData.clock_in_coords ?? null,
             p_clock_out_coords: updateData.clock_out_coords ?? null,
             p_clock_in_address: updateData.clock_in_address ?? null,
             p_clock_out_address: updateData.clock_out_address ?? null,
+            p_worked_minutes: updateData.worked_minutes ?? null,
+            p_late_minutes: updateData.late_minutes ?? null,
+            p_early_leave_minutes: updateData.early_leave_minutes ?? null,
+            p_source: updateData.source ?? null,
         });
         if (error) {
             console.error('Error in updateAttendanceAsManager RPC:', error);
@@ -156,7 +186,7 @@ export const apiService = {
         return Array.isArray(data) ? data[0] : data;
     },
 
-    async submitClockOut(attendanceId: string, clockOutData: { clock_out: string, clock_out_coords?: any, clock_out_address?: string }): Promise<Attendance> {
+    async submitClockOut(attendanceId: string, clockOutData: Partial<Attendance> & { clock_out: string }): Promise<Attendance> {
         const { data, error } = await supabase
             .from('attendance')
             .update(clockOutData)
@@ -167,36 +197,72 @@ export const apiService = {
     },
     
     async submitClockEvent(user: UserProfile, actionType: 'in' | 'out', payload: any): Promise<Attendance> {
-        const { position, workLocationType, workplace } = payload;
+        const { position, workLocationType, workplace, targetSchedule, shiftMeta, activeAttendance } = payload;
 
         if (!position) {
             throw new Error('Data lokasi tidak tersedia.');
         }
 
+        const scheduleForAction: JadwalKerjaTim | undefined = targetSchedule || payload.todaySchedule || undefined;
+        const now = new Date();
         const address = await getAddressFromCoords(position.coords.latitude, position.coords.longitude);
 
         if (actionType === 'in') {
+            const window = buildAttendanceWindow(scheduleForAction, shiftMeta || null);
+            const windowError = validateClockWindow('in', now, window);
+            if (windowError) {
+                throw new Error(windowError);
+            }
+
+            const workDate = window.workDate || formatDateKey(now, APP_TIME_ZONE);
             const clockInData: Partial<Attendance> = {
                 profile_id: user.id,
-                clock_in: new Date().toISOString(),
-                status: 'hadir',
+                clock_in: now.toISOString(),
+                work_date: workDate,
+                status: AttendanceStatus.IN_PROGRESS,
                 lokasi_kerja: workLocationType,
                 tempat_kerja: workplace,
                 clock_in_coords: { lat: position.coords.latitude, lon: position.coords.longitude },
                 clock_in_address: address,
+                source: 'MANUAL',
             };
             return this.submitClockIn(clockInData);
         } else { // 'out'
-            const activeAttendance = await this.getActiveAttendance(user.id);
-            if (!activeAttendance) {
+            const openAttendance = activeAttendance || await this.getActiveAttendance(user.id);
+            if (!openAttendance) {
                 throw new Error("Clock-out gagal: Tidak ada sesi absensi aktif. Mungkin Anda sudah clock-out atau sesi kerja dari hari sebelumnya telah berakhir.");
             }
-            const clockOutData = {
-                clock_out: new Date().toISOString(),
+
+            const window = buildAttendanceWindow(scheduleForAction, shiftMeta || null);
+            const windowError = validateClockWindow('out', now, window);
+            if (windowError) {
+                throw new Error(windowError);
+            }
+
+            if (new Date(openAttendance.clock_in) > now) {
+                throw new Error('Clock-out tidak boleh lebih awal dari clock-in.');
+            }
+
+            const workDate = deriveWorkDate(openAttendance, scheduleForAction, now);
+            const outcome = computeAttendanceOutcome({
+                clockInISO: openAttendance.clock_in,
+                clockOutISO: now.toISOString(),
+                schedule: scheduleForAction,
+                shiftMeta: shiftMeta || null,
+            });
+
+            const clockOutData: Partial<Attendance> & { clock_out: string } = {
+                clock_out: now.toISOString(),
+                work_date: workDate,
+                status: outcome.status,
+                worked_minutes: outcome.workedMinutes,
+                late_minutes: outcome.lateMinutes,
+                early_leave_minutes: outcome.earlyLeaveMinutes,
                 clock_out_coords: { lat: position.coords.latitude, lon: position.coords.longitude },
                 clock_out_address: address,
+                source: openAttendance.source || 'MANUAL',
             };
-            return this.submitClockOut(activeAttendance.id, clockOutData);
+            return this.submitClockOut(openAttendance.id, clockOutData);
         }
     },
     
@@ -209,6 +275,32 @@ export const apiService = {
         todayAttendanceId?: string; // To link 'Lainnya' clock-out to existing record
     }): Promise<Request> {
         const { user, tanggalPembetulan, jamPembetulan, clockType, alasan, todayAttendanceId } = payload;
+
+        const today = new Date();
+        const targetDate = new Date(`${tanggalPembetulan}T00:00:00${APP_TIME_OFFSET}`);
+        const todayStart = new Date(formatDateKey(today, APP_TIME_ZONE) + `T00:00:00${APP_TIME_OFFSET}`);
+        const dayDiff = Math.floor((todayStart.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (dayDiff > CORRECTION_MAX_DAYS) {
+            throw new Error(`Koreksi hanya boleh diajukan maksimal ${CORRECTION_MAX_DAYS} hari ke belakang.`);
+        }
+
+        const { data: pendingExisting, error: pendingError } = await supabase
+            .from('requests')
+            .select('id')
+            .eq('profile_id', user.id)
+            .eq('request_type', RequestType.KOREKSI)
+            .eq('status', RequestStatus.PENDING)
+            .eq('start_date', tanggalPembetulan)
+            .limit(1);
+
+        if (pendingError) {
+            handleSupabaseError({ data: pendingExisting, error: pendingError }, 'checkPendingCorrections');
+        }
+
+        if (pendingExisting && pendingExisting.length > 0) {
+            throw new Error('Sudah ada ajuan koreksi yang masih pending untuk tanggal tersebut.');
+        }
         
         // Create a definitive UTC timestamp for the intended correction time using fixed WITA offset
         const intendedDateTime = new Date(`${tanggalPembetulan}T${jamPembetulan}${APP_TIME_OFFSET}`);

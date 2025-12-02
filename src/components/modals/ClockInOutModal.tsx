@@ -8,6 +8,7 @@ import { APP_TIME_ZONE, formatDateKey, formatTime } from '../../lib/utils';
 import Modal from '../Modal';
 import { MapContainer, TileLayer, Marker, Circle, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
+import { buildAttendanceWindow, validateClockWindow } from '../../lib/attendanceRules';
 
 // Fix for default marker icon in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -117,10 +118,34 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const [workplace, setWorkplace] = useState(WORKPLACES[0].name);
   const [notes, setNotes] = useState('');
 
-  const todaySchedule = useMemo(() => {
-    const todayStr = formatLocalDate(currentTime);
-    return jadwal.find((j) => j.date === todayStr);
-  }, [jadwal, currentTime]);
+  const targetWorkDateKey = useMemo(() => {
+    if (actionType === 'out' && todayAttendance) {
+      return todayAttendance.work_date || formatDateKey(new Date(todayAttendance.clock_in), APP_TIME_ZONE);
+    }
+    return formatLocalDate(currentTime);
+  }, [actionType, todayAttendance, currentTime]);
+
+  const scheduleForAction = useMemo(
+    () => jadwal.find((j) => j.date === targetWorkDateKey),
+    [jadwal, targetWorkDateKey],
+  );
+  const attendanceWindow = useMemo(
+    () => buildAttendanceWindow(scheduleForAction || null),
+    [scheduleForAction],
+  );
+  const windowError = useMemo(
+    () => validateClockWindow(actionType, currentTime, attendanceWindow),
+    [actionType, currentTime, attendanceWindow],
+  );
+  const isOffDay = scheduleForAction?.shift === 'OFF';
+  const windowLabel = useMemo(() => {
+    const start = actionType === 'in' ? attendanceWindow.inStart : attendanceWindow.outStart;
+    const end = actionType === 'in' ? attendanceWindow.inEnd : attendanceWindow.outEnd;
+    if (!start || !end) return null;
+    const startText = start.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE });
+    const endText = end.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIME_ZONE });
+    return `${startText} - ${endText} WITA`;
+  }, [actionType, attendanceWindow]);
 
   const selectedWorkplaceDetails = useMemo(
     () => WORKPLACES.find((wp) => wp.name === workplace),
@@ -204,14 +229,14 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const isActionDisabled = useMemo(() => {
     if (isMockDetected) return true;
     if (isSubmitting) return true;
+    if (windowError && workLocation === 'Bekerja di Pabrik') return true;
 
-    const isOffDay = todaySchedule?.shift === 'OFF';
     const allowOffDayClockOut = actionType === 'out' && hasActiveAttendance;
 
     if (workLocation === 'Bekerja di Pabrik') {
       if (!allowOffDayClockOut) {
         if (isOffDay) return true;
-        if (!todaySchedule) return true;
+        if (!scheduleForAction) return true;
       }
       if (isFetchingLocation || !position || locationError) return true;
       if (position.coords.accuracy > ACCURACY_THRESHOLD_METERS) return true;
@@ -233,8 +258,9 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     locationError,
     notes,
     position,
-    todaySchedule,
+    scheduleForAction,
     workLocation,
+    windowError,
   ]);
 
   const locationMessage = () => {
@@ -277,13 +303,14 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     try {
       if (workLocation === 'Bekerja di Pabrik') {
         const scheduleRequired = !(actionType === 'out' && hasActiveAttendance);
-        if (scheduleRequired && !todaySchedule) throw new Error('Jadwal kerja untuk hari ini tidak ditemukan.');
+        if (scheduleRequired && !scheduleForAction) throw new Error('Jadwal kerja untuk hari ini tidak ditemukan.');
         const attendanceRecord = await apiService.submitClockEvent(user, actionType, {
           workLocationType: workLocation,
           workplace,
           notes,
           position,
-          todaySchedule,
+          targetSchedule: scheduleForAction,
+          activeAttendance: todayAttendance,
         });
         onSuccess(`${actionType === 'in' ? 'Clock In' : 'Clock Out'} berhasil!`, attendanceRecord);
       } else {
@@ -362,6 +389,15 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             </button>
           )}
         </div>
+        {windowError ? (
+          <div className="text-center p-3 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
+            {windowError}
+          </div>
+        ) : windowLabel ? (
+          <div className="text-center p-3 bg-emerald-50 text-emerald-800 rounded-lg text-sm">
+            Window clock-{actionType.toUpperCase()} : {windowLabel}
+          </div>
+        ) : null}
         <div className="text-center p-3 bg-slate-100 rounded-lg">
           <p className="font-bold text-lg">
             {currentTime.toLocaleDateString('id-ID', {
@@ -371,8 +407,9 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
               year: 'numeric',
               timeZone: APP_TIME_ZONE,
             })}{' '}
-            <span className="text-blue-600">{todaySchedule?.shift || 'OFF'}</span>
+            <span className="text-blue-600">{scheduleForAction?.shift || 'OFF'}</span>
           </p>
+          <p className="text-xs text-slate-500">Periode kerja: {targetWorkDateKey}</p>
           <p className="font-mono text-2xl font-bold tracking-wider">
             {formatTime(currentTime, { second: '2-digit' })} WITA
           </p>

@@ -57,7 +57,13 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
         if (!request || request.request_type !== RequestType.KOREKSI) return null;
         try {
             if (request.reason && request.reason.startsWith('{')) {
-                return JSON.parse(request.reason) as { type: 'in' | 'out'; reason: string; intended_iso: string; };
+                return JSON.parse(request.reason) as {
+                    type?: 'in' | 'out' | 'missed_in' | 'missed_out' | 'missed_both' | 'wrong_time';
+                    reason?: string;
+                    intended_iso?: string;
+                    new_clock_in_iso?: string;
+                    new_clock_out_iso?: string;
+                };
             }
         } catch (e) {
             // Fallback for malformed JSON or plain text
@@ -183,27 +189,46 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
     
     const renderAlasan = () => {
         if (request.request_type === RequestType.KOREKSI && correctionDetails) {
-            let actualTime: string;
-            if (loadingAttendance) {
-                actualTime = 'Memuat...';
-            } else if (originalAttendance) {
-                if (correctionDetails.type === 'in') {
-                    actualTime = formatTime(new Date(originalAttendance.clock_in));
-                } else { // 'out'
-                    actualTime = originalAttendance.clock_out ? formatTime(new Date(originalAttendance.clock_out)) : '- (Tidak ada)';
-                }
-            } else {
-                actualTime = 'Data tidak ditemukan';
-            }
+            const actualClockIn = loadingAttendance
+                ? 'Memuat...'
+                : originalAttendance
+                    ? formatTime(new Date(originalAttendance.clock_in))
+                    : 'Data tidak ditemukan';
+            const actualClockOut = loadingAttendance
+                ? 'Memuat...'
+                : originalAttendance?.clock_out
+                    ? formatTime(new Date(originalAttendance.clock_out))
+                    : '- (Tidak ada)';
 
-            const correctedTime = correctionDetails.intended_iso ? formatTime(new Date(correctionDetails.intended_iso)) : (request.start_time || '-');
+            const correctedClockIn = correctionDetails.new_clock_in_iso
+                ? formatTime(new Date(correctionDetails.new_clock_in_iso))
+                : (correctionDetails.type === 'in' && correctionDetails.intended_iso)
+                    ? formatTime(new Date(correctionDetails.intended_iso))
+                    : '-';
+            const correctedClockOut = correctionDetails.new_clock_out_iso
+                ? formatTime(new Date(correctionDetails.new_clock_out_iso))
+                : (correctionDetails.type === 'out' && correctionDetails.intended_iso)
+                    ? formatTime(new Date(correctionDetails.intended_iso))
+                    : '-';
+
+            const correctionLabel = (() => {
+                switch (correctionDetails.type) {
+                    case 'missed_in': return 'Lupa Clock-In';
+                    case 'missed_out': return 'Lupa Clock-Out';
+                    case 'missed_both': return 'Lupa Clock-In & Clock-Out';
+                    case 'wrong_time': return 'Salah Jam';
+                    default: return (correctionDetails.type || '').toString().toUpperCase();
+                }
+            })();
             
             return (
                  <div className="bg-gray-50 p-3 rounded-md mt-1 space-y-2">
-                    <InfoRow label="Tipe Koreksi" value={correctionDetails.type.toUpperCase()} />
-                    <InfoRow label="Waktu Aktual" value={actualTime} />
-                    <InfoRow label="Waktu Koreksi" value={correctedTime} />
-                    <InfoRow label="Keterangan" value={`"${correctionDetails.reason}"`} />
+                    <InfoRow label="Tipe Koreksi" value={correctionLabel} />
+                    <InfoRow label="Clock-In Aktual" value={actualClockIn} />
+                    <InfoRow label="Clock-In Koreksi" value={correctedClockIn} />
+                    <InfoRow label="Clock-Out Aktual" value={actualClockOut} />
+                    <InfoRow label="Clock-Out Koreksi" value={correctedClockOut} />
+                    <InfoRow label="Keterangan" value={`"${correctionDetails.reason || '-'}"`} />
                 </div>
             )
         }

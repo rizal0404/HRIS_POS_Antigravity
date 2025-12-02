@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { formatDate, formatTime, formatDateKey, APP_TIME_ZONE } from '../../../lib/utils';
+import { formatDate, formatTime, formatDateKey, APP_TIME_ZONE, APP_TIME_OFFSET } from '../../../lib/utils';
 import { ClockIcon, LocationMarkerIcon } from '../../../components/icons';
 import { UserProfile, Attendance, JadwalKerjaTim, Shift } from '../../../types';
 import { ClockInModal } from '../../../components/modals/ClockInOutModal';
@@ -92,7 +92,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
           }
 
           setActiveAttendance(attendance);
-          const attendanceDateKey = attendance ? formatDateKey(new Date(attendance.clock_in), APP_TIME_ZONE) : null;
+          const attendanceDateKey = attendance
+              ? (attendance.work_date || formatDateKey(new Date(attendance.clock_in), APP_TIME_ZONE))
+              : null;
           const attendanceForToday = attendanceDateKey === todayISO ? attendance : null;
           setTodayAttendance(attendanceForToday);
 
@@ -140,8 +142,8 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
     setToastMessage({type: 'success', message});
     if (newAttendance) {
         setActiveAttendance(newAttendance);
-        const attendanceDateKey = formatDateKey(new Date(newAttendance.clock_in));
-        setTodayAttendance(attendanceDateKey === formatDateKey(new Date()) ? newAttendance : null);
+        const attendanceDateKey = newAttendance.work_date || formatDateKey(new Date(newAttendance.clock_in), APP_TIME_ZONE);
+        setTodayAttendance(attendanceDateKey === formatDateKey(new Date(), APP_TIME_ZONE) ? newAttendance : null);
         if (actionType === 'in') {
           setStatus(AttendanceStatus.CLOCKED_IN);
         } else {
@@ -160,7 +162,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   
   const currentStatusInfo = statusInfo[status];
   const summaryAttendance = todayAttendance || activeAttendance;
-  const attendanceDateKey = summaryAttendance ? formatDateKey(new Date(summaryAttendance.clock_in)) : null;
+  const attendanceDateKey = summaryAttendance
+    ? (summaryAttendance.work_date || formatDateKey(new Date(summaryAttendance.clock_in), APP_TIME_ZONE))
+    : null;
   const isCrossDaySession = summaryAttendance ? attendanceDateKey !== todayISO : false;
 
   return (
@@ -216,7 +220,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
           <h3 className="text-xl font-semibold text-gray-800 border-b pb-3 mb-4">Ringkasan Absensi Hari Ini</h3>
           {isCrossDaySession && summaryAttendance && (
             <div className="mb-4 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 text-sm">
-              Sesi aktif berasal dari {formatDate(new Date(summaryAttendance.clock_in))} (WITA). Silakan clock-out untuk menutup sesi sebelumnya.
+              Sesi aktif berasal dari {attendanceDateKey ? formatDate(new Date(`${attendanceDateKey}T00:00:00${APP_TIME_OFFSET}`)) : formatDate(new Date(summaryAttendance.clock_in))} (WITA). Silakan clock-out untuk menutup sesi sebelumnya.
             </div>
           )}
           <div className="space-y-4">

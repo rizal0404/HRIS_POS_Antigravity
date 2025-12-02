@@ -9,7 +9,8 @@ import DetailAbsensiModal from '../../../components/modals/DetailAbsensiModal';
 import DetailAjuanModal from '../../../components/modals/DetailAjuanModal';
 import { SearchIcon, XIcon } from '../../../components/icons';
 import { supabase } from '../../../services/supabase';
-import { APP_TIME_OFFSET } from '../../../lib/utils';
+import { APP_TIME_OFFSET, APP_TIME_ZONE, formatDateKey } from '../../../lib/utils';
+import { CORRECTION_MAX_DAYS } from '../../../lib/attendanceRules';
 
 type HistoryEvent = (Request & { type: 'request' }) | (Attendance & { type: 'attendance' });
 
@@ -72,6 +73,29 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
 
 
   const handleOpenKoreksiModal = (attendance: Attendance) => {
+    const attendanceDate = attendance.work_date || formatDateKey(new Date(attendance.clock_in), APP_TIME_ZONE);
+    const todayStart = new Date(formatDateKey(new Date(), APP_TIME_ZONE) + `T00:00:00${APP_TIME_OFFSET}`);
+    const targetDate = new Date(`${attendanceDate}T00:00:00${APP_TIME_OFFSET}`);
+    const dayDiff = Math.floor((todayStart.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (dayDiff > CORRECTION_MAX_DAYS) {
+      alert(`Koreksi hanya boleh diajukan maksimal ${CORRECTION_MAX_DAYS} hari ke belakang.`);
+      return;
+    }
+
+    const hasPending = history.some(
+      (item) =>
+        item.type === 'request' &&
+        item.request_type === RequestType.KOREKSI &&
+        item.status === RequestStatus.PENDING &&
+        (item.attendance_id_to_correct === attendance.id || item.start_date === attendanceDate),
+    );
+
+    if (hasPending) {
+      alert('Sudah ada ajuan koreksi yang masih pending untuk tanggal tersebut.');
+      return;
+    }
+
     setSelectedAttendance(attendance);
     setIsKoreksiModalOpen(true);
   };
@@ -91,7 +115,7 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
     }
   };
 
-  const handleSubmitKoreksi = async (koreksiData: { clockType: 'in' | 'out', newDate: string, newTime: string, reason: string, attachment: File }) => {
+  const handleSubmitKoreksi = async (koreksiData: { correctionType: 'missed_in' | 'missed_out' | 'missed_both' | 'wrong_time', newDate: string, newClockIn?: string, newClockOut?: string, reason: string, attachment: File }) => {
     if (!selectedAttendance) return;
 
     try {
@@ -114,14 +138,40 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
         } else {
             throw new Error("Lampiran bukti diperlukan.");
         }
-        
-        // Create the date object from local parts with explicit WITA offset, then convert to definitive UTC ISO.
-        const intendedDateTime = new Date(`${koreksiData.newDate}T${koreksiData.newTime}${APP_TIME_OFFSET}`);
+
+        const todayStart = new Date(formatDateKey(new Date(), APP_TIME_ZONE) + `T00:00:00${APP_TIME_OFFSET}`);
+        const targetDate = new Date(`${koreksiData.newDate}T00:00:00${APP_TIME_OFFSET}`);
+        const dayDiff = Math.floor((todayStart.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (dayDiff > CORRECTION_MAX_DAYS) {
+            throw new Error(`Koreksi hanya boleh diajukan maksimal ${CORRECTION_MAX_DAYS} hari ke belakang.`);
+        }
+
+        const { data: pendingExisting, error: pendingError } = await supabase
+            .from('requests')
+            .select('id')
+            .eq('profile_id', user.id)
+            .eq('request_type', RequestType.KOREKSI)
+            .eq('status', RequestStatus.PENDING)
+            .eq('start_date', koreksiData.newDate)
+            .limit(1);
+
+        if (pendingError) throw pendingError;
+        if (pendingExisting && pendingExisting.length > 0) {
+            throw new Error('Sudah ada ajuan koreksi yang masih pending untuk tanggal tersebut.');
+        }
+
+        const newClockInISO = koreksiData.newClockIn
+            ? new Date(`${koreksiData.newDate}T${koreksiData.newClockIn}${APP_TIME_OFFSET}`).toISOString()
+            : null;
+        const newClockOutISO = koreksiData.newClockOut
+            ? new Date(`${koreksiData.newDate}T${koreksiData.newClockOut}${APP_TIME_OFFSET}`).toISOString()
+            : null;
 
         const reasonPayload = JSON.stringify({
-            type: koreksiData.clockType,
+            type: koreksiData.correctionType,
             reason: koreksiData.reason,
-            intended_iso: intendedDateTime.toISOString() // Store the unambiguous UTC timestamp
+            new_clock_in_iso: newClockInISO,
+            new_clock_out_iso: newClockOutISO,
         });
 
         const newKoreksiRequest: Omit<Request, 'id' | 'created_at' | 'status'> = {
@@ -129,7 +179,7 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
             request_type: RequestType.KOREKSI,
             start_date: koreksiData.newDate,
             end_date: koreksiData.newDate,
-            start_time: koreksiData.newTime,
+            start_time: koreksiData.newClockIn || koreksiData.newClockOut || undefined,
             reason: reasonPayload,
             attachment_url: attachmentUrl,
             attendance_id_to_correct: selectedAttendance.id,
@@ -155,8 +205,10 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
 
   const filteredHistory = useMemo(() => {
     return history.filter(item => {
-        const itemDate = new Date('clock_in' in item ? item.clock_in : item.start_date);
-        itemDate.setHours(0, 0, 0, 0);
+        const attendanceDateKey = item.type === 'attendance'
+            ? (item.work_date || formatDateKey(new Date(item.clock_in), APP_TIME_ZONE))
+            : item.start_date;
+        const itemDate = new Date(`${attendanceDateKey}T00:00:00${APP_TIME_OFFSET}`);
 
         const isAfterStartDate = !startDate || itemDate >= new Date(new Date(startDate).setHours(0,0,0,0));
         const isBeforeEndDate = !endDate || itemDate <= new Date(new Date(endDate).setHours(0,0,0,0));

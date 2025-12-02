@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Attendance, Request, UserProfile, RequestType } from '../../types';
-import { formatDate, formatTime } from '../../lib/utils';
+import { formatDate, formatDateKey, formatTime, APP_TIME_OFFSET } from '../../lib/utils';
 import { ClockIcon, DocumentAddIcon } from '../icons';
 import Badge from './Badge';
 
@@ -117,7 +117,13 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ item, onKoreksiClick, onDetai
   const usersMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.full_name])), [allUsers]);
   const Icon = getIcon(item);
   const title = getTitle(item);
-  const eventDate = 'clock_in' in item ? item.clock_in : item.created_at;
+  const eventDate = useMemo(() => {
+      if (item.type === 'attendance') {
+          const dateKey = item.work_date || formatDateKey(new Date(item.clock_in));
+          return `${dateKey}T00:00:00${APP_TIME_OFFSET}`;
+      }
+      return item.created_at;
+  }, [item]);
   const isAttendance = item.type === 'attendance';
 
   const handleDetailClick = (e: React.MouseEvent) => {

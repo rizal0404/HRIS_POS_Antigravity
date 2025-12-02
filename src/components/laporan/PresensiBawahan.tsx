@@ -177,7 +177,7 @@ const PresensiBawahan: React.FC<PresensiBawahanProps> = ({ user, mode = 'team' }
         const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
         const scheduleMap = new Map(scheduleData.map(s => [s.date, s]));
                 const attendanceMap = new Map(attendanceData.map(a => {
-                    const key = formatDateKey(new Date(a.clock_in), APP_TIME_ZONE);
+                    const key = a.work_date || formatDateKey(new Date(a.clock_in), APP_TIME_ZONE);
                     return [key, a];
                 }));
         const correctionMap = new Map(correctionData.map(c => [String(c.attendance_id_to_correct), c]));

@@ -339,6 +339,57 @@ CREATE INDEX idx_work_schedules_profile_id ON work_schedules(profile_id);
 CREATE INDEX idx_work_schedules_date ON work_schedules(date);
 CREATE INDEX idx_profiles_manager_id ON profiles(manager_id);
 
+-- ========= STEP 3B: UPDATE SKEMA PRESENSI UNTUK ATURAN BARU =========
+-- Tambahkan kolom & enum baru agar shift lintas hari dan auto status bekerja.
+
+-- 1) Perluas enum status
+ALTER TYPE attendance_status ADD VALUE IF NOT EXISTS 'absent';
+ALTER TYPE attendance_status ADD VALUE IF NOT EXISTS 'incomplete';
+ALTER TYPE attendance_status ADD VALUE IF NOT EXISTS 'in_progress';
+
+-- 2) Kolom turunan & perhitungan
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS work_date DATE;
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS worked_minutes INT;
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS late_minutes INT;
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS early_leave_minutes INT;
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS source TEXT;
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
+-- Backfill work_date dari clock_in
+UPDATE attendance SET work_date = (clock_in AT TIME ZONE 'UTC')::date WHERE work_date IS NULL;
+ALTER TABLE attendance ALTER COLUMN work_date SET NOT NULL;
+
+-- 3) Index unik pakai work_date (bukan tanggal clock_out) agar shift lintas hari tetap 1 record/hari kerja
+DROP INDEX IF EXISTS idx_attendance_profile_id_date;
+CREATE UNIQUE INDEX idx_attendance_profile_work_date ON attendance(profile_id, work_date);
+
+-- 4) Perbarui RPC manager agar ikut menulis kolom baru
+DROP FUNCTION IF EXISTS create_attendance_as_manager(uuid, timestamptz, attendance_status, date, text, text, jsonb, text);
+CREATE OR REPLACE FUNCTION create_attendance_as_manager(
+    p_profile_id UUID,
+    p_clock_in TIMESTAMPTZ,
+    p_status attendance_status DEFAULT 'in_progress',
+    p_work_date DATE DEFAULT NULL,
+    p_lokasi_kerja TEXT DEFAULT NULL,
+    p_tempat_kerja TEXT DEFAULT NULL,
+    p_clock_in_coords JSONB DEFAULT NULL,
+    p_clock_in_address TEXT DEFAULT NULL
+)
+RETURNS SETOF attendance AS $$
+BEGIN
+  IF is_superadmin() OR is_my_subordinate(p_profile_id) THEN
+    RETURN QUERY
+    INSERT INTO public.attendance (profile_id, clock_in, status, work_date, lokasi_kerja, tempat_kerja, clock_in_coords, clock_in_address)
+    VALUES (p_profile_id, p_clock_in, p_status, coalesce(p_work_date, (p_clock_in AT TIME ZONE 'UTC')::date), p_lokasi_kerja, p_tempat_kerja, p_clock_in_coords, p_clock_in_address)
+    RETURNING *;
+  ELSE
+    RAISE EXCEPTION 'User does not have permission to create attendance for this profile.';
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- RPC update_attendance_as_manager diperbarui (lihat SUPABASE_RPC_UPDATE_ATTENDANCE.sql) agar bisa mengisi work_date, status, menit keterlambatan, dsb.
+
 
 -- ========= STEP 4: HELPER FUNCTIONS & RLS POLICIES (KRITERIA #8) =========
 -- NOTE: Enable RLS on all tables and define policies for secure, role-based access.
@@ -703,3 +754,45 @@ USING (
   (storage.foldername(name))[1] = auth.uid()::text
 );
 ```
+
+## 7. Aturan Bisnis Presensi (Clock-In/Out & Koreksi)
+
+- **Window clock-in/out per shift**: preset default mengikuti contoh Shift 1 (clock-in 06:30–08:00, clock-out 15:30–19:00 jika jadwal 07:00–16:00) dengan grace 10 menit. Window dihitung dari jam shift (table `shifts`/`work_schedules`), termasuk shift 3 lintas hari (end_time < start_time dihitung +1 hari).
+- **Work date untuk shift lintas hari**: kolom `work_date` wajib diisi (tanggal mulai shift). Semua laporan & status memakai `work_date`, bukan tanggal `clock_out`.
+- **Status setelah clock-out**: laten dihitung `clock_in > start + grace`, pulang cepat `clock_out < end - grace`. Status di-set otomatis (`hadir`, `terlambat`, `pulang_cepat`; tersedia juga `in_progress`, `absent`, `incomplete`) plus menit kerja/keterlambatan di kolom baru.
+- **Koreksi absen**: form mendukung opsi Lupa Clock-In, Lupa Clock-Out, Lupa Keduanya, atau Salah Jam (bisa isi jam in/out). Lampiran wajib. Ajuan diblokir jika sudah ada koreksi PENDING di tanggal yang sama atau melewati batas **3 hari ke belakang**.
+- **Auto-mark**: rekomendasi job terjadwal (Supabase Cron) tiap jam untuk menandai `absent` jika lewat `start_time + 2 jam` tanpa clock-in, serta `incomplete` bila sudah lewat `end_time + grace` tanpa clock-out. Sesuaikan dengan jam shift di tabel `shifts`.
+- **SQL job contoh (opsional)**:
+  ```sql
+  create or replace function auto_mark_absence(p_cutoff_minutes int default 120)
+  returns void
+  language plpgsql
+  security definer as $$
+  begin
+    -- Absent jika tidak ada presensi pada work_date
+    insert into attendance (profile_id, clock_in, work_date, status, source)
+    select ws.profile_id,
+           (ws.date || 'T00:00:00+08:00')::timestamptz,
+           ws.date,
+           'absent',
+           'AUTO_ABSENCE'
+    from work_schedules ws
+    where ws.date <= (now() at time zone 'Asia/Makassar')::date
+      and not exists (select 1 from attendance a where a.profile_id = ws.profile_id and a.work_date = ws.date);
+
+    -- Incomplete jika sudah lewat jam selesai + grace dan belum clock-out
+    update attendance a
+    set status = 'incomplete',
+        updated_at = now(),
+        source = coalesce(a.source, 'AUTO_ABSENCE')
+    from work_schedules ws
+    join shifts s on s.code = ws.shift_code
+    where a.profile_id = ws.profile_id
+      and a.work_date = ws.date
+      and a.clock_out is null
+      and now() > ((ws.date || 'T' || s.end_time || '+08:00')::timestamptz + make_interval(mins => p_cutoff_minutes))
+      and s.end_time is not null;
+  end;
+  $$;
+  -- Jadwalkan via Supabase Cron, misal tiap jam: cron.schedule('absen-auto', '0 * * * *', $$ select auto_mark_absence(); $$);
+  ```

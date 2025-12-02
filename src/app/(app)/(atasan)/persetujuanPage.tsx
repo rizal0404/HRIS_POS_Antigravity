@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { UserProfile, Request, RequestStatus, RequestType, Attendance } from '../../../types';
+import { UserProfile, Request, RequestStatus, RequestType, Attendance, AttendanceStatus } from '../../../types';
 import { apiService } from '../../../services/apiService';
-import { formatDate, getAllSubordinates, APP_TIME_OFFSET, formatDateKey, getStartOfDayISO, getEndOfDayISO, APP_TIME_ZONE } from '../../../lib/utils';
+import { formatDate, getAllSubordinates } from '../../../lib/utils';
 import Badge from '../../../components/ui/Badge';
 import { SearchIcon, FilterIcon } from '../../../components/icons';
 import DetailAjuanModal from '../../../components/modals/DetailAjuanModal';
 import Spinner from '../../../components/ui/Spinner';
+import { computeAttendanceOutcome } from '../../../lib/attendanceRules';
 
 interface PersetujuanPageProps {
   user: UserProfile;
@@ -150,53 +151,61 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
             // Then, if it was an approved correction, process the attendance update.
             if (newStatus === RequestStatus.APPROVED && requestToUpdate.request_type === RequestType.KOREKSI) {
                 try {
-                    const reasonParsed = JSON.parse(requestToUpdate.reason);
-                    const intendedIso = reasonParsed.intended_iso 
-                        ? reasonParsed.intended_iso 
-                        : new Date(`${requestToUpdate.start_date}T${requestToUpdate.start_time}${APP_TIME_OFFSET}`).toISOString();
+                    const reasonParsed = JSON.parse(requestToUpdate.reason || '{}');
+                    const workDate = reasonParsed.work_date || requestToUpdate.start_date;
+                    const newClockInISO: string | null =
+                        reasonParsed.new_clock_in_iso ||
+                        (reasonParsed.type === 'in' && reasonParsed.intended_iso) ||
+                        null;
+                    const newClockOutISO: string | null =
+                        reasonParsed.new_clock_out_iso ||
+                        (reasonParsed.type === 'out' && reasonParsed.intended_iso) ||
+                        null;
 
-                    let targetAttendanceId = requestToUpdate.attendance_id_to_correct;
+                    const scheduleForWorkDate = workDate
+                        ? (await apiService.getTeamSchedules([requestToUpdate.profile_id], workDate, workDate))[0]
+                        : undefined;
 
-                    // Auto-merge: jika ID kosong, coba temukan baris yang sudah ada pada tanggal yang sama (UTC date)
-                    if (!targetAttendanceId && reasonParsed.type === 'in') {
-                        const intendedDate = new Date(intendedIso);
-                        const dateKey = formatDateKey(intendedDate, APP_TIME_ZONE);
-                        const startIso = getStartOfDayISO(intendedDate);
-                        const endIso = getEndOfDayISO(intendedDate);
-                        const existing = await apiService.getAttendanceForSubordinates(
-                            [requestToUpdate.profile_id],
-                            startIso,
-                            endIso
-                        );
-                        const match = existing.find(att => formatDateKey(new Date(att.clock_in), APP_TIME_ZONE) === dateKey);
-                        if (match) {
-                            targetAttendanceId = match.id;
-                        }
+                    let targetAttendance: Attendance | null = null;
+                    if (requestToUpdate.attendance_id_to_correct) {
+                        targetAttendance = await apiService.getAttendanceById(String(requestToUpdate.attendance_id_to_correct));
                     }
-
-                    if (targetAttendanceId) {
-                        const updateData: Partial<Attendance> = {};
-                        if (reasonParsed.type === 'out') {
-                            updateData.clock_out = intendedIso;
-                        } else if (reasonParsed.type === 'in') {
-                            updateData.clock_in = intendedIso;
-                        }
-                        if (Object.keys(updateData).length > 0) {
-                            await apiService.updateAttendance(targetAttendanceId, updateData);
-                        }
-                    } else if (reasonParsed.type === 'in') {
-                        // CASE: benar-benar tidak ada baris; buat baru
-                        const newAttendanceData: Partial<Attendance> = {
+                    if (!targetAttendance && newClockInISO) {
+                        targetAttendance = await apiService.createAttendanceForSubordinate({
                             profile_id: requestToUpdate.profile_id,
-                            clock_in: intendedIso,
-                            status: 'hadir',
-                            lokasi_kerja: 'Lainnya',
-                            tempat_kerja: `Koreksi Disetujui: ${reasonParsed.reason}`,
-                        };
-                        await apiService.createAttendanceForSubordinate(newAttendanceData);
-                    } else if (reasonParsed.type === 'out') {
-                        throw new Error('Ajuan koreksi clock-out tanpa attendance_id_to_correct atau baris aktif tidak ditemukan.');
+                            clock_in: newClockInISO,
+                            work_date: workDate,
+                            status: AttendanceStatus.IN_PROGRESS,
+                            source: 'CORRECTED',
+                        });
                     }
+                    if (!targetAttendance) {
+                        throw new Error('Data presensi yang akan dikoreksi tidak ditemukan.');
+                    }
+
+                    const clockInFinal = newClockInISO || targetAttendance.clock_in;
+                    const clockOutFinal = newClockOutISO || targetAttendance.clock_out;
+                    const outcome = clockInFinal && clockOutFinal
+                        ? computeAttendanceOutcome({
+                            clockInISO: clockInFinal,
+                            clockOutISO: clockOutFinal,
+                            schedule: scheduleForWorkDate,
+                        })
+                        : null;
+
+                    const updateData: Partial<Attendance> = {
+                        work_date: workDate,
+                        status: outcome?.status || targetAttendance.status,
+                        worked_minutes: outcome?.workedMinutes ?? targetAttendance.worked_minutes,
+                        late_minutes: outcome?.lateMinutes ?? targetAttendance.late_minutes,
+                        early_leave_minutes: outcome?.earlyLeaveMinutes ?? targetAttendance.early_leave_minutes,
+                        source: 'CORRECTED',
+                    };
+
+                    if (newClockInISO) updateData.clock_in = newClockInISO;
+                    if (newClockOutISO) updateData.clock_out = newClockOutISO;
+
+                    await apiService.updateAttendanceAsManager(String(targetAttendance.id), updateData);
                 } catch (processError) {
                     console.error("Failed to process attendance correction:", processError);
                     setError(processError instanceof Error ? processError.message : 'Gagal memproses koreksi ke data presensi.');
