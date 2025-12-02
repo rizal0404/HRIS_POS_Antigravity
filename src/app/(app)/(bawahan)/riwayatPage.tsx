@@ -100,6 +100,17 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
     setIsKoreksiModalOpen(true);
   };
 
+  const handleOpenKoreksiLatest = () => {
+    const latestAttendance = history.find(
+      (item): item is Attendance & { type: 'attendance' } => item.type === 'attendance',
+    );
+    if (!latestAttendance) {
+      alert('Belum ada data presensi yang bisa dikoreksi.');
+      return;
+    }
+    handleOpenKoreksiModal(latestAttendance);
+  };
+
   const handleCloseKoreksiModal = () => {
     setSelectedAttendance(null);
     setIsKoreksiModalOpen(false);
@@ -235,6 +246,12 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
     <div className="p-6">
         <div className="flex justify-between items-center mb-6 max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800">Riwayat Aktivitas Saya</h2>
+            <button
+              onClick={handleOpenKoreksiLatest}
+              className="inline-flex items-center px-4 py-2 rounded-md bg-yellow-500 text-white text-sm font-semibold hover:bg-yellow-600 transition-colors"
+            >
+              Ajukan Koreksi
+            </button>
         </div>
         
         <div className="bg-white p-4 rounded-lg shadow-md mb-6 max-w-4xl mx-auto">
