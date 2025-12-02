@@ -147,7 +147,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
         }
     };
 
-    const handleCapture = (file: File) => {
+  const handleCapture = (file: File) => {
         setAttachment(file);
         setIsCameraOpen(false);
     };
@@ -180,6 +180,14 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
         minute: '2-digit',
         hour12: false,
     }).format(originalDate);
+    const showClockInReview =
+        correctionType === 'missed_in' ||
+        correctionType === 'missed_both' ||
+        (correctionType === 'wrong_time' && !!newClockIn);
+    const showClockOutReview =
+        correctionType === 'missed_out' ||
+        correctionType === 'missed_both' ||
+        (correctionType === 'wrong_time' && !!newClockOut);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
@@ -329,13 +337,13 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                                 <span className="font-medium">Periode Presensi</span>
                                 <span className="text-gray-900">{newDate}</span>
                             </div>
-                            {newClockIn && (
+                            {showClockInReview && (
                                 <div className="flex justify-between">
                                     <span className="font-medium">Clock-In (WITA)</span>
                                     <span className="text-gray-900">{newClockIn}</span>
                                 </div>
                             )}
-                            {newClockOut && (
+                            {showClockOutReview && (
                                 <div className="flex justify-between">
                                     <span className="font-medium">Clock-Out (WITA)</span>
                                     <span className="text-gray-900">{newClockOut}</span>

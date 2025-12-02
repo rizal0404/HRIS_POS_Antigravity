@@ -104,11 +104,15 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
     const latestAttendance = history.find(
       (item): item is Attendance & { type: 'attendance' } => item.type === 'attendance',
     );
-    if (!latestAttendance) {
-      alert('Belum ada data presensi yang bisa dikoreksi.');
-      return;
-    }
-    handleOpenKoreksiModal(latestAttendance);
+    const fallbackAttendance: Attendance = latestAttendance || {
+      id: 'placeholder',
+      profile_id: user.id,
+      clock_in: new Date().toISOString(),
+      status: 'in_progress',
+      lokasi_kerja: '',
+      tempat_kerja: '',
+    };
+    handleOpenKoreksiModal(fallbackAttendance);
   };
 
   const handleCloseKoreksiModal = () => {
@@ -185,6 +189,10 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
             new_clock_out_iso: newClockOutISO,
         });
 
+        const attendanceIdToCorrect = selectedAttendance.id && selectedAttendance.id !== 'placeholder'
+            ? selectedAttendance.id
+            : undefined;
+
         const newKoreksiRequest: Omit<Request, 'id' | 'created_at' | 'status'> = {
             profile_id: user.id,
             request_type: RequestType.KOREKSI,
@@ -193,7 +201,7 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
             start_time: koreksiData.newClockIn || koreksiData.newClockOut || undefined,
             reason: reasonPayload,
             attachment_url: attachmentUrl,
-            attendance_id_to_correct: selectedAttendance.id,
+            attendance_id_to_correct: attendanceIdToCorrect,
             approver_id: user.manager_id || undefined,
         };
     
