@@ -55,6 +55,7 @@ const managerLinks: NavLinkItem[] = [
     { key: 'persetujuan', label: 'Persetujuan Tim', icon: CheckCircleIcon, path: '/persetujuan' },
     { key: 'tim', label: 'Tim Saya', icon: UsersIcon, path: '/tim' },
     { key: 'laporan_tim', label: 'Laporan Tim', icon: DocumentReportIcon, path: '/laporan-tim' },
+    { key: 'simulasi_cuti_lembur', label: 'Simulasi Cuti & Lembur', icon: CalculatorIcon, path: '/simulasi-cuti-lembur' },
 ];
 
 const superadminLinks: NavLinkItem[] = [

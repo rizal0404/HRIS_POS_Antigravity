@@ -24,6 +24,7 @@ import AtasanDashboardPage from './app/(app)/(atasan)/dashboardPage';
 import PersetujuanTimPage from './app/(app)/(atasan)/persetujuanPage';
 import TimSayaPage from './app/(app)/(atasan)/timPage';
 import LaporanTimPage from './app/(app)/(atasan)/laporan_timPage';
+import SimulasiCutiLemburPage from './app/(app)/(atasan)/SimulasiCutiLembur';
 import SuperadminDashboardPage from './app/(app)/(superadmin)/dashboardPage';
 import KonfigurasiPegawaiPage from './app/(app)/(superadmin)/pegawaiPage';
 import KonfigurasiSistemPage from './app/(app)/(superadmin)/sistemPage';
@@ -298,6 +299,7 @@ export default function App() {
                         <Route path="persetujuan" element={requireManager(<PersetujuanTimPage user={currentUser} />)} />
                         <Route path="tim" element={requireManager(<TimSayaPage user={currentUser} />)} />
                         <Route path="laporan-tim" element={requireManager(<LaporanTimPage user={currentUser} />)} />
+                        <Route path="simulasi-cuti-lembur" element={requireManager(<SimulasiCutiLemburPage user={currentUser} />)} />
 
                         {/* Superadmin Routes */}
                         <Route path="superadmin/dashboard" element={requireSuperadmin(<SuperadminDashboardPage user={currentUser} allUsers={allUsers} />)} />
