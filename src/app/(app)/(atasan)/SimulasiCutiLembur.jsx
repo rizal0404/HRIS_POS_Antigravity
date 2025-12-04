@@ -1,25 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
-import Papa from "papaparse";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { apiService } from "../../../services/apiService";
 import { getAllSubordinates } from "../../../lib/utils";
-
-// Data Karyawan Awal
-const initialEmployees = [
-  "WASKITA DWI PUTRA",
-  "ABDULLAH",
-  "BAMBANG SUFRAYOGI",
-  "MUH FADILLAH YUSUF",
-];
 
 // Konstanta jam kerja
 const WORK_HOURS_PER_SHIFT = 8; // Asumsi shift normal 8 jam
 const TARGET_MONTHLY_HOURS = 196; // Batas 196 jam/bulan
 
 // Fungsi untuk membuat jadwal kosong 31 hari
-const createEmptySchedule = (employeesList = initialEmployees) => {
+const createEmptySchedule = (employeesList = []) => {
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const sched = {};
   days.forEach((d) => {
@@ -35,33 +26,9 @@ const createEmptySchedule = (employeesList = initialEmployees) => {
 const shiftOptions = ["1T13", "2T13", "3T13", "OFF"];
 
 const SimulasiCutiLemburPage = ({ user }) => {
-  const buildDefaultSchedule = (list = initialEmployees) => {
-    const defaultSched = createEmptySchedule(list);
-    const shifts = ["1T13", "2T13", "3T13", "OFF", "OFF", "1T13", "2T13", "3T13"]; 
-    list.forEach((name, empIndex) => {
-      for (let d = 1; d <= 31; d++) {
-        const shiftIndex = (empIndex * 31 + d - 1) % shifts.length;
-        defaultSched[d][name] = shifts[shiftIndex];
-      }
-    });
-    if (list.includes("WASKITA DWI PUTRA")) {
-      defaultSched[4]["WASKITA DWI PUTRA"] = "2T13";
-      defaultSched[5]["WASKITA DWI PUTRA"] = "2T13";
-    }
-    if (list.includes("BAMBANG SUFRAYOGI")) {
-      defaultSched[4]["BAMBANG SUFRAYOGI"] = "3T13";
-      defaultSched[5]["BAMBANG SUFRAYOGI"] = "3T13";
-    }
-    if (list.includes("MUH FADILLAH YUSUF")) {
-      defaultSched[4]["MUH FADILLAH YUSUF"] = "1T13";
-      defaultSched[5]["MUH FADILLAH YUSUF"] = "1T13";
-    }
-    return defaultSched;
-  };
-
-  const [employees, setEmployees] = useState(initialEmployees);
+  const [employees, setEmployees] = useState([]);
   const [availableShifts, setAvailableShifts] = useState(shiftOptions);
-  const [schedule, setSchedule] = useState(() => buildDefaultSchedule(initialEmployees));
+  const [schedule, setSchedule] = useState({});
   const [replacements, setReplacements] = useState({});
 
   // State pengaturan simulasi
@@ -76,8 +43,8 @@ const SimulasiCutiLemburPage = ({ user }) => {
   const [shift3Scenario, setShift3Scenario] = useState("1");
 
   // State Cuti 1 Siklus
-  const [cycleStartDay, setCycleStartDay] = useState(16);
-  const [cycleEndDay, setCycleEndDay] = useState(21);
+  const [cycleStartDay, setCycleStartDay] = useState("");
+  const [cycleEndDay, setCycleEndDay] = useState("");
 
   // State Cuti + Sakit
   const [sickEmployee, setSickEmployee] = useState("ABDULLAH");
@@ -86,11 +53,20 @@ const SimulasiCutiLemburPage = ({ user }) => {
 
   // State Hasil
   const [result, setResult] = useState(null);
-  const [importError, setImportError] = useState(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [currentMonth] = useState(new Date());
   const [selectAll, setSelectAll] = useState(false);
+
+  const displayNames = useMemo(() => {
+    const selected = new Set();
+    employees.forEach((n) => {
+      if (replacements[n]) selected.add(n);
+    });
+    if (leaveEmployee) selected.add(leaveEmployee);
+    if (sickEmployee) selected.add(sickEmployee);
+    return employees.filter((n) => selected.has(n));
+  }, [employees, replacements, leaveEmployee, sickEmployee]);
 
   const formatDate = (dateObj) => {
     const year = dateObj.getFullYear();
@@ -107,10 +83,10 @@ const SimulasiCutiLemburPage = ({ user }) => {
       const subordinates = getAllSubordinates(user.id, allUsers);
 
       if (subordinates.length === 0) {
-        setEmployees(initialEmployees);
-        setSchedule(buildDefaultSchedule(initialEmployees));
+        setEmployees([]);
+        setSchedule({});
         setAvailableShifts(shiftOptions);
-        setLoadError("Tidak ada bawahan. Menggunakan jadwal contoh.");
+        setLoadError("Tidak ada bawahan untuk disimulasikan.");
         return;
       }
 
@@ -118,11 +94,13 @@ const SimulasiCutiLemburPage = ({ user }) => {
       const names = subordinates.map((u) => u.full_name);
       const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-      const schedules = await apiService.getTeamSchedules(
-        subordinates.map((u) => u.id),
-        formatDate(start),
-        formatDate(end)
-      );
+      const schedules = subordinates.length > 0
+        ? await apiService.getTeamSchedules(
+            subordinates.map((u) => u.id),
+            formatDate(start),
+            formatDate(end)
+          )
+        : [];
 
       const newSchedule = createEmptySchedule(names);
       const shiftSet = new Set(shiftOptions);
@@ -182,7 +160,67 @@ const SimulasiCutiLemburPage = ({ user }) => {
     setSelectAll(allSelected);
   }, [employees, replacements]);
 
+  const formatTime = (timeStr) => {
+    if (!timeStr) return null;
+    const [h, m] = timeStr.split(":").map((v) => parseInt(v, 10));
+    return { h, m: m ?? 0 };
+  };
+
+  const addHours = (timeObj, hours) => {
+    if (!timeObj) return null;
+    const totalMinutes = timeObj.h * 60 + timeObj.m + hours * 60;
+    const normalized = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+    const h = Math.floor(normalized / 60);
+    const m = normalized % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+
+  const subtractHours = (timeObj, hours) => {
+    if (!timeObj) return null;
+    const totalMinutes = timeObj.h * 60 + timeObj.m - hours * 60;
+    const normalized = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+    const h = Math.floor(normalized / 60);
+    const m = normalized % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+
+  const defaultShiftTimes = {
+    "1T13": { start: "07:30", end: "15:30" },
+    "2T13": { start: "15:30", end: "22:30" },
+    "3T13": { start: "22:30", end: "07:30" },
+  };
+
+  const formatOvertimePeriod = (row) => {
+    if (!row || row.ot <= 0) return "-";
+    const shiftCode = row.simShift && row.simShift !== "-" ? row.simShift : row.normalShift;
+    const times = defaultShiftTimes[shiftCode];
+    if (!times) return `+${row.ot} jam`;
+    const startObj = formatTime(times.start);
+    const endObj = formatTime(times.end);
+    if (!startObj || !endObj) return `+${row.ot} jam`;
+
+    // Untuk shift malam (3T13) tampilkan periode lembur sebelum shift dimulai (mis. 19:30-22:30)
+    if (shiftCode === "3T13") {
+      const otStart = subtractHours(startObj, row.ot);
+      return otStart ? `${otStart} - ${times.start}` : `-${times.start}`;
+    }
+
+    // Default: lembur setelah jam selesai shift
+    const otEnd = addHours(endObj, row.ot);
+    return otEnd ? `${times.end} - ${otEnd}` : `${times.end} -`;
+  };
+
   // --- FUNGSI SIMULASI ASLI ---
+  const handleCycleDayChange = (value, setter) => {
+    if (value === "") {
+      setter("");
+      return;
+    }
+    const num = Number(value);
+    if (!Number.isFinite(num)) return;
+    const clamped = Math.max(1, Math.min(31, num));
+    setter(String(clamped));
+  };
 
   // --- 1. Simulasi Cuti Pendek (termasuk Penyesuaian Shift 3) ---
   const simulateShortLeaveLogic = () => {
@@ -242,8 +280,8 @@ const SimulasiCutiLemburPage = ({ user }) => {
           // Case Shift 2
           else if (leaveShift === "2T13") {
             if (normalShift === "1T13" || normalShift === "3T13") {
-              ot = 2;
-              note = "Lembur 2 jam untuk membantu menutup kekosongan Shift 2.";
+              ot = 3;
+              note = "Lembur 3 jam untuk membantu menutup kekosongan Shift 2.";
             } else if (normalShift === "OFF") {
               status = "OFF";
               note = "Tetap OFF.";
@@ -402,11 +440,19 @@ const SimulasiCutiLemburPage = ({ user }) => {
     const otSummary = {};
     employees.forEach((e) => (otSummary[e] = 0));
     const hasSelectedReplacement = Object.values(replacements).some(Boolean);
+    let lastShift3Day = null;
 
-    for (let d = cycleStartDay; d <= cycleEndDay; d++) {
+    const startDay = Number(cycleStartDay);
+    const endDay = Number(cycleEndDay);
+    if (!Number.isFinite(startDay) || !Number.isFinite(endDay) || cycleStartDay === "" || cycleEndDay === "") {
+      return { rows: resRows, otSummary };
+    }
+
+    for (let d = startDay; d <= endDay; d++) {
       const daySched = schedule[d];
       if (!daySched) continue;
       const leaveShift = daySched[leaveEmployee];
+      if (leaveShift === "3T13") lastShift3Day = d;
 
       employees.forEach((name) => {
         const normalShift = daySched[name];
@@ -434,50 +480,93 @@ const SimulasiCutiLemburPage = ({ user }) => {
           status = "CUTI";
           simShift = "-";
           note = "Cuti 1 siklus (2,1,3).";
-        } else {
-          if (leaveShift === "2T13") {
+        } else if (leaveShift === "2T13") {
+          if (normalShift === "1T13") {
+            ot = 3;
+            note = "Shift 1 + lembur 3 jam awal Shift 2.";
+          } else if (normalShift === "3T13") {
+            ot = 3;
+            note = "Shift 3 + lembur 3 jam akhir Shift 2.";
+          } else if (normalShift === "OFF") {
+            note = "Tetap OFF.";
+          } else {
+            note = "Bekerja sesuai shift normal.";
+          }
+        } else if (leaveShift === "1T13") {
+          if (normalShift === "2T13") {
+            simShift = "1T13";
+            ot = 4;
+            note = "2T13 digeser ke 1T13 + lembur 4 jam.";
+          } else if (normalShift === "3T13") {
+            ot = 3;
+            note = "3T13 + lembur 3 jam sebelum shift.";
+          } else if (normalShift === "OFF") {
+            note = "Tetap OFF.";
+          } else {
+            note = "Bekerja sesuai shift normal.";
+          }
+        } else if (leaveShift === "3T13") {
+          const isFirstLeaveDay = d === startDay;
+          if (shift3Scenario === "1") {
             if (normalShift === "1T13") {
-              ot = 2;
-              note = "Shift 1 + lembur 2 jam awal Shift 2.";
-            } else if (normalShift === "3T13") {
-              ot = 2;
-              note = "Shift 3 + lembur 2 jam akhir Shift 2.";
-            } else if (normalShift === "OFF") {
-              note = "Tetap OFF.";
-            } else {
-              note = "Bekerja sesuai shift normal.";
-            }
-          } else if (leaveShift === "1T13") {
-            if (normalShift === "2T13") {
               simShift = "1T13";
               ot = 4;
-              note = "2T13 digeser ke 1T13 + lembur 4 jam.";
-            } else if (normalShift === "3T13") {
+              note = "Skenario 1: 1T13 + 4 jam lembur (1T13+4jam).";
+            } else if (normalShift === "2T13") {
+              simShift = "3T13";
               ot = 3;
-              note = "3T13 + lembur 3 jam sebelum shift.";
+              note = "Skenario 1: 2T13 pindah ke 3T13 + 3 jam lembur (3jam+3T13).";
             } else if (normalShift === "OFF") {
-              note = "Tetap OFF.";
+              status = "OFF";
+              simShift = "OFF";
+              note = "Skenario 1: tetap OFF, shift 3 ditanggung rekan lain.";
             } else {
               note = "Bekerja sesuai shift normal.";
             }
-          } else if (leaveShift === "3T13") {
-            if (normalShift === "2T13") {
-              ot = 2;
-              note = "2T13 + lembur 2 jam awal 3T13.";
-            } else if (normalShift === "1T13") {
-              ot = 2;
-              note = "1T13 + lembur 2 jam akhir malam.";
-            } else if (normalShift === "OFF") {
-              note = "Tetap OFF.";
+          } else if (shift3Scenario === "2") {
+            if (isFirstLeaveDay) {
+              if (normalShift === "1T13") {
+                simShift = "1T13";
+                ot = 4;
+                note = "Skenario 2 (H1): 1T13 + 4 jam lembur (1T13+4jam).";
+              } else if (normalShift === "2T13") {
+                simShift = "3T13";
+                ot = 3;
+                note = "Skenario 2 (H1): 2T13 pindah ke 3T13 + 3 jam lembur (3jam+3T13).";
+              } else if (normalShift === "OFF") {
+                status = "BEKERJA";
+                simShift = "3T13";
+                ot = 0;
+                note = "Skenario 2 (H1): dari OFF masuk shift 3 penuh (3T13).";
+              } else {
+                note = "Bekerja sesuai shift normal.";
+              }
             } else {
-              note = "Bekerja sesuai shift normal.";
+              if (normalShift === "1T13") {
+                simShift = "1T13";
+                ot = 0;
+                note = "Skenario 2 (H2+): Tetap 1T13 normal (karena Shift 3 sudah diisi oleh pengganti).";
+              } else if (normalShift === "2T13") {
+                simShift = "2T13";
+                ot = 0;
+                note = "Skenario 2 (H2+): tetap 2T13 tanpa lembur (beban dipindah ke karyawan OFF).";
+              } else if (normalShift === "OFF") {
+                status = "BEKERJA";
+                simShift = "3T13";
+                ot = 0;
+                note = "Skenario 2 (H2+): dari OFF menjadi 3T13 penuh (mengganti karyawan yang cuti).";
+              } else {
+                note = "Bekerja sesuai shift normal.";
+              }
             }
           } else {
             note = "Bekerja sesuai shift normal.";
           }
+        } else {
+          note = "Bekerja sesuai shift normal.";
         }
 
-        const actualHours = (status === "BEKERJA" || (status==="OFF" && simShift!=="OFF")) ? WORK_HOURS_PER_SHIFT + ot : 0;
+        const actualHours = status === "BEKERJA" ? WORK_HOURS_PER_SHIFT + ot : 0;
         otSummary[name] += ot;
 
         resRows.push({
@@ -492,6 +581,79 @@ const SimulasiCutiLemburPage = ({ user }) => {
         });
       });
     }
+
+    // Penyesuaian hari setelah cuti shift 3 (mengikuti logika simulateShortLeaveLogic)
+    const adjustmentDay = (lastShift3Day ?? endDay) + 1;
+    const leaveShiftOnLast3 = lastShift3Day ? "3T13" : schedule[endDay]?.[leaveEmployee];
+    const adjSched = schedule[adjustmentDay];
+    if (adjSched && leaveShiftOnLast3 === "3T13" && (shift3Scenario === "1" || shift3Scenario === "2")) {
+      employees.forEach((name) => {
+        const normalShift = adjSched[name];
+        const isReplacement = replacements[name];
+        if (hasSelectedReplacement && !isReplacement && name !== leaveEmployee) {
+          resRows.push({
+            day: adjustmentDay,
+            name,
+            normalShift,
+            status: normalShift === "OFF" ? "OFF" : "BEKERJA",
+            simShift: normalShift,
+            ot: 0,
+            actualHours: normalShift === "OFF" ? 0 : WORK_HOURS_PER_SHIFT,
+            note: "Tidak ditunjuk sebagai pengganti.",
+          });
+          return;
+        }
+        let status = "BEKERJA";
+        let simShift = normalShift;
+        let ot = 0;
+        let note = "Hari penyesuaian setelah cuti shift 3.";
+
+        if (shift3Scenario === "1") {
+          if (normalShift === "2T13") {
+            simShift = "3T13";
+            ot = 3;
+            note = "Penyesuaian Skenario 1: 3jam+3T13.";
+          } else if (normalShift === "1T13") {
+            simShift = "1T13";
+            ot = 4;
+            note = "Penyesuaian Skenario 1: 1T13+4jam.";
+          } else if (normalShift === "OFF") {
+            simShift = "OFF";
+            status = "OFF";
+            note = "Penyesuaian Skenario 1: OFF (recovery setelah lembur).";
+          }
+        } else if (shift3Scenario === "2") {
+          if (normalShift === "3T13") {
+            simShift = "3T13";
+            ot = 3;
+            note = "Penyesuaian Skenario 2: 3jam+3T13.";
+          } else if (normalShift === "2T13") {
+            status = "OFF";
+            simShift = "OFF";
+            note = "Penyesuaian Skenario 2: OFF setelah bantu shift 3.";
+          } else if (normalShift === "1T13") {
+            simShift = "1T13";
+            ot = 4;
+            note = "Penyesuaian Skenario 2: 1T13+4jam.";
+          }
+        }
+
+        const actualHours = status === "BEKERJA" ? WORK_HOURS_PER_SHIFT + ot : 0;
+        otSummary[name] += ot;
+
+        resRows.push({
+          day: adjustmentDay,
+          name,
+          normalShift,
+          status,
+          simShift,
+          ot,
+          actualHours,
+          note: `[PENYESUAIAN] ${note}`,
+        });
+      });
+    }
+
     return { rows: resRows, otSummary };
   };
 
@@ -593,14 +755,14 @@ const SimulasiCutiLemburPage = ({ user }) => {
     }
 
     // Filter detail hanya untuk karyawan terpilih (selalu sertakan karyawan cuti/sakit)
-    const selectedNames = new Set(
-      employees.filter((n) => replacements[n] || n === leaveEmployee || n === sickEmployee)
-    );
+    const selectedNames = new Set(displayNames);
 
     const filteredRows = simResult.rows.filter((r) => selectedNames.has(r.name));
-    const { otSummary } = simResult;
+    const filteredOtSummary = Object.fromEntries(
+      Object.entries(simResult.otSummary).filter(([name]) => selectedNames.has(name))
+    );
 
-    const totalNormalHours = employees.reduce((acc, name) => {
+    const totalNormalHours = displayNames.reduce((acc, name) => {
         let total = 0;
         for (let d = 1; d <= 31; d++) {
             if (schedule[d] && schedule[d][name] !== "OFF") {
@@ -611,7 +773,7 @@ const SimulasiCutiLemburPage = ({ user }) => {
         return acc;
     }, {});
 
-    const monthlyHoursSummary = employees.reduce((acc, name) => {
+    const monthlyHoursSummary = displayNames.reduce((acc, name) => {
         let totalCutisSickHours = 0;
         filteredRows.forEach(r => {
             if (r.name === name) {
@@ -623,12 +785,12 @@ const SimulasiCutiLemburPage = ({ user }) => {
             }
         });
         const netNormal = totalNormalHours[name] - totalCutisSickHours;
-        const totalOT = otSummary[name];
+        const totalOT = filteredOtSummary[name] ?? 0;
         acc[name] = netNormal + totalOT;
         return acc;
     }, {});
 
-    const breaches = Object.entries(otSummary)
+    const breaches = Object.entries(filteredOtSummary)
       .filter(([_, hours]) => hours > otLimit)
       .map(([name, hours]) => ({ name, hours }));
       
@@ -636,73 +798,14 @@ const SimulasiCutiLemburPage = ({ user }) => {
       .filter(([_, hours]) => hours > TARGET_MONTHLY_HOURS)
       .map(([name, hours]) => ({ name, hours }));
 
-    setResult({ rows: filteredRows, otSummary, monthlyHoursSummary, breaches, hoursBreaches });
-  }, [employees, schedule, scenarioType, leaveStartDay, leaveEndDay, cycleStartDay, cycleEndDay, sickDay, leaveEmployee, sickEmployee, shift3Scenario, useExternal, otLimit, replacements]);
+    setResult({ rows: filteredRows, otSummary: filteredOtSummary, monthlyHoursSummary, breaches, hoursBreaches });
+  }, [employees, schedule, scenarioType, leaveStartDay, leaveEndDay, cycleStartDay, cycleEndDay, sickDay, leaveEmployee, sickEmployee, shift3Scenario, useExternal, otLimit, replacements, displayNames]);
 
   useEffect(() => {
-    if (typeof Papa === 'undefined' || typeof XLSX === 'undefined') {
-        console.warn("Library PapaParse atau XLSX tidak terdeteksi.");
+    if (typeof XLSX === 'undefined') {
+      console.warn("Library XLSX tidak terdeteksi.");
     }
   }, []);
-
-  const handleImportCSV = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (typeof Papa === 'undefined') {
-        setImportError("Library PapaParse tidak tersedia.");
-        return;
-    }
-
-    setImportError(null);
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const data = results.data;
-        if (!data || data.length === 0) {
-            setImportError("File CSV kosong.");
-            return;
-        }
-
-        const newSchedule = createEmptySchedule(employees);
-        const shiftKeys = Array.from({ length: 31 }, (_, i) => String(i + 1));
-        const newEmployees = [];
-        const dynamicShifts = new Set(availableShifts);
-
-        try {
-          data.forEach(row => {
-            const name = row.Nama?.trim() || row.NAME?.trim();
-            if (!name || !employees.includes(name)) return;
-            
-            if (!newEmployees.includes(name)) newEmployees.push(name);
-
-            for (let d = 1; d <= 31; d++) {
-                if (!newSchedule[d]) newSchedule[d] = {};
-                if (!newSchedule[d][name]) newSchedule[d][name] = "OFF";
-            }
-
-            shiftKeys.forEach(dayKey => {
-              const day = parseInt(dayKey, 10);
-              const shiftValue = (row[dayKey]?.trim() || 'OFF').toUpperCase();
-              newSchedule[day][name] = shiftValue;
-              dynamicShifts.add(shiftValue);
-            });
-          });
-          
-          if(newEmployees.length === 0) throw new Error("Tidak ada data karyawan valid.");
-
-          setSchedule(newSchedule);
-          setAvailableShifts(Array.from(dynamicShifts));
-          setImportError(`Berhasil memuat jadwal.`);
-
-        } catch (e) {
-          setImportError("Format CSV tidak sesuai.");
-        }
-      },
-      error: (error) => setImportError(`Gagal: ${error.message}`)
-    });
-  };
 
   const handleExportExcel = () => {
     if (!result || typeof XLSX === 'undefined') return;
@@ -710,13 +813,13 @@ const SimulasiCutiLemburPage = ({ user }) => {
     const workbook = XLSX.utils.book_new();
     const summaryData = [
         ["Nama", "Total Lembur (Jam)", "Total Jam Kerja (N+L)", `Batas Jam Normal (${TARGET_MONTHLY_HOURS})`, `Batas Lembur (${otLimit})`, "Status"],
-        ...employees.map(name => [
+        ...displayNames.map(name => [
             name,
-            result.otSummary[name],
-            result.monthlyHoursSummary[name],
-            result.monthlyHoursSummary[name] > TARGET_MONTHLY_HOURS ? "LEBIH" : "OK",
-            result.otSummary[name] > otLimit ? "LEBIH" : "OK",
-            result.monthlyHoursSummary[name] > TARGET_MONTHLY_HOURS ? "OVERLOAD" : "AMAN",
+            result.otSummary[name] ?? 0,
+            result.monthlyHoursSummary[name] ?? 0,
+            (result.monthlyHoursSummary[name] ?? 0) > TARGET_MONTHLY_HOURS ? "LEBIH" : "OK",
+            (result.otSummary[name] ?? 0) > otLimit ? "LEBIH" : "OK",
+            (result.monthlyHoursSummary[name] ?? 0) > TARGET_MONTHLY_HOURS ? "OVERLOAD" : "AMAN",
         ])
     ];
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
@@ -764,10 +867,6 @@ const SimulasiCutiLemburPage = ({ user }) => {
             </select>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-slate-700">Import CSV</label>
-            <input type="file" accept=".csv" onChange={handleImportCSV} className="text-sm file:py-2 file:px-4 file:rounded-full file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-          </div>
-          <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold text-slate-700">Sinkron Jadwal Tim (bulan ini)</label>
             <button
               type="button"
@@ -780,141 +879,148 @@ const SimulasiCutiLemburPage = ({ user }) => {
             <p className="text-[11px] text-slate-500">Mengambil jadwal bawahan dari halaman Tim Saya untuk bulan berjalan.</p>
           </div>
         </div>
-        {importError && <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{importError}</div>}
         {loadError && <div className="text-xs text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">{loadError}</div>}
       </section>
 
-      <section className="grid lg:grid-cols-2 gap-6">
-        {/* Parameter Kiri */}
-        <div className="bg-white rounded-2xl shadow-lg p-5 flex flex-col gap-4">
-          <h2 className="font-bold text-lg text-indigo-700 border-b pb-2">Parameter Skenario</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div className="flex flex-col gap-1">
-              <span className="font-medium text-slate-700">Karyawan Cuti</span>
-              <select className="border rounded-lg px-3 py-2" value={leaveEmployee} onChange={(e) => setLeaveEmployee(e.target.value)}>
-                {employees.map((e) => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
-
-            {scenarioType === "shortLeave" && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-slate-700">Mulai Cuti</span>
-                  <input type="number" min={1} max={31} className="border rounded-lg px-3 py-2" value={leaveStartDay} onChange={(e) => setLeaveStartDay(Math.max(1, Math.min(31, Number(e.target.value))))} />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-slate-700">Akhir Cuti</span>
-                  <input type="number" min={1} max={31} className="border rounded-lg px-3 py-2" value={leaveEndDay} onChange={(e) => setLeaveEndDay(Math.max(1, Math.min(31, Number(e.target.value))))} />
-                </div>
-              </>
-            )}
-
-            {scenarioType === "cycleLeave" && (
-               <>
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-slate-700">Mulai Siklus</span>
-                  <input type="number" min={1} max={31} className="border rounded-lg px-3 py-2" value={cycleStartDay} onChange={(e) => setCycleStartDay(Math.max(1, Math.min(31, Number(e.target.value))))} />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-slate-700">Akhir Siklus</span>
-                  <input type="number" min={1} max={31} className="border rounded-lg px-3 py-2" value={cycleEndDay} onChange={(e) => setCycleEndDay(Math.max(1, Math.min(31, Number(e.target.value))))} />
-                </div>
-              </>
-            )}
-
-            {(scenarioType === "shortLeave" || scenarioType === "cycleLeave") && (
-                <div className="flex flex-col gap-1 col-span-2">
-                  <span className="font-medium text-slate-700">Skenario Shift 3 (Jika cuti di 3T13)</span>
-                  <select className="border rounded-lg px-3 py-2" value={shift3Scenario} onChange={(e) => setShift3Scenario(e.target.value)}>
-                    <option value="1">Skenario 1 (Standard)</option>
-                    <option value="2">Skenario 2 (Off -&gt; 3T13)</option>
-                  </select>
-                </div>
-            )}
-
-            {scenarioType === "leavePlusSick" && (
-                <>
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-slate-700">Karyawan Sakit</span>
-                  <select className="border rounded-lg px-3 py-2" value={sickEmployee} onChange={(e) => setSickEmployee(e.target.value)}>
-                    {employees.filter(e => e !== leaveEmployee).map((e) => <option key={e} value={e}>{e}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-slate-700">Hari Sakit</span>
-                  <input type="number" min={1} max={31} className="border rounded-lg px-3 py-2" value={sickDay} onChange={(e) => setSickDay(Number(e.target.value))} />
-                </div>
-                <div className="col-span-2 mt-2">
-                    <label className="flex items-center gap-2"><input type="checkbox" checked={useExternal} onChange={(e) => setUseExternal(e.target.checked)} /> Gunakan External</label>
-                </div>
-                </>
-            )}
-          </div>
-          <button onClick={runSimulation} className="mt-4 px-6 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition transform hover:scale-[1.02]">
-            Jalankan Simulasi
-          </button>
-        </div>
-
-        {/* Editor Jadwal Kanan */}
-        <div className="bg-white rounded-2xl shadow-lg p-5 flex flex-col gap-4 overflow-hidden">
-          <h2 className="font-bold text-lg text-indigo-700 border-b pb-2">Editor Jadwal</h2>
-          <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-96">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="bg-slate-100 sticky top-0 shadow-sm">
-                  <th className="border px-2 py-2 text-center text-xs font-semibold w-10 sticky left-0 bg-slate-100 z-20">
+      <section className="bg-white rounded-2xl shadow-lg p-5 flex flex-col gap-4 overflow-hidden">
+        <h2 className="font-bold text-lg text-indigo-700 border-b pb-2">Editor Jadwal</h2>
+        <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-96">
+          <table className="min-w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-100 sticky top-0 shadow-sm">
+                <th className="border px-2 py-2 text-center text-xs font-semibold w-10 sticky left-0 bg-slate-100 z-20">
+                  <input
+                    type="checkbox"
+                    checked={selectAll}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSelectAll(checked);
+                      setReplacements((prev) => {
+                        const next = {};
+                        employees.forEach((n) => { next[n] = checked; });
+                        return next;
+                      });
+                    }}
+                    aria-label="Pilih semua pengganti"
+                  />
+                </th>
+                <th className="border px-3 py-2 text-left text-xs font-semibold sticky left-10 bg-slate-100 z-10">Nama</th>
+                {Array.from({ length: 31 }, (_, i) => <th key={i} className="border px-1 py-1 text-center text-xs">{i+1}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {employees.map((name) => (
+                <tr key={name} className="hover:bg-indigo-50/50">
+                  <td className="border px-2 py-1 text-center bg-slate-50 sticky left-0 z-20">
                     <input
                       type="checkbox"
-                      checked={selectAll}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setSelectAll(checked);
-                        setReplacements((prev) => {
-                          const next = {};
-                          employees.forEach((n) => { next[n] = checked; });
-                          return next;
-                        });
-                      }}
-                      aria-label="Pilih semua pengganti"
+                      checked={!!replacements[name]}
+                      onChange={(e) => setReplacements((prev) => ({ ...prev, [name]: e.target.checked }))}
+                      aria-label={`Tandai ${name} sebagai pengganti`}
                     />
-                  </th>
-                  <th className="border px-3 py-2 text-left text-xs font-semibold sticky left-10 bg-slate-100 z-10">Nama</th>
-                  {Array.from({ length: 31 }, (_, i) => <th key={i} className="border px-1 py-1 text-center text-xs">{i+1}</th>)}
+                  </td>
+                  <td className="border px-3 py-1 font-medium text-xs bg-slate-50 sticky left-10 z-10">{name}</td>
+                  {Array.from({ length: 31 }, (_, i) => {
+                    const d = i + 1;
+                    if (!schedule[d]) return <td key={d}></td>;
+                    const isLeave = (scenarioType!=="leavePlusSick" && d>=leaveStartDay && d<=leaveEndDay && name===leaveEmployee);
+                    const isAdj = (scenarioType!=="leavePlusSick" && d===leaveEndDay+1);
+                    return (
+                      <td key={d} className={`border px-0.5 py-0.5 text-center text-[11px] font-semibold ${isLeave ? 'bg-red-100' : isAdj ? 'bg-purple-100' : 'bg-white'}`}>
+                        {schedule[d][name]}
+                      </td>
+                    );
+                  })}
                 </tr>
-              </thead>
-              <tbody>
-                {employees.map((name) => (
-                  <tr key={name} className="hover:bg-indigo-50/50">
-                    <td className="border px-2 py-1 text-center bg-slate-50 sticky left-0 z-20">
-                      <input
-                        type="checkbox"
-                        checked={!!replacements[name]}
-                        onChange={(e) => setReplacements((prev) => ({ ...prev, [name]: e.target.checked }))}
-                        aria-label={`Tandai ${name} sebagai pengganti`}
-                      />
-                    </td>
-                    <td className="border px-3 py-1 font-medium text-xs bg-slate-50 sticky left-10 z-10">{name}</td>
-                    {Array.from({ length: 31 }, (_, i) => {
-                      const d = i + 1;
-                      if (!schedule[d]) return <td key={d}></td>;
-                      const isLeave = (scenarioType!=="leavePlusSick" && d>=leaveStartDay && d<=leaveEndDay && name===leaveEmployee);
-                      const isAdj = (scenarioType!=="leavePlusSick" && d===leaveEndDay+1);
-                      return (
-                        <td key={d} className="border px-0.5 py-0.5">
-                          <select 
-                            className={`w-full text-[10px] border-none p-1 rounded ${isLeave ? 'bg-red-100' : isAdj ? 'bg-purple-100' : 'bg-white'}`}
-                            value={schedule[d][name]}
-                            onChange={(e) => handleShiftChange(d, name, e.target.value)}
-                          >
-                            {availableShifts.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                          </select>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="bg-white rounded-2xl shadow-lg p-5 flex flex-col gap-4">
+        <h2 className="font-bold text-lg text-indigo-700 border-b pb-2">Parameter Skenario</h2>
+        <div className="flex flex-wrap items-end gap-4 text-sm">
+          <div className="flex flex-col gap-1 min-w-[180px]">
+            <span className="font-medium text-slate-700">Karyawan Cuti</span>
+            <select className="border rounded-lg px-3 py-2" value={leaveEmployee} onChange={(e) => setLeaveEmployee(e.target.value)}>
+              {employees.map((e) => <option key={e} value={e}>{e}</option>)}
+            </select>
+          </div>
+
+          {scenarioType === "shortLeave" && (
+            <>
+              <div className="flex flex-col gap-1 min-w-[140px]">
+                <span className="font-medium text-slate-700">Mulai Cuti</span>
+                <input type="number" min={1} max={31} className="border rounded-lg px-3 py-2" value={leaveStartDay} onChange={(e) => setLeaveStartDay(Math.max(1, Math.min(31, Number(e.target.value))))} />
+              </div>
+              <div className="flex flex-col gap-1 min-w-[140px]">
+                <span className="font-medium text-slate-700">Akhir Cuti</span>
+                <input type="number" min={1} max={31} className="border rounded-lg px-3 py-2" value={leaveEndDay} onChange={(e) => setLeaveEndDay(Math.max(1, Math.min(31, Number(e.target.value))))} />
+              </div>
+            </>
+          )}
+
+          {scenarioType === "cycleLeave" && (
+            <>
+              <div className="flex flex-col gap-1 min-w-[140px]">
+                <span className="font-medium text-slate-700">Mulai Siklus</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  className="border rounded-lg px-3 py-2"
+                  value={cycleStartDay}
+                  onChange={(e) => handleCycleDayChange(e.target.value, setCycleStartDay)}
+                />
+              </div>
+              <div className="flex flex-col gap-1 min-w-[140px]">
+                <span className="font-medium text-slate-700">Akhir Siklus</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  className="border rounded-lg px-3 py-2"
+                  value={cycleEndDay}
+                  onChange={(e) => handleCycleDayChange(e.target.value, setCycleEndDay)}
+                />
+              </div>
+            </>
+          )}
+
+          {(scenarioType === "shortLeave" || scenarioType === "cycleLeave") && (
+            <div className="flex flex-col gap-1 min-w-[220px] grow">
+              <span className="font-medium text-slate-700">Skenario Shift 3 (Jika cuti di 3T13)</span>
+              <select className="border rounded-lg px-3 py-2" value={shift3Scenario} onChange={(e) => setShift3Scenario(e.target.value)}>
+                <option value="1">Skenario 1 (Standard)</option>
+                <option value="2">Skenario 2 (Off -&gt; 3T13)</option>
+              </select>
+            </div>
+          )}
+
+          {scenarioType === "leavePlusSick" && (
+            <>
+              <div className="flex flex-col gap-1 min-w-[180px]">
+                <span className="font-medium text-slate-700">Karyawan Sakit</span>
+                <select className="border rounded-lg px-3 py-2" value={sickEmployee} onChange={(e) => setSickEmployee(e.target.value)}>
+                  {employees.filter(e => e !== leaveEmployee).map((e) => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1 min-w-[140px]">
+                <span className="font-medium text-slate-700">Hari Sakit</span>
+                <input type="number" min={1} max={31} className="border rounded-lg px-3 py-2" value={sickDay} onChange={(e) => setSickDay(Number(e.target.value))} />
+              </div>
+              <label className="flex items-center gap-2 min-w-[180px]">
+                <input type="checkbox" checked={useExternal} onChange={(e) => setUseExternal(e.target.checked)} />
+                <span className="text-sm text-slate-700">Gunakan External</span>
+              </label>
+            </>
+          )}
+
+          <div className="flex-1 min-w-[200px]">
+            <button onClick={runSimulation} className="w-full px-6 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition transform hover:scale-[1.01]">
+              Jalankan Simulasi
+            </button>
           </div>
         </div>
       </section>
@@ -930,13 +1036,13 @@ const SimulasiCutiLemburPage = ({ user }) => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            {employees.map((name) => (
+            {displayNames.map((name) => (
               <div key={name} className={`border rounded-xl p-3 flex flex-col gap-1 ${result.otSummary[name]>otLimit ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
                 <div className="font-bold text-sm text-slate-800">{name}</div>
-                <div>Total Lembur: <span className="font-bold">{result.otSummary[name]} jam</span></div>
-                <div>Total Jam Kerja: <span className="font-bold">{result.monthlyHoursSummary[name]} jam</span></div>
-                {result.otSummary[name] > otLimit && <div className="text-red-600 font-bold mt-1">Over Lembur ({otLimit})</div>}
-                {result.monthlyHoursSummary[name] > TARGET_MONTHLY_HOURS && <div className="text-orange-600 font-bold">Over Jam Bulanan ({TARGET_MONTHLY_HOURS})</div>}
+                <div>Total Lembur: <span className="font-bold">{result.otSummary[name] ?? 0} jam</span></div>
+                <div>Total Jam Kerja: <span className="font-bold">{result.monthlyHoursSummary[name] ?? 0} jam</span></div>
+                {(result.otSummary[name] ?? 0) > otLimit && <div className="text-red-600 font-bold mt-1">Over Lembur ({otLimit})</div>}
+                {(result.monthlyHoursSummary[name] ?? 0) > TARGET_MONTHLY_HOURS && <div className="text-orange-600 font-bold">Over Jam Bulanan ({TARGET_MONTHLY_HOURS})</div>}
               </div>
             ))}
           </div>
@@ -952,7 +1058,7 @@ const SimulasiCutiLemburPage = ({ user }) => {
                   <th className="border px-3 py-2">Status</th>
                   <th className="border px-3 py-2">Shift Simulasi</th>
                   <th className="border px-3 py-2">Lembur</th>
-                  <th className="border px-3 py-2">Total Jam</th>
+                  <th className="border px-3 py-2">Periode Lembur</th>
                   <th className="border px-3 py-2">Catatan</th>
                 </tr>
               </thead>
@@ -965,7 +1071,7 @@ const SimulasiCutiLemburPage = ({ user }) => {
                     <td className="border px-3 py-1.5 text-center font-semibold">{r.status}</td>
                     <td className="border px-3 py-1.5 text-center font-bold">{r.simShift}</td>
                     <td className={`border px-3 py-1.5 text-center font-bold ${r.ot>0 ? 'text-indigo-600' : 'text-slate-400'}`}>{r.ot}</td>
-                    <td className="border px-3 py-1.5 text-center font-bold">{r.actualHours}</td>
+                    <td className="border px-3 py-1.5 text-center font-bold">{formatOvertimePeriod(r)}</td>
                     <td className="border px-3 py-1.5 text-slate-700">{r.note}</td>
                   </tr>
                 ))}
