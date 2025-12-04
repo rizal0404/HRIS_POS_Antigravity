@@ -136,6 +136,10 @@ begin
   if tg_op = 'INSERT' then
     insert into notification_jobs (profile_id, request_id, event)
     values (new.profile_id, new.id, 'created');
+    if new.approver_id is not null then
+      insert into notification_jobs (profile_id, request_id, event)
+      values (new.approver_id, new.id, 'created');
+    end if;
   elsif tg_op = 'UPDATE' and old.status is distinct from new.status then
     if new.status = 'approved' then
       insert into notification_jobs (profile_id, request_id, event)

@@ -25,7 +25,7 @@ serve(async () => {
       const { data: requestRow, error: reqErr } = await supabase
         .from("requests")
         .select(
-          "id, request_type, status, reason, start_date, end_date, start_time, end_time, profiles:profile_id(full_name, email, telegram_chat_id)"
+          "id, profile_id, approver_id, request_type, status, reason, start_date, end_date, start_time, end_time, profiles:profile_id(full_name, email, telegram_chat_id)"
         )
         .eq("id", job.request_id)
         .single();
@@ -33,20 +33,32 @@ serve(async () => {
       if (reqErr || !requestRow) throw new Error(reqErr?.message || "request missing");
 
       const prefs = await loadPrefs(job.profile_id);
+      const { data: targetProfile } = await supabase
+        .from("profiles")
+        .select("id, full_name, telegram_chat_id")
+        .eq("id", job.profile_id)
+        .single();
       if (skipByPref(job.event, prefs)) {
         await markProcessed(job.id, attempt, null);
         await log(job, "sent", "skipped-by-pref");
         continue;
       }
 
-      const chatId = requestRow.profiles?.telegram_chat_id || prefs.telegram_chat_id || null;
+      const chatId =
+        targetProfile?.telegram_chat_id ||
+        prefs.telegram_chat_id ||
+        // Only fall back to requester chat when target == requester (e.g., status update to pemohon)
+        (targetProfile?.id && String(targetProfile.id) === String(requestRow.profile_id)
+          ? requestRow.profiles?.telegram_chat_id
+          : null) ||
+        null;
       if (!chatId) {
         await markProcessed(job.id, attempt, null);
         await log(job, "sent", "skipped-no-telegram-chat-id");
         continue;
       }
 
-      const text = buildMessage(job.event, requestRow);
+      const text = buildMessage(job.event, requestRow, targetProfile);
       await sendTelegram(chatId, text);
       await markProcessed(job.id, attempt, null);
       await log(job, "sent", null);
@@ -84,16 +96,19 @@ function skipByPref(ev: string, p: { new_request: boolean; request_approved: boo
   );
 }
 
-function buildMessage(ev: string, req: any) {
+function buildMessage(ev: string, req: any, targetProfile: any) {
   const statusText = ev === "created" ? "diajukan" : ev === "approved" ? "disetujui" : ev === "rejected" ? "ditolak" : ev;
   const typeLabel = req.request_type || "Permohonan";
   const isOvertime = String(typeLabel).toLowerCase().includes("lembur");
   const periodText = req.start_date === req.end_date ? req.start_date : `${req.start_date} s.d. ${req.end_date}`;
   const timeText = req.start_time || req.end_time ? `Waktu: ${req.start_time || "-"} - ${req.end_time || "-"}` : null;
-  const header = isOvertime ? "?? SPL / Lembur" : "?? Notifikasi Pengajuan";
+  const requesterName = req.profiles?.full_name || "Pemohon";
+  const isForApprover = targetProfile?.id && req.approver_id && String(targetProfile.id) === String(req.approver_id);
+  const header = isOvertime ? "📣 SPL / Lembur" : "📣 Notifikasi Pengajuan";
 
   const lines = [
     `${header}: ${subjectMap[ev] || "Perubahan"}`,
+    isForApprover ? `Pemohon: ${requesterName}` : undefined,
     `Jenis: ${typeLabel}`,
     `Status: ${statusText}`,
     `Tanggal: ${periodText}`,
