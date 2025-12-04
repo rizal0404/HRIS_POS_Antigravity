@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { apiService } from "../../../services/apiService";
 import { getAllSubordinates } from "../../../lib/utils";
+import { RequestType } from "../../../types";
 
 // Konstanta jam kerja
 const WORK_HOURS_PER_SHIFT = 8; // Asumsi shift normal 8 jam
@@ -27,9 +28,13 @@ const shiftOptions = ["1T13", "2T13", "3T13", "OFF"];
 
 const SimulasiCutiLemburPage = ({ user }) => {
   const [employees, setEmployees] = useState([]);
+  const [nameToId, setNameToId] = useState({});
   const [availableShifts, setAvailableShifts] = useState(shiftOptions);
   const [schedule, setSchedule] = useState({});
   const [replacements, setReplacements] = useState({});
+  const [splModalRow, setSplModalRow] = useState(null);
+  const [splReason, setSplReason] = useState("");
+  const [splSubmitting, setSplSubmitting] = useState(false);
 
   // State pengaturan simulasi
   const [otLimit, setOtLimit] = useState(30); 
@@ -92,6 +97,8 @@ const SimulasiCutiLemburPage = ({ user }) => {
 
       const idToUser = new Map(subordinates.map((u) => [u.id, u]));
       const names = subordinates.map((u) => u.full_name);
+      const nameIdMap = {};
+      subordinates.forEach((u) => { nameIdMap[u.full_name] = u.id; });
       const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
       const schedules = subordinates.length > 0
@@ -120,6 +127,7 @@ const SimulasiCutiLemburPage = ({ user }) => {
         : names.find((n) => n !== nextLeaveEmployee) || names[0] || "";
 
       setEmployees(names);
+      setNameToId(nameIdMap);
       setSchedule(newSchedule);
       setAvailableShifts(Array.from(shiftSet));
       if (nextLeaveEmployee) setLeaveEmployee(nextLeaveEmployee);
@@ -835,6 +843,36 @@ const SimulasiCutiLemburPage = ({ user }) => {
     XLSX.writeFile(workbook, "Hasil_Simulasi.xlsx");
   };
 
+  const handleCreateSpl = async (row, reasonText) => {
+    try {
+      const targetProfileId = nameToId[row.name];
+      if (!targetProfileId) {
+        alert("Tidak dapat membuat SPL: ID bawahan tidak ditemukan.");
+        return;
+      }
+      const year = currentMonth.getFullYear();
+      const month = String(currentMonth.getMonth() + 1).padStart(2, "0");
+      const startDate = `${year}-${month}-${String(row.day).padStart(2, "0")}`;
+      const requestData = {
+        profile_id: targetProfileId,
+        request_type: RequestType.LEMBUR,
+        start_date: startDate,
+        end_date: startDate,
+        reason: reasonText || `SPL otomatis dari simulasi: ${row.name}, shift ${row.simShift || row.normalShift}, lembur ${row.ot} jam.`,
+        approver_id: user.id,
+        start_time: defaultShiftTimes[row.simShift || row.normalShift]?.start,
+        end_time: defaultShiftTimes[row.simShift || row.normalShift]?.end,
+      };
+      await apiService.submitRequest(requestData);
+      alert("SPL berhasil diajukan.");
+      setSplModalRow(null);
+      setSplSubmitting(false);
+    } catch (err) {
+      setSplSubmitting(false);
+      alert("Gagal membuat SPL: " + (err?.message || "unknown error"));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 p-6 flex flex-col gap-6 font-sans">
       <header className="flex flex-col gap-2">
@@ -1059,6 +1097,7 @@ const SimulasiCutiLemburPage = ({ user }) => {
                   <th className="border px-3 py-2">Shift Simulasi</th>
                   <th className="border px-3 py-2">Lembur</th>
                   <th className="border px-3 py-2">Periode Lembur</th>
+                  <th className="border px-3 py-2 text-center">Buat SPL</th>
                   <th className="border px-3 py-2">Catatan</th>
                 </tr>
               </thead>
@@ -1072,6 +1111,21 @@ const SimulasiCutiLemburPage = ({ user }) => {
                     <td className="border px-3 py-1.5 text-center font-bold">{r.simShift}</td>
                     <td className={`border px-3 py-1.5 text-center font-bold ${r.ot>0 ? 'text-indigo-600' : 'text-slate-400'}`}>{r.ot}</td>
                     <td className="border px-3 py-1.5 text-center font-bold">{formatOvertimePeriod(r)}</td>
+                    <td className="border px-3 py-1.5 text-center">
+                      {r.ot > 0 ? (
+                        <button
+                          onClick={() => {
+                            setSplModalRow(r);
+                            setSplReason(`SPL otomatis dari simulasi: ${r.name}, shift ${r.simShift || r.normalShift}, lembur ${r.ot} jam.`);
+                          }}
+                          className="px-3 py-1 text-[11px] bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 border border-emerald-200"
+                        >
+                          SPL
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">-</span>
+                      )}
+                    </td>
                     <td className="border px-3 py-1.5 text-slate-700">{r.note}</td>
                   </tr>
                 ))}
@@ -1084,6 +1138,48 @@ const SimulasiCutiLemburPage = ({ user }) => {
       <footer className="text-[11px] text-slate-500 mt-4 text-center">
         Aplikasi Simulasi Cuti & Lembur | Menggunakan logika penyesuaian shift sesuai lampiran.
       </footer>
+
+      {splModalRow && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-semibold text-slate-800">Terbitkan SPL</h4>
+              <button onClick={() => { if (!splSubmitting) { setSplModalRow(null); } }} className="text-slate-500 hover:text-slate-700 text-sm">✕</button>
+            </div>
+            <div className="text-sm text-slate-700 space-y-1">
+              <div><span className="font-semibold">Nama:</span> {splModalRow.name}</div>
+              <div><span className="font-semibold">Hari:</span> {splModalRow.day}</div>
+              <div><span className="font-semibold">Shift:</span> {splModalRow.simShift || splModalRow.normalShift}</div>
+              <div><span className="font-semibold">Lembur:</span> {splModalRow.ot} jam</div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-slate-700">Catatan/Alasan SPL</label>
+              <textarea
+                className="border rounded-lg px-3 py-2 text-sm min-h-[90px]"
+                value={splReason}
+                onChange={(e) => setSplReason(e.target.value)}
+                disabled={splSubmitting}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { if (!splSubmitting) { setSplModalRow(null); } }}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"
+                disabled={splSubmitting}
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleCreateSpl(splModalRow, splReason)}
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+                disabled={splSubmitting}
+              >
+                {splSubmitting ? "Memproses..." : "Terbitkan SPL"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
