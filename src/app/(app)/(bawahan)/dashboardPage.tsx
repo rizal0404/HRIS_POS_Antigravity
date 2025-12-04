@@ -291,6 +291,19 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
         return `${base} bg-blue-50 text-blue-700`;
     };
 
+    const requestSummary = useMemo(() => {
+        const pending = recentRequests.filter((r) => r.status === RequestStatus.PENDING).length;
+        const approved = recentRequests.filter((r) => r.status === RequestStatus.APPROVED).length;
+        const rejected = recentRequests.filter((r) => r.status === RequestStatus.REJECTED).length;
+        const revised = recentRequests.filter((r) => r.status === RequestStatus.REVISED).length;
+        return {
+            pending,
+            approved,
+            rejectedOrRevised: rejected + revised,
+            total: recentRequests.length,
+        };
+    }, [recentRequests]);
+
     return (
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between gap-3">
@@ -460,30 +473,21 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                             <h3 className="text-lg font-semibold text-gray-800">Status ajuan ke atasan</h3>
                             <DocumentAddIcon className="h-5 w-5 text-gray-400" />
                         </div>
-                        {recentRequests.length === 0 && !loading ? (
-                            <p className="text-sm text-gray-500">Belum ada ajuan terbaru.</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {recentRequests.map((req) => (
-                                    <div key={req.id} className="p-3 rounded-lg border hover:bg-slate-50 transition-colors">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <CheckCircleIcon className="h-4 w-4 text-slate-500" />
-                                                <p className="text-sm font-semibold text-gray-800">{req.request_type}</p>
-                                            </div>
-                                            <span className={statusChip(req.status)}>{labelRequestStatus(req.status)}</span>
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {new Date(req.start_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}{' '}
-                                            - {new Date(req.end_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            Diajukan {new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
-                                        </p>
-                                    </div>
-                                ))}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="p-4 rounded-lg border bg-slate-50">
+                                <p className="text-xs text-gray-500">Pending</p>
+                                <p className="text-2xl font-semibold text-gray-900">{requestSummary.pending}</p>
                             </div>
-                        )}
+                            <div className="p-4 rounded-lg border bg-slate-50">
+                                <p className="text-xs text-gray-500">Revisi / Ditolak</p>
+                                <p className="text-2xl font-semibold text-gray-900">{requestSummary.rejectedOrRevised}</p>
+                            </div>
+                            <div className="p-4 rounded-lg border bg-slate-50">
+                                <p className="text-xs text-gray-500">Disetujui</p>
+                                <p className="text-2xl font-semibold text-gray-900">{requestSummary.approved}</p>
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-3">Mengacu {requestSummary.total} ajuan terbaru.</p>
                     </div>
                 </div>
             </div>

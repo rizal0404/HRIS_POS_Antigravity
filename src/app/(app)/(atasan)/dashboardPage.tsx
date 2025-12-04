@@ -273,6 +273,16 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
                     </>
                 )}
             </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6 space-y-3 text-sm text-gray-700">
+                <h4 className="text-base font-semibold text-gray-900">Keterangan KPI (Konsep Perhitungan)</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                    <li>Kehadiran: jam kerja aktual dibagi jam rencana periode (JSP - jam cuti resmi), dipotong plafon 100%.</li>
+                    <li>Disiplin: penalti linear atas absen/telat tanpa izin dibanding toleransi; nilai turun hingga batas minimum.</li>
+                    <li>Skor akhir: bobot kehadiran 30%, produktivitas 50% (bila diisi target/output), disiplin 20%.</li>
+                    <li>Periode MTD: data dihitung dari hari pertama bulan ini sampai hari terakhir yang tersedia.</li>
+                </ul>
+            </div>
         </div>
     );
 };
