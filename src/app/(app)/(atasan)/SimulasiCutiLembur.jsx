@@ -858,7 +858,7 @@ const SimulasiCutiLemburPage = ({ user }) => {
         request_type: RequestType.LEMBUR,
         start_date: startDate,
         end_date: startDate,
-        reason: reasonText || `SPL otomatis dari simulasi: ${row.name}, shift ${row.simShift || row.normalShift}, lembur ${row.ot} jam.`,
+        reason: reasonText || `Mengganti Sdr. ${leaveEmployee} pada shift ${row.simShift || row.normalShift}, lembur ${row.ot} jam.`,
         approver_id: user.id,
         start_time: defaultShiftTimes[row.simShift || row.normalShift]?.start,
         end_time: defaultShiftTimes[row.simShift || row.normalShift]?.end,
@@ -1116,7 +1116,7 @@ const SimulasiCutiLemburPage = ({ user }) => {
                         <button
                           onClick={() => {
                             setSplModalRow(r);
-                            setSplReason(`SPL otomatis dari simulasi: ${r.name}, shift ${r.simShift || r.normalShift}, lembur ${r.ot} jam.`);
+                            setSplReason(`Mengganti Sdr. ${leaveEmployee} (Cuti): shift menjadi ${r.simShift || r.normalShift}, + lembur ${r.ot} jam.`);
                           }}
                           className="px-3 py-1 text-[11px] bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 border border-emerald-200"
                         >
