@@ -181,8 +181,13 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                 if (req.start_time && req.end_time) {
                     const startDt = new Date(`${req.start_date}T${req.start_time}${APP_TIME_OFFSET}`);
                     const endDt = new Date(`${req.start_date}T${req.end_time}${APP_TIME_OFFSET}`);
-                    const diff = (endDt.getTime() - startDt.getTime()) / (1000 * 60 * 60);
-                    if (Number.isFinite(diff) && diff > 0) {
+                    let diff = (endDt.getTime() - startDt.getTime()) / (1000 * 60 * 60);
+                    if (!Number.isFinite(diff)) return;
+                    if (diff < 0) {
+                        // shift yang melewati tengah malam
+                        diff += 24;
+                    }
+                    if (diff > 0) {
                         overtimeHours += diff;
                     }
                 }
