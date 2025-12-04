@@ -73,8 +73,10 @@ const ProfilSayaPage: React.FC<ProfilSayaPageProps> = ({ user }) => {
             newAvatarUrl = urlData.publicUrl;
         }
 
+        const telegramChatId = typeof updatedData.telegram_chat_id === 'string' ? updatedData.telegram_chat_id.trim() : updatedData.telegram_chat_id;
+
         try {
-            await apiService.saveProfile({ ...updatedData, id: user.id, avatar_url: newAvatarUrl });
+            await apiService.saveProfile({ ...updatedData, id: user.id, avatar_url: newAvatarUrl, telegram_chat_id: telegramChatId });
             setProfileMessage({ type: 'success', text: 'Profil berhasil diperbarui. Beberapa perubahan mungkin memerlukan refresh halaman.' });
             setIsEditing(false);
             setAvatarFile(null); // Clear staged file
@@ -147,6 +149,7 @@ const ProfilSayaPage: React.FC<ProfilSayaPageProps> = ({ user }) => {
                         <InfoField label="Jabatan" value={formData.position} disabled />
                         <InfoField label="Email" name="email" value={formData.email} onChange={handleFormChange} disabled={!isEditing} />
                         <InfoField label="Nomor HP" name="phone_number" value={formData.phone_number || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
+                        <InfoField label="Telegram Chat ID" name="telegram_chat_id" value={formData.telegram_chat_id || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="contoh: 123456789" helperText="Dapatkan dari bot Telegram perusahaan dengan kirim /start, lalu salin chat ID Anda." />
                         <InfoField label="Tempat Lahir" name="place_of_birth" value={formData.place_of_birth || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
                         <InfoField type="date" label="Tanggal Lahir" name="date_of_birth" value={formData.date_of_birth || ''} onChange={handleFormChange} disabled={!isEditing} />
                         <InfoField label="Pendidikan Terakhir" name="education_level" value={formData.education_level || ''} onChange={handleFormChange} disabled={!isEditing} placeholder="Belum diatur" />
@@ -197,8 +200,9 @@ const InfoField: React.FC<{
     disabled?: boolean;
     placeholder?: string;
     multiline?: boolean;
+    helperText?: string;
     onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-}> = ({ label, name, value, type = "text", disabled = false, onChange, placeholder, multiline }) => (
+}> = ({ label, name, value, type = "text", disabled = false, onChange, placeholder, multiline, helperText }) => (
     <div>
         <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
         {multiline ? (
@@ -224,6 +228,7 @@ const InfoField: React.FC<{
                 className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-200 disabled:cursor-not-allowed" 
             />
         )}
+        {helperText && <p className="text-[11px] text-gray-500 mt-1">{helperText}</p>}
     </div>
 );
 

@@ -102,6 +102,10 @@ as $$
     telegram_chat_id = nullif(p_telegram_chat_id, ''),
     updated_at = now();
 
+  update profiles
+    set telegram_chat_id = nullif(p_telegram_chat_id, '')
+  where id = auth.uid();
+
   select * from notification_preferences where profile_id = auth.uid();
 $$;
 

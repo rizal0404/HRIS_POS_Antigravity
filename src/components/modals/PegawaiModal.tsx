@@ -30,6 +30,7 @@ export const pegawaiDefaultFormData: Omit<UserProfile, 'id'> = {
     education_major: '',
     employment_status: '',
     address: '',
+    telegram_chat_id: '',
 };
 
 const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, initialData, allUsers, positions }) => {
@@ -186,6 +187,19 @@ const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, in
                                 <input type="text" id="phone_number" name="phone_number" value={formData.phone_number || ''} onChange={handleChange}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
                             </div>
+                        </div>
+                        <div>
+                            <label htmlFor="telegram_chat_id" className="block text-sm font-medium text-gray-700 mb-1">Telegram Chat ID</label>
+                            <input
+                                type="text"
+                                id="telegram_chat_id"
+                                name="telegram_chat_id"
+                                value={formData.telegram_chat_id || ''}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="contoh: 123456789"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Opsional. Isi jika ingin user menerima notifikasi Telegram.</p>
                         </div>
                         <div>
                             <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>

@@ -42,6 +42,12 @@ const LaporanKpi: React.FC<{ user: UserProfile }> = ({ user }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const target = useMemo(() => ({
+        presence: 95,
+        discipline: 90,
+        final: 85,
+    }), []);
+
     const fetchKpi = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -171,6 +177,13 @@ const LaporanKpi: React.FC<{ user: UserProfile }> = ({ user }) => {
     }, [rows]);
 
     const formatPercent = (value: number) => `${value.toFixed(1)}%`;
+    const toneClass = (value: number, goal: number) => {
+        if (!Number.isFinite(value)) return 'bg-slate-100 text-slate-700';
+        if (value >= goal + 5) return 'bg-emerald-50 text-emerald-700';
+        if (value >= goal) return 'bg-emerald-100 text-emerald-800';
+        if (value >= goal - 10) return 'bg-amber-50 text-amber-700';
+        return 'bg-rose-50 text-rose-700';
+    };
 
     return (
         <div className="space-y-4">
@@ -217,6 +230,20 @@ const LaporanKpi: React.FC<{ user: UserProfile }> = ({ user }) => {
                         </div>
                     </div>
 
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-700">
+                        <span className="font-semibold text-gray-900">Target KPI:</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                            Kehadiran ≥ {target.presence}%
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                            Disiplin ≥ {target.discipline}%
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                            Skor akhir ≥ {target.final}%
+                        </span>
+                        <span className="text-[11px] text-gray-500">Warna hijau = memenuhi target, kuning = mendekati, merah = perlu perhatian.</span>
+                    </div>
+
                     <div className="overflow-x-auto rounded-lg border bg-white">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
@@ -255,9 +282,21 @@ const LaporanKpi: React.FC<{ user: UserProfile }> = ({ user }) => {
                                             <p className="text-sm font-semibold text-gray-900">{item.profile.full_name}</p>
                                             <p className="text-xs text-gray-500">{item.profile.position || '-'}</p>
                                         </td>
-                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">{formatPercent(item.presence)}</td>
-                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">{formatPercent(item.discipline)}</td>
-                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">{formatPercent(item.final)}</td>
+                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
+                                            <span className={`inline-flex rounded-full px-2 py-1 ${toneClass(item.presence, target.presence)}`}>
+                                                {formatPercent(item.presence)}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
+                                            <span className={`inline-flex rounded-full px-2 py-1 ${toneClass(item.discipline, target.discipline)}`}>
+                                                {formatPercent(item.discipline)}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
+                                            <span className={`inline-flex rounded-full px-2 py-1 ${toneClass(item.final, target.final)}`}>
+                                                {formatPercent(item.final)}
+                                            </span>
+                                        </td>
                                         <td className="px-4 py-3 text-right text-sm text-gray-700">{item.workedHours.toFixed(1)} jam</td>
                                         <td className="px-4 py-3 text-right text-sm text-gray-700">{item.unauthDays}</td>
                                         <td className="px-4 py-3 text-right text-sm text-gray-700">{item.plannedLeaveDays}</td>
