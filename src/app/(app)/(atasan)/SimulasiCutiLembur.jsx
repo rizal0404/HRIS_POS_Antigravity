@@ -218,6 +218,23 @@ const SimulasiCutiLemburPage = ({ user }) => {
     return otEnd ? `${times.end} - ${otEnd}` : `${times.end} -`;
   };
 
+  const computeOvertimeTimes = (row) => {
+    if (!row || row.ot <= 0) return { start: null, end: null };
+    const shiftCode = row.simShift && row.simShift !== "-" ? row.simShift : row.normalShift;
+    const times = defaultShiftTimes[shiftCode];
+    if (!times) return { start: null, end: null };
+    const startObj = formatTime(times.start);
+    const endObj = formatTime(times.end);
+    if (!startObj || !endObj) return { start: null, end: null };
+
+    if (shiftCode === "3T13") {
+      const otStart = subtractHours(startObj, row.ot);
+      return { start: otStart, end: times.start };
+    }
+    const otEnd = addHours(endObj, row.ot);
+    return { start: times.end, end: otEnd };
+  };
+
   // --- FUNGSI SIMULASI ASLI ---
   const handleCycleDayChange = (value, setter) => {
     if (value === "") {
@@ -845,23 +862,29 @@ const SimulasiCutiLemburPage = ({ user }) => {
 
   const handleCreateSpl = async (row, reasonText) => {
     try {
+      setSplSubmitting(true);
       const targetProfileId = nameToId[row.name];
       if (!targetProfileId) {
         alert("Tidak dapat membuat SPL: ID bawahan tidak ditemukan.");
+        setSplSubmitting(false);
         return;
       }
       const year = currentMonth.getFullYear();
       const month = String(currentMonth.getMonth() + 1).padStart(2, "0");
       const startDate = `${year}-${month}-${String(row.day).padStart(2, "0")}`;
+      const prettyDate = `${String(row.day).padStart(2, "0")}-${month}-${year}`;
+      const periodeLembur = formatOvertimePeriod(row);
+      const { start: otStart, end: otEnd } = computeOvertimeTimes(row);
+      const fallbackReason = `Mengganti Sdr. ${leaveEmployee} pada shift ${row.simShift || row.normalShift}, lembur ${row.ot} jam. Periode: ${periodeLembur}. Tanggal: ${prettyDate}.`;
       const requestData = {
         profile_id: targetProfileId,
         request_type: RequestType.LEMBUR,
         start_date: startDate,
         end_date: startDate,
-        reason: reasonText || `Mengganti Sdr. ${leaveEmployee} pada shift ${row.simShift || row.normalShift}, lembur ${row.ot} jam.`,
+        reason: reasonText || fallbackReason,
         approver_id: user.id,
-        start_time: defaultShiftTimes[row.simShift || row.normalShift]?.start,
-        end_time: defaultShiftTimes[row.simShift || row.normalShift]?.end,
+        start_time: otStart || defaultShiftTimes[row.simShift || row.normalShift]?.start,
+        end_time: otEnd || defaultShiftTimes[row.simShift || row.normalShift]?.end,
       };
       await apiService.submitRequest(requestData);
       alert("SPL berhasil diajukan.");
@@ -1148,9 +1171,10 @@ const SimulasiCutiLemburPage = ({ user }) => {
             </div>
             <div className="text-sm text-slate-700 space-y-1">
               <div><span className="font-semibold">Nama:</span> {splModalRow.name}</div>
-              <div><span className="font-semibold">Hari:</span> {splModalRow.day}</div>
+              <div><span className="font-semibold">Hari:</span> {`${String(splModalRow.day).padStart(2, "0")}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}-${currentMonth.getFullYear()}`}</div>
               <div><span className="font-semibold">Shift:</span> {splModalRow.simShift || splModalRow.normalShift}</div>
               <div><span className="font-semibold">Lembur:</span> {splModalRow.ot} jam</div>
+              <div><span className="font-semibold">Periode Lembur:</span> {formatOvertimePeriod(splModalRow)}</div>
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold text-slate-700">Catatan/Alasan SPL</label>
