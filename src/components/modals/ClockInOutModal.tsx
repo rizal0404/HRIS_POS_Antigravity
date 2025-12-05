@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { UserProfile, JadwalKerjaTim, Attendance } from '../../types';
+import { UserProfile, JadwalKerjaTim, Attendance, UserRole } from '../../types';
 import { apiService } from '../../services/apiService';
 import { APP_TIME_ZONE, formatDateKey, formatTime } from '../../lib/utils';
 import Modal from '../Modal';
@@ -105,6 +105,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   jadwal,
   todayAttendance,
 }) => {
+  const BYPASS_STORAGE_KEY = 'attendance_bypass_mode';
   const [currentTime, setCurrentTime] = useState(new Date());
   const [position, setPosition] = useState<GeolocationPosition | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -112,6 +113,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const [isMockDetected, setIsMockDetected] = useState<boolean>(false);
+  const [globalBypass, setGlobalBypass] = useState(false);
+  const [bypassMode, setBypassMode] = useState(false);
 
   // Form state
   const [workLocation, setWorkLocation] = useState('Bekerja di Pabrik');
@@ -204,6 +207,19 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   }, [isOpen, fetchLocation]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem(BYPASS_STORAGE_KEY);
+    setGlobalBypass(stored === 'on');
+    const handler = (e: StorageEvent) => {
+      if (e.key === BYPASS_STORAGE_KEY) {
+        setGlobalBypass(e.newValue === 'on');
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [BYPASS_STORAGE_KEY]);
+
+  useEffect(() => {
     if (position && selectedWorkplaceDetails) {
       const calculatedDistance = getDistanceFromLatLonInM(
         position.coords.latitude,
@@ -222,7 +238,10 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     [todayAttendance],
   );
 
+  const effectiveBypass = useMemo(() => bypassMode || globalBypass, [bypassMode, globalBypass]);
+
   const isActionDisabled = useMemo(() => {
+    if (effectiveBypass) return isSubmitting || !position;
     if (isMockDetected) return true;
     if (isSubmitting) return true;
     const allowOffDayClockOut = actionType === 'out' && hasActiveAttendance;
@@ -254,9 +273,16 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     position,
     scheduleForAction,
     workLocation,
+    effectiveBypass,
   ]);
 
   const locationMessage = () => {
+    if (effectiveBypass) {
+      return {
+        text: 'Bypass mode aktif: pengecekan jarak/jadwal diabaikan. Pastikan data lokasi tetap akurat.',
+        color: 'bg-amber-50 text-amber-800',
+      };
+    }
     if (isMockDetected) {
       return {
         text: locationError || 'Lokasi tidak wajar terdeteksi. Absensi tidak dapat dilanjutkan.',
@@ -295,7 +321,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     setIsSubmitting(true);
     try {
       if (workLocation === 'Bekerja di Pabrik') {
-        const scheduleRequired = !(actionType === 'out' && hasActiveAttendance);
+        const scheduleRequired = !(actionType === 'out' && hasActiveAttendance) && !effectiveBypass;
         if (scheduleRequired && !scheduleForAction) throw new Error('Jadwal kerja untuk hari ini tidak ditemukan.');
         const attendanceRecord = await apiService.submitClockEvent(user, actionType, {
           workLocationType: workLocation,
@@ -341,6 +367,30 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className="space-y-4">
+        {user.role === UserRole.SUPERADMIN && (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 p-3">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Bypass mode (darurat)</p>
+              <p className="text-xs text-amber-700">Aktifkan untuk melewati batas jarak/jadwal pada clock in/out.</p>
+            </div>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-amber-800">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={effectiveBypass}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setBypassMode(enabled);
+                  setGlobalBypass(enabled);
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.setItem(BYPASS_STORAGE_KEY, enabled ? 'on' : 'off');
+                  }
+                }}
+              />
+              Aktif
+            </label>
+          </div>
+        )}
         <div className="h-48 w-full rounded-lg overflow-hidden relative bg-slate-200">
           <MapContainer center={DEFAULT_MAP_CENTER} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
             <ChangeView

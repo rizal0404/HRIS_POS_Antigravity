@@ -26,12 +26,27 @@ const StatCard: React.FC<{ title: string; count: number | string; icon: React.Re
 );
 
 const SuperadminDashboardPage: React.FC<SuperadminDashboardPageProps> = ({ user, allUsers: initialAllUsers }) => {
+    const BYPASS_STORAGE_KEY = 'attendance_bypass_mode';
     const [allUsers, setAllUsers] = useState<UserProfile[]>(initialAllUsers || []);
     const [allRequests, setAllRequests] = useState<Request[]>([]);
     const [structure, setStructure] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
+    const [bypassEnabled, setBypassEnabled] = useState<boolean>(false);
     const hasInitialUsers = (initialAllUsers || []).length > 0;
     
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const stored = window.localStorage.getItem(BYPASS_STORAGE_KEY);
+        setBypassEnabled(stored === 'on');
+    }, []);
+
+    const handleBypassToggle = (value: boolean) => {
+        setBypassEnabled(value);
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(BYPASS_STORAGE_KEY, value ? 'on' : 'off');
+        }
+    };
+
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
@@ -114,6 +129,22 @@ const SuperadminDashboardPage: React.FC<SuperadminDashboardPageProps> = ({ user,
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-800">Dashboard Superadmin</h1>
                 <p className="text-gray-600">Selamat datang, {user.full_name}. Berikut ringkasan aktivitas perusahaan.</p>
+            </div>
+
+            <div className="bg-white border border-amber-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-gray-800">Bypass mode clock in/out (darurat)</p>
+                    <p className="text-xs text-gray-600">Izinkan semua pengguna melewati batas lokasi/jadwal saat absensi jika terjadi kendala sistem.</p>
+                </div>
+                <label className="inline-flex items-center gap-2 text-sm font-semibold text-amber-800">
+                    <input
+                        type="checkbox"
+                        className="h-5 w-5"
+                        checked={bypassEnabled}
+                        onChange={(e) => handleBypassToggle(e.target.checked)}
+                    />
+                    {bypassEnabled ? 'Aktif' : 'Nonaktif'}
+                </label>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
