@@ -16,11 +16,13 @@ interface EditShiftModalProps {
 
 const EditShiftModal: React.FC<EditShiftModalProps> = ({ isOpen, onClose, onSave, employee, date, currentShiftCode, allShifts }) => {
     const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (isOpen && currentShiftCode) {
             const initialShift = allShifts.find(s => s.code === currentShiftCode) || null;
             setSelectedShift(initialShift);
+            setIsSaving(false);
         }
     }, [isOpen, currentShiftCode, allShifts]);
 
@@ -33,9 +35,14 @@ const EditShiftModal: React.FC<EditShiftModalProps> = ({ isOpen, onClose, onSave
         day: 'numeric',
     });
 
-    const handleSave = () => {
-        if (selectedShift) {
-            onSave(employee.id, date, selectedShift);
+    const handleShiftClick = async (shift: Shift) => {
+        if (isSaving) return;
+        setSelectedShift(shift);
+        setIsSaving(true);
+        try {
+            await onSave(employee.id, date, shift);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -65,6 +72,7 @@ const EditShiftModal: React.FC<EditShiftModalProps> = ({ isOpen, onClose, onSave
                         <p className="font-bold text-orange-500 text-xl">{selectedShift?.code || 'Pilih Shift'}</p>
                         {/* FIX: Changed startTime and endTime to snake_case */}
                         <p className="text-sm text-gray-600">{selectedShift?.start_time && `${selectedShift.start_time} - ${selectedShift.end_time}`}</p>
+                        <p className="text-xs text-gray-500 mt-1">Klik shift di bawah untuk menyimpan otomatis.</p>
                     </div>
                      <div className="text-center">
                         <ChevronDoubleDownIcon className="h-6 w-6 text-gray-400 mx-auto" />
@@ -76,8 +84,9 @@ const EditShiftModal: React.FC<EditShiftModalProps> = ({ isOpen, onClose, onSave
                         {allShifts.map(shift => (
                             <button
                                 key={shift.code}
-                                onClick={() => setSelectedShift(shift)}
-                                className={`w-full text-left p-3 rounded-lg text-white font-semibold transition-transform transform hover:scale-105 ${shift.color} ${selectedShift?.code === shift.code ? 'ring-4 ring-offset-2 ring-blue-500' : ''}`}
+                                onClick={() => handleShiftClick(shift)}
+                                disabled={isSaving}
+                                className={`w-full text-left p-3 rounded-lg text-white font-semibold transition-transform transform hover:scale-105 ${shift.color} ${selectedShift?.code === shift.code ? 'ring-4 ring-offset-2 ring-blue-500' : ''} ${isSaving ? 'opacity-80 cursor-not-allowed' : ''}`}
                             >
                                 <p>{shift.code}</p>
                                 {/* FIX: Changed startTime and endTime to snake_case */}
@@ -87,12 +96,9 @@ const EditShiftModal: React.FC<EditShiftModalProps> = ({ isOpen, onClose, onSave
                     </div>
                 </div>
 
-                <div className="p-4 bg-gray-50 flex justify-end space-x-3">
+                <div className="p-4 bg-gray-50 flex justify-end">
                     <button onClick={onClose} className="px-6 py-2 bg-gray-200 border border-transparent rounded-md text-sm font-medium text-gray-700 hover:bg-gray-300">
-                        Kembali
-                    </button>
-                    <button onClick={handleSave} className="px-6 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700">
-                        Simpan
+                        Tutup
                     </button>
                 </div>
             </div>
