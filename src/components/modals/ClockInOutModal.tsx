@@ -336,7 +336,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
         // workLocation === 'Lainnya'
         const today = new Date();
         const tanggalPembetulan = formatLocalDate(today); // YYYY-MM-DD in app timezone
-        const jamPembetulan = new Intl.DateTimeFormat('id-ID', {
+        // Use locale with colon separator to avoid invalid Date strings (id-ID uses dots).
+        const jamPembetulan = new Intl.DateTimeFormat('en-GB', {
           timeZone: APP_TIME_ZONE,
           hour: '2-digit',
           minute: '2-digit',
