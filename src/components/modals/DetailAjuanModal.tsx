@@ -26,6 +26,7 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
     const [isAttachmentViewerOpen, setAttachmentViewerOpen] = useState(false);
     const [originalAttendance, setOriginalAttendance] = useState<Attendance | null>(null);
     const [loadingAttendance, setLoadingAttendance] = useState(false);
+    const userNameMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.full_name])), [allUsers]);
 
     useEffect(() => {
         const fetchOriginalAttendance = async () => {
@@ -132,7 +133,14 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
         return shift.name || shift.code || '-';
     };
 
-    const findUserNameById = (id?: string) => allUsers.find(u => u.id === id)?.full_name || 'N/A';
+    const findUserNameById = (id?: string | null) => {
+        if (!id) return 'N/A';
+        return userNameMap.get(id) || 'N/A';
+    };
+    const resolveSubstituteName = (id?: string | null) => {
+        if (!id) return 'N/A';
+        return userNameMap.get(id) || id;
+    };
 
     const renderRequestSpecificDetails = () => {
         switch (request.request_type) {
@@ -145,8 +153,8 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                         <p className="text-sm font-medium text-gray-500">Detail Pengganti Shift</p>
                         <div className="mt-1 space-y-2 border rounded-md p-3 bg-gray-50 max-h-48 overflow-y-auto">
                             {Object.entries(cutiDetails.substitutes).map(([date, shifts]) => {
-                                const daySub = shifts.day ? findUserNameById(shifts.day) : 'N/A';
-                                const nightSub = shifts.night ? findUserNameById(shifts.night) : 'N/A';
+                                const daySub = resolveSubstituteName(shifts.day);
+                                const nightSub = resolveSubstituteName(shifts.night);
                                 return (
                                     <div key={date} className="grid grid-cols-[1fr,2fr,2fr] gap-x-4 text-sm items-center">
                                         <span className="font-semibold text-gray-800">{formatDate(new Date(date + 'T00:00:00'))}</span>

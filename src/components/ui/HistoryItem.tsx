@@ -84,8 +84,13 @@ const renderDetails = (item: HistoryEvent, usersMap: Map<string, string>) => {
                             <p className="font-semibold text-xs text-gray-500 uppercase">Pengganti Shift</p>
                             <ul className="mt-1 space-y-1 text-xs">
                                 {Object.entries(substitutes).map(([date, shifts]: [string, any]) => {
-                                    const daySubstitute = shifts.day ? usersMap.get(shifts.day) || 'N/A' : null;
-                                    const nightSubstitute = shifts.night ? usersMap.get(shifts.night) || 'N/A' : null;
+                                    const resolveName = (value?: string) => {
+                                        if (!value) return null;
+                                        return usersMap.get(value) || value;
+                                    };
+
+                                    const daySubstitute = resolveName(shifts.day);
+                                    const nightSubstitute = resolveName(shifts.night);
                                     if (!daySubstitute && !nightSubstitute) return null;
 
                                     return (

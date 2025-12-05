@@ -19,6 +19,13 @@ interface RiwayatPageProps {
 }
 
 const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
+  const todayKey = useMemo(() => formatDateKey(new Date(), APP_TIME_ZONE), []);
+  const yesterdayKey = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return formatDateKey(d, APP_TIME_ZONE);
+  }, []);
+
   const [isKoreksiModalOpen, setIsKoreksiModalOpen] = useState(false);
   const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
   
@@ -33,8 +40,8 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
   const [selectedRequestForDetail, setSelectedRequestForDetail] = useState<Request | null>(null);
   
   // Filter states
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(yesterdayKey);
+  const [endDate, setEndDate] = useState(todayKey);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -214,8 +221,8 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
 
 
   const handleClearFilters = () => {
-    setStartDate('');
-    setEndDate('');
+    setStartDate(yesterdayKey);
+    setEndDate(todayKey);
     setSearchTerm('');
   };
 

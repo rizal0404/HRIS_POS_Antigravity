@@ -137,6 +137,8 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
     const [newShiftCode, setNewShiftCode] = useState('');
     const [isLoadingCurrentShift, setIsLoadingCurrentShift] = useState(false);
 
+    const userNameMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.full_name])), [allUsers]);
+
 
     useEffect(() => {
         if (isOpen) {
@@ -413,12 +415,28 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
             let finalRequestData;
 
             switch (requestType) {
-                case RequestType.CUTI:
+                case RequestType.CUTI: {
+                    const substitutesWithNames = Object.entries(dailySubstitutes).reduce((acc, [date, shifts]) => {
+                        const dayValue = shifts?.day ?? null;
+                        const nightValue = shifts?.night ?? null;
+
+                        const mappedDay = dayValue ? userNameMap.get(dayValue) || dayValue : dayValue;
+                        const mappedNight = nightValue ? userNameMap.get(nightValue) || nightValue : nightValue;
+
+                        const cleaned: DailySubstitute = {};
+                        if (mappedDay !== undefined) cleaned.day = mappedDay;
+                        if (mappedNight !== undefined) cleaned.night = mappedNight;
+
+                        acc[date] = cleaned;
+                        return acc;
+                    }, {} as Record<string, DailySubstitute>);
+
                     finalRequestData = {
                         ...baseRequestData,
-                        reason: JSON.stringify({ reason, leave_days: leaveDays, substitutes: dailySubstitutes }),
+                        reason: JSON.stringify({ reason, leave_days: leaveDays, substitutes: substitutesWithNames }),
                     };
                     break;
+                }
                 case RequestType.LEMBUR:
                     finalRequestData = {
                         ...baseRequestData,

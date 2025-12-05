@@ -38,6 +38,7 @@ serve(async () => {
         .select("id, full_name, telegram_chat_id")
         .eq("id", job.profile_id)
         .single();
+
       if (skipByPref(job.event, prefs)) {
         await markProcessed(job.id, attempt, null);
         await log(job, "sent", "skipped-by-pref");
@@ -47,14 +48,18 @@ serve(async () => {
       const chatId =
         targetProfile?.telegram_chat_id ||
         prefs.telegram_chat_id ||
-        // Only fall back to requester chat when target == requester (e.g., status update to pemohon)
         (targetProfile?.id && String(targetProfile.id) === String(requestRow.profile_id)
           ? requestRow.profiles?.telegram_chat_id
           : null) ||
         null;
+
       if (!chatId) {
         await markProcessed(job.id, attempt, null);
-        await log(job, "sent", "skipped-no-telegram-chat-id");
+        await log(
+          job,
+          "sent",
+          `skipped-no-telegram-chat-id target=${targetProfile?.id || "unknown"} prefs=${prefs.telegram_chat_id || "null"} requester=${requestRow.profiles?.telegram_chat_id || "null"}`
+        );
         continue;
       }
 
@@ -104,7 +109,7 @@ function buildMessage(ev: string, req: any, targetProfile: any) {
   const timeText = req.start_time || req.end_time ? `Waktu: ${req.start_time || "-"} - ${req.end_time || "-"}` : null;
   const requesterName = req.profiles?.full_name || "Pemohon";
   const isForApprover = targetProfile?.id && req.approver_id && String(targetProfile.id) === String(req.approver_id);
-  const header = isOvertime ? "📣 SPL / Lembur" : "📣 Notifikasi Pengajuan";
+  const header = isOvertime ? "?? SPL / Lembur" : "?? Notifikasi Pengajuan";
 
   const lines = [
     `${header}: ${subjectMap[ev] || "Perubahan"}`,

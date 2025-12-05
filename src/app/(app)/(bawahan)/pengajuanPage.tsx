@@ -62,8 +62,13 @@ const RequestCard: React.FC<{ request: Request; allUsers: UserProfile[] }> = ({ 
                             <p className="font-semibold text-xs text-gray-500 uppercase">Pengganti Shift</p>
                             <ul className="mt-1 space-y-1 text-xs">
                                 {Object.entries(substitutes).map(([date, shifts]: [string, any]) => {
-                                    const daySubstitute = shifts.day ? usersMap.get(shifts.day) || 'N/A' : null;
-                                    const nightSubstitute = shifts.night ? usersMap.get(shifts.night) || 'N/A' : null;
+                                    const resolveName = (value?: string) => {
+                                        if (!value) return null;
+                                        return usersMap.get(value) || value;
+                                    };
+
+                                    const daySubstitute = resolveName(shifts.day);
+                                    const nightSubstitute = resolveName(shifts.night);
 
                                     if (!daySubstitute && !nightSubstitute) return null;
 
@@ -134,8 +139,20 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const toastTimerRef = React.useRef<number | null>(null);
   
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().split('T')[0];
+  }, []);
+  const yesterdayStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().split('T')[0];
+  }, []);
+
+  const [startDate, setStartDate] = useState(yesterdayStr);
+  const [endDate, setEndDate] = useState(todayStr);
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchRequests = useCallback(async () => {
@@ -178,8 +195,8 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
   };
   
   const handleClearFilters = () => {
-    setStartDate('');
-    setEndDate('');
+    setStartDate(yesterdayStr);
+    setEndDate(todayStr);
     setSearchTerm('');
   };
 
