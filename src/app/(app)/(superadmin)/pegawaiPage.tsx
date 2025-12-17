@@ -152,6 +152,22 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
         try {
             if (userData.id) { // Editing existing user
                 const { password, ...profileData } = userData; // Exclude password from profile update
+
+                const emailChanged = Boolean(
+                    userData.id &&
+                    editingUser?.email &&
+                    editingUser.email !== userData.email
+                );
+                if (emailChanged) {
+                    // Keep auth.users in sync via Edge Function that uses the service role key server-side.
+                    const { error: fnError } = await supabase.functions.invoke('update-user-email', {
+                        body: { userId: userData.id, email: userData.email },
+                    });
+                    if (fnError) {
+                        throw new Error(fnError.message || 'Failed to update user email in auth.');
+                    }
+                }
+
                 await apiService.saveProfile(profileData as UserProfile);
             } else { // Creating new user
                 const { email, password } = userData;
