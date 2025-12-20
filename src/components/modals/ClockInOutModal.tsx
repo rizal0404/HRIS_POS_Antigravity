@@ -9,6 +9,8 @@ import Modal from '../Modal';
 import { MapContainer, TileLayer, Marker, Circle, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { buildAttendanceWindow } from '../../lib/attendanceRules';
+import { offlineQueue } from '../../lib/offlineQueue';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 
 // Fix for default marker icon in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -37,33 +39,29 @@ const blueIcon = new L.Icon({
 });
 
 // Configuration constants
-const WORKPLACES = [
-  // { name: 'Pabrik Tonasa', lat: -4.78841, lon: 119.61284 }, // Kantor Staf as a central point for the factory
-  { name: 'Tonasa 23', lat: -4.783714780572759, lon: 119.61610006600712 },
-  { name: 'Tonasa 4', lat: -4.78831873823137, lon: 119.61654058396095 },
-  { name: 'Tonasa 5', lat: -4.790931202719051, lon: 119.61694886888938 },
-  { name: 'Crusher', lat: -4.7893251806455295, lon: 119.62039780223822 },
-  { name: 'Kantor Staf', lat: -4.788360643865878, lon: 119.61309925103656 },
-  { name: 'Palmer', lat: -4.799717216, lon: 119.60308636409 },
-];
-const MAX_DISTANCE_METERS = 350;
+import { WORKPLACES, MAX_DISTANCE_METERS, getDistanceFromLatLonInM, findNearestWorkplace } from '../../lib/location';
+
+// Configuration constants
 const DEFAULT_MAP_CENTER: [number, number] = [-4.819, 119.64];
 const ACCURACY_THRESHOLD_METERS = 250;
 const formatLocalDate = (date: Date) => formatDateKey(date, APP_TIME_ZONE);
 
-// Helper function to calculate distance
-function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371e3; // metres
-  const phi1 = lat1 * Math.PI / 180;
-  const phi2 = lat2 * Math.PI / 180;
-  const deltaPhi = (lat2 - lat1) * Math.PI / 180;
-  const deltaLambda = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+// Validation Level System
+enum ValidationLevel {
+  NORMAL = 'normal',
+  NOTES_REQUIRED = 'notes_required',
+  APPROVAL_REQUIRED = 'approval_required',
+  BLOCKED = 'blocked',
 }
+
+type ValidationResult = {
+  level: ValidationLevel;
+  reasons: string[];
+  flags: string[];
+  canProceed: boolean;
+  notesRequired: boolean;
+};
+
 
 // Component to adjust map view dynamically
 const ChangeView: React.FC<{ userPos: [number, number] | null; workplacePos: [number, number] | null }> = ({
@@ -113,6 +111,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const [isMockDetected, setIsMockDetected] = useState<boolean>(false);
+  const [mockConfidence, setMockConfidence] = useState<number>(0); // 0-100%
+  const [mockReasons, setMockReasons] = useState<string[]>([]);
   const [globalBypass, setGlobalBypass] = useState(false);
   const [bypassMode, setBypassMode] = useState(false);
 
@@ -120,6 +120,9 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const [workLocation, setWorkLocation] = useState('Bekerja di Pabrik');
   const [workplace, setWorkplace] = useState(WORKPLACES[0].name);
   const [notes, setNotes] = useState('');
+
+  // Offline queue status
+  const { isOnline, pendingCount, isSyncing, syncNow } = useOfflineQueue();
 
   const targetWorkDateKey = useMemo(() => {
     if (actionType === 'out' && todayAttendance) {
@@ -154,48 +157,139 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const fetchLocation = useCallback(() => {
     setIsFetchingLocation(true);
     setLocationError(null);
-    setIsMockDetected(false); // Reset on new fetch
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude, accuracy, altitude } = pos.coords;
-        const reasons: string[] = [];
+    setIsMockDetected(false);
+    setMockConfidence(0);
+    setMockReasons([]);
 
-        // 1. Check for unnaturally high coordinate precision
-        const latDecimals = String(latitude).split('.')[1]?.length || 0;
-        const lonDecimals = String(longitude).split('.')[1]?.length || 0;
-        if (latDecimals > 8 || lonDecimals > 8) {
-          reasons.push('kondisi koordinat tidak wajar');
+    // Multi-sample validation: collect 3 samples
+    const samples: GeolocationPosition[] = [];
+    const SAMPLE_COUNT = 3;
+    const SAMPLE_INTERVAL = 400; // ms between samples
+
+    const collectSample = (index: number) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          samples.push(pos);
+          if (samples.length < SAMPLE_COUNT) {
+            setTimeout(() => collectSample(index + 1), SAMPLE_INTERVAL);
+          } else {
+            // All samples collected - analyze for mock detection
+            analyzeSamples(samples);
+          }
+        },
+        (err) => {
+          // If any sample fails, use what we have or report error
+          if (samples.length > 0) {
+            analyzeSamples(samples);
+          } else {
+            setLocationError(err.message);
+            setIsFetchingLocation(false);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
+      );
+    };
+
+    const analyzeSamples = (positions: GeolocationPosition[]) => {
+      const reasons: string[] = [];
+      let confidence = 0;
+      const latest = positions[positions.length - 1];
+      const { latitude, longitude, accuracy, altitude } = latest.coords;
+
+      // === EXISTING HEURISTICS ===
+      // 1. Check for unnaturally high coordinate precision
+      const latDecimals = String(latitude).split('.')[1]?.length || 0;
+      const lonDecimals = String(longitude).split('.')[1]?.length || 0;
+      if (latDecimals > 8 || lonDecimals > 8) {
+        reasons.push('Presisi koordinat tidak wajar');
+        confidence += 15;
+      }
+
+      // 2. Check for "perfect" integer accuracy values
+      if (Number.isInteger(accuracy) && accuracy > 0) {
+        reasons.push('Akurasi GPS bulat sempurna');
+        confidence += 15;
+      }
+
+      // 3. Check for "perfect" integer altitude
+      if (altitude !== null && Number.isInteger(altitude)) {
+        reasons.push('Ketinggian bulat sempurna');
+        confidence += 10;
+      }
+
+      // === NEW HEURISTICS ===
+      if (positions.length >= 2) {
+        // 4. Timestamp consistency - real GPS has unique timestamps
+        const timestamps = positions.map(p => p.timestamp);
+        const uniqueTimestamps = new Set(timestamps);
+        if (uniqueTimestamps.size < positions.length) {
+          reasons.push('Timestamp GPS tidak berubah antar sample');
+          confidence += 25;
         }
 
-        // 2. Check for "perfect" integer accuracy values (e.g., 5.0, 10.0)
-        if (Number.isInteger(accuracy) && accuracy > 0) {
-          reasons.push('kondisi akurasi tidak wajar');
+        // 5. Coordinate variance - real GPS has slight noise
+        const lats = positions.map(p => p.coords.latitude);
+        const lons = positions.map(p => p.coords.longitude);
+        const latVariance = Math.max(...lats) - Math.min(...lats);
+        const lonVariance = Math.max(...lons) - Math.min(...lons);
+
+        // Identical coords across samples (variance < 0.0000001 degrees = ~0.01m)
+        if (latVariance < 0.0000001 && lonVariance < 0.0000001) {
+          reasons.push('Koordinat identik antar sample (tidak ada noise GPS)');
+          confidence += 30;
         }
 
-        // 3. Check for "perfect" integer altitude values
-        if (altitude !== null && Number.isInteger(altitude)) {
-          reasons.push('kondisi ketinggian tidak wajar');
-        }
-
-        // If a combination of suspicious factors is found (at least 2), flag as mock.
-        if (reasons.length >= 2) {
-          setIsMockDetected(true);
-          setLocationError(
-            `Kemungkinan lokasi palsu terdeteksi (90%): ${reasons.join(
-              ', ',
-            )}. Pastikan tidak menggunakan aplikasi mock lokasi.`,
+        // 6. Unrealistic speed between samples
+        if (positions.length >= 2) {
+          const first = positions[0];
+          const last = positions[positions.length - 1];
+          const distanceM = getDistanceFromLatLonInM(
+            first.coords.latitude, first.coords.longitude,
+            last.coords.latitude, last.coords.longitude
           );
+          const timeDiffSec = (last.timestamp - first.timestamp) / 1000;
+          if (timeDiffSec > 0) {
+            const speedMs = distanceM / timeDiffSec;
+            // > 50 m/s = 180 km/h is unrealistic for a stationary check
+            if (speedMs > 50) {
+              reasons.push(`Pergerakan tidak realistis (${speedMs.toFixed(1)} m/s)`);
+              confidence += 20;
+            }
+          }
         }
+      }
 
-        setPosition(pos);
-        setIsFetchingLocation(false);
-      },
-      (err) => {
-        setLocationError(err.message);
-        setIsFetchingLocation(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-    );
+      // 7. DevTools detection (window size mismatch)
+      if (typeof window !== 'undefined') {
+        const widthDiff = window.outerWidth - window.innerWidth;
+        const heightDiff = window.outerHeight - window.innerHeight;
+        if (widthDiff > 160 || heightDiff > 160) {
+          reasons.push('Developer tools mungkin terbuka');
+          confidence += 10;
+        }
+      }
+
+      // Cap confidence at 100
+      confidence = Math.min(confidence, 100);
+
+      // Set results
+      setMockConfidence(confidence);
+      setMockReasons(reasons);
+
+      // Mark as mock if confidence >= 60%
+      if (confidence >= 60) {
+        setIsMockDetected(true);
+        setLocationError(
+          `Kemungkinan lokasi palsu terdeteksi (${confidence}%): ${reasons.slice(0, 2).join(', ')}.`
+        );
+      }
+
+      setPosition(latest);
+      setIsFetchingLocation(false);
+    };
+
+    // Start collecting samples
+    collectSample(0);
   }, []);
 
   useEffect(() => {
@@ -220,6 +314,13 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   }, [BYPASS_STORAGE_KEY]);
 
   useEffect(() => {
+    if (position && workLocation === 'Bekerja di Pabrik') {
+      const nearest = findNearestWorkplace(position.coords.latitude, position.coords.longitude);
+      setWorkplace(nearest.name);
+    }
+  }, [position, workLocation]);
+
+  useEffect(() => {
     if (position && selectedWorkplaceDetails) {
       const calculatedDistance = getDistanceFromLatLonInM(
         position.coords.latitude,
@@ -240,33 +341,163 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
 
   const effectiveBypass = useMemo(() => bypassMode || globalBypass, [bypassMode, globalBypass]);
 
-  const isActionDisabled = useMemo(() => {
-    if (effectiveBypass) return isSubmitting || !position;
-    if (isMockDetected) return true;
-    if (isSubmitting) return true;
+  // New tiered validation system
+  const validation = useMemo((): ValidationResult => {
+    const reasons: string[] = [];
+    const flags: string[] = [];
     const allowOffDayClockOut = actionType === 'out' && hasActiveAttendance;
 
-    if (workLocation === 'Bekerja di Pabrik') {
-      if (!allowOffDayClockOut) {
-        if (isOffDay) return true;
-        if (!scheduleForAction) return true;
-      }
-      if (isFetchingLocation || !position || locationError) return true;
-      if (position.coords.accuracy > ACCURACY_THRESHOLD_METERS) return true;
-      if (distance === null || distance > MAX_DISTANCE_METERS) return true;
+    // BLOCKED conditions - cannot proceed at all
+    // Only block at very high confidence (90%+)
+    if (isMockDetected && mockConfidence >= 90) {
+      return {
+        level: ValidationLevel.BLOCKED,
+        reasons: [`Lokasi palsu terdeteksi (${mockConfidence}%): ${mockReasons.slice(0, 2).join(', ')}`],
+        flags: ['mock_location_high'],
+        canProceed: false,
+        notesRequired: false,
+      };
     }
 
-    if (workLocation === 'Lainnya') {
-      if (notes.trim().length < 5) return true; // Notes are required with minimum 5 characters
-      if (isFetchingLocation || !position || locationError) return true; // Still need location data to record
+    // Likely mock (60-90%) - require notes with strong warning
+    if (mockConfidence >= 60) {
+      const notesOk = notes.trim().length >= 5;
+      return {
+        level: ValidationLevel.NOTES_REQUIRED,
+        reasons: [`Deteksi lokasi mencurigakan (${mockConfidence}%): ${mockReasons.slice(0, 2).join(', ')}. Wajib isi alasan.`],
+        flags: ['mock_location_likely'],
+        canProceed: notesOk,
+        notesRequired: true,
+      };
     }
-    return false;
+
+    // Basic requirements check
+    if (isSubmitting) {
+      return {
+        level: ValidationLevel.BLOCKED,
+        reasons: ['Sedang memproses...'],
+        flags: [],
+        canProceed: false,
+        notesRequired: false,
+      };
+    }
+
+    if (isFetchingLocation || !position) {
+      return {
+        level: ValidationLevel.BLOCKED,
+        reasons: ['Menunggu data lokasi...'],
+        flags: [],
+        canProceed: false,
+        notesRequired: false,
+      };
+    }
+
+    if (locationError) {
+      return {
+        level: ValidationLevel.BLOCKED,
+        reasons: [`Error lokasi: ${locationError}`],
+        flags: ['location_error'],
+        canProceed: false,
+        notesRequired: false,
+      };
+    }
+
+    // Bypass mode - allow everything with position
+    if (effectiveBypass) {
+      return {
+        level: ValidationLevel.NORMAL,
+        reasons: ['Bypass mode aktif'],
+        flags: ['bypass_mode'],
+        canProceed: true,
+        notesRequired: false,
+      };
+    }
+
+    // APPROVAL_REQUIRED - "Lainnya" mode
+    if (workLocation === 'Lainnya') {
+      const notesOk = notes.trim().length >= 5;
+      return {
+        level: ValidationLevel.APPROVAL_REQUIRED,
+        reasons: ['Absensi dari lokasi lain akan dikirim untuk persetujuan atasan.'],
+        flags: ['remote_location'],
+        canProceed: notesOk,
+        notesRequired: true,
+      };
+    }
+
+    // "Bekerja di Pabrik" mode - check conditions
+    const accuracy = position.coords.accuracy;
+    const isAccuracyLow = accuracy > ACCURACY_THRESHOLD_METERS;
+    const isOutOfRadius = distance === null || distance > MAX_DISTANCE_METERS;
+
+    // If out of radius completely, must use "Lainnya" mode
+    if (isOutOfRadius) {
+      return {
+        level: ValidationLevel.BLOCKED,
+        reasons: [`Anda berada ${distance?.toFixed(0) || '?'}m dari area kerja. Radius maksimal ${MAX_DISTANCE_METERS}m. Gunakan mode "Lainnya" jika bekerja di luar pabrik.`],
+        flags: ['out_of_radius'],
+        canProceed: false,
+        notesRequired: false,
+      };
+    }
+
+    // Check for conditions that require notes but still allow clock
+    if (!allowOffDayClockOut && isOffDay) {
+      reasons.push('Hari ini adalah hari libur (OFF)');
+      flags.push('off_day_clock');
+    }
+
+    if (!allowOffDayClockOut && !scheduleForAction) {
+      reasons.push('Tidak ada jadwal kerja untuk hari ini');
+      flags.push('no_schedule');
+    }
+
+    if (isAccuracyLow) {
+      reasons.push(`Akurasi GPS rendah (${accuracy.toFixed(0)}m). Pindah ke area lebih terbuka jika memungkinkan.`);
+      flags.push('low_accuracy');
+    }
+
+    // Determine level based on accumulated reasons
+    if (reasons.length > 0) {
+      const notesOk = notes.trim().length >= 5;
+      return {
+        level: ValidationLevel.NOTES_REQUIRED,
+        reasons,
+        flags,
+        canProceed: notesOk,
+        notesRequired: true,
+      };
+    }
+
+    // Suspicious but not blocking (30-60%) - show warning, allow with caution
+    if (mockConfidence >= 30 && mockConfidence < 60) {
+      flags.push('mock_location_suspicious');
+      // Don't require notes but add to tracking
+      return {
+        level: ValidationLevel.NORMAL,
+        reasons: [`Deteksi lokasi: Perhatian (${mockConfidence}%)`],
+        flags,
+        canProceed: true,
+        notesRequired: false,
+      };
+    }
+
+    // All good - NORMAL
+    return {
+      level: ValidationLevel.NORMAL,
+      reasons: [],
+      flags: [],
+      canProceed: true,
+      notesRequired: false,
+    };
   }, [
     actionType,
     distance,
     hasActiveAttendance,
     isFetchingLocation,
     isMockDetected,
+    mockConfidence,
+    mockReasons,
     isSubmitting,
     locationError,
     notes,
@@ -274,7 +505,11 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     scheduleForAction,
     workLocation,
     effectiveBypass,
+    isOffDay,
   ]);
+
+  // Backward compatible - used by button disabled state
+  const isActionDisabled = !validation.canProceed;
 
   const locationMessage = () => {
     if (effectiveBypass) {
@@ -321,28 +556,58 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     setIsSubmitting(true);
     try {
       if (workLocation === 'Bekerja di Pabrik') {
-        const scheduleRequired = !(actionType === 'out' && hasActiveAttendance) && !effectiveBypass;
-        if (scheduleRequired && !scheduleForAction) throw new Error('Jadwal kerja untuk hari ini tidak ditemukan.');
-        const attendanceRecord = await apiService.submitClockEvent(user, actionType, {
-          workLocationType: workLocation,
-          workplace,
-          notes,
-          position,
-          targetSchedule: scheduleForAction,
-          activeAttendance: todayAttendance,
-        });
-        onSuccess(`${actionType === 'in' ? 'Clock In' : 'Clock Out'} berhasil!`, attendanceRecord);
+        // With tiered validation, we now allow clock-in without schedule if notes are provided
+        // The validation.flags will be passed to track special conditions
+        try {
+          const attendanceRecord = await apiService.submitClockEvent(user, actionType, {
+            workLocationType: workLocation,
+            workplace,
+            notes,
+            position,
+            targetSchedule: scheduleForAction,
+            activeAttendance: todayAttendance,
+            attendanceFlags: validation.flags,
+          });
+          onSuccess(`${actionType === 'in' ? 'Clock In' : 'Clock Out'} berhasil!`, attendanceRecord);
+        } catch (networkError) {
+          // If network fails, queue locally
+          console.log('[ClockInOutModal] Network failed, queuing offline...');
+          const today = new Date();
+          const workDate = formatLocalDate(today);
+
+          await offlineQueue.enqueue({
+            type: actionType === 'in' ? 'clock_in' : 'clock_out',
+            timestamp: today.toISOString(),
+            payload: {
+              profile_id: user.id,
+              clock_in: actionType === 'in' ? today.toISOString() : undefined,
+              clock_out: actionType === 'out' ? today.toISOString() : undefined,
+              clock_in_coords: actionType === 'in' && position ? { lat: position.coords.latitude, lon: position.coords.longitude } : undefined,
+              clock_out_coords: actionType === 'out' && position ? { lat: position.coords.latitude, lon: position.coords.longitude } : undefined,
+              clock_in_address: actionType === 'in' ? 'Disimpan offline - akan disinkronkan' : undefined,
+              clock_out_address: actionType === 'out' ? 'Disimpan offline - akan disinkronkan' : undefined,
+              work_date: workDate,
+              lokasi_kerja: workLocation,
+              tempat_kerja: workplace,
+              catatan: notes ? `${notes} [Flags: ${validation.flags.join(', ')}]` : `[Flags: ${validation.flags.join(', ')}]`,
+              attendance_id: todayAttendance?.id,
+            },
+          });
+          onSuccess(
+            `${actionType === 'in' ? 'Clock In' : 'Clock Out'} disimpan offline. Akan otomatis disinkronkan saat online.`,
+            null
+          );
+        }
       } else {
         // workLocation === 'Lainnya'
         const today = new Date();
-        const tanggalPembetulan = formatLocalDate(today); // YYYY-MM-DD in app timezone
-        // Use locale with colon separator to avoid invalid Date strings (id-ID uses dots).
+        const tanggalPembetulan = formatLocalDate(today);
         const jamPembetulan = new Intl.DateTimeFormat('en-GB', {
           timeZone: APP_TIME_ZONE,
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
-        }).format(today); // HH:mm in app timezone
+        }).format(today);
 
         await apiService.addPembetulanPresensi({
           user: user,
@@ -392,6 +657,32 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             </label>
           </div>
         )}
+
+        {/* Offline Status Indicator */}
+        {(!isOnline || pendingCount > 0) && (
+          <div className={`flex items-center justify-between p-2 rounded-md text-xs ${!isOnline ? 'bg-slate-100 text-slate-700' : 'bg-blue-50 text-blue-700'
+            }`}>
+            <div className="flex items-center gap-2">
+              <span className={`flex h-2 w-2 rounded-full ${!isOnline ? 'bg-slate-400' : 'bg-blue-500 animate-pulse'}`} />
+              <span className="font-medium">
+                {!isOnline
+                  ? 'Mode Offline - Absensi akan disimpan lokal'
+                  : isSyncing
+                    ? 'Menyinkronkan...'
+                    : `${pendingCount} absensi tertunda`}
+              </span>
+            </div>
+            {isOnline && pendingCount > 0 && !isSyncing && (
+              <button
+                onClick={syncNow}
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                Sinkronkan
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="h-48 w-full rounded-lg overflow-hidden relative bg-slate-200">
           <MapContainer center={DEFAULT_MAP_CENTER} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
             <ChangeView
@@ -433,11 +724,84 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             </button>
           )}
         </div>
+
+        {/* Mock Confidence Indicator */}
+        {!isFetchingLocation && mockConfidence > 0 && (
+          <div className={`flex items-center justify-between p-2 rounded-md text-xs ${mockConfidence >= 90 ? 'bg-red-100 text-red-800' :
+            mockConfidence >= 60 ? 'bg-orange-100 text-orange-800' :
+              mockConfidence >= 30 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-green-100 text-green-800'
+            }`}>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">
+                {mockConfidence >= 60 ? 'gpp_bad' : mockConfidence >= 30 ? 'gpp_maybe' : 'verified_user'}
+              </span>
+              <span className="font-medium">
+                Validasi Lokasi: {mockConfidence >= 90 ? 'Terblokir' : mockConfidence >= 60 ? 'Mencurigakan' : mockConfidence >= 30 ? 'Perhatian' : 'Normal'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-16 h-1.5 bg-white/50 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${mockConfidence >= 60 ? 'bg-red-500' : mockConfidence >= 30 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                  style={{ width: `${mockConfidence}%` }}
+                />
+              </div>
+              <span className="font-bold">{mockConfidence}%</span>
+            </div>
+          </div>
+        )}
         {windowLabel ? (
           <div className="text-center p-3 bg-emerald-50 text-emerald-800 rounded-lg text-sm">
             Window clock-{actionType.toUpperCase()} : {windowLabel}
           </div>
         ) : null}
+
+        {/* Validation Warning Banner */}
+        {validation.level === ValidationLevel.NOTES_REQUIRED && validation.reasons.length > 0 && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg animate-fade-in">
+            <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-amber-600 text-[20px] mt-0.5">warning</span>
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Catatan wajib diisi</p>
+                <ul className="text-xs text-amber-700 mt-1 space-y-0.5">
+                  {validation.reasons.map((reason, idx) => (
+                    <li key={idx}>• {reason}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {validation.level === ValidationLevel.APPROVAL_REQUIRED && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg animate-fade-in">
+            <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-blue-600 text-[20px] mt-0.5">info</span>
+              <div>
+                <p className="text-sm font-semibold text-blue-800">Perlu Persetujuan Atasan</p>
+                <p className="text-xs text-blue-700 mt-1">Absensi dari lokasi lain akan dikirim ke atasan untuk disetujui.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {validation.level === ValidationLevel.BLOCKED && validation.reasons.length > 0 && !isFetchingLocation && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
+            <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-red-600 text-[20px] mt-0.5">block</span>
+              <div>
+                <p className="text-sm font-semibold text-red-800">Tidak dapat melanjutkan</p>
+                <ul className="text-xs text-red-700 mt-1 space-y-0.5">
+                  {validation.reasons.map((reason, idx) => (
+                    <li key={idx}>• {reason}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="text-center p-3 bg-slate-100 rounded-lg">
           <p className="font-bold text-lg">
             {currentTime.toLocaleDateString('id-ID', {
@@ -471,36 +835,45 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           </select>
         </div>
         {workLocation === 'Bekerja di Pabrik' && (
-          <div>
-            <label htmlFor="workplace" className="block text-sm font-medium text-slate-700">
-              Pilihan Tempat Kerja
-            </label>
-            <select
-              id="workplace"
-              value={workplace}
-              onChange={(e) => setWorkplace(e.target.value)}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 rounded-md"
-            >
-              {WORKPLACES.map((wp) => (
-                <option key={wp.name}>{wp.name}</option>
-              ))}
-            </select>
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in shadow-inner">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Lokasi Kerja Terdeteksi</span>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-100/50 rounded-full">
+                <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                <span className="text-[10px] font-bold text-green-700">Verified</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="size-11 bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <span className="material-symbols-outlined text-[24px]">location_on</span>
+              </div>
+              <div>
+                <div className="text-base font-extrabold text-slate-800 leading-none mb-1">{workplace}</div>
+                <div className="text-xs font-medium text-slate-500">PT Semen Tonasa</div>
+              </div>
+            </div>
           </div>
         )}
         <div>
           <label htmlFor="notes" className="block text-sm font-medium text-slate-700">
             Catatan/Alasan
-            {workLocation === 'Lainnya' && <span className="text-red-500">*</span>}
+            {validation.notesRequired && <span className="text-red-500"> *</span>}
           </label>
           <textarea
             id="notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="mt-1 block w-full shadow-sm sm:text-sm border-slate-300 rounded-md"
-            required={workLocation === 'Lainnya'}
-            placeholder={workLocation === 'Lainnya' ? 'Wajib diisi (minimal 5 karakter)' : 'Opsional'}
+            className={`mt-1 block w-full shadow-sm sm:text-sm rounded-md ${validation.notesRequired && notes.trim().length < 5
+              ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500'
+              : 'border-slate-300'
+              }`}
+            required={validation.notesRequired}
+            placeholder={validation.notesRequired ? 'Wajib diisi (minimal 5 karakter)' : 'Opsional'}
           />
+          {validation.notesRequired && notes.trim().length > 0 && notes.trim().length < 5 && (
+            <p className="text-xs text-amber-600 mt-1">Minimal 5 karakter ({notes.trim().length}/5)</p>
+          )}
         </div>
         <div className="flex justify-end gap-3 pt-4">
           <button
@@ -514,9 +887,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={isActionDisabled}
-            className={`py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${
-              actionType === 'in' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'
-            } disabled:bg-slate-300 disabled:cursor-not-allowed`}
+            className={`py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${actionType === 'in' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'
+              } disabled:bg-slate-300 disabled:cursor-not-allowed`}
           >
             {isSubmitting ? 'Memproses...' : workLocation === 'Lainnya' ? 'Kirim Ajuan' : title}
           </button>

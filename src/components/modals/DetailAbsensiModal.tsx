@@ -9,9 +9,9 @@ import L from 'leaflet';
 // Fix for default marker icon in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
 const greenIcon = new L.Icon({
@@ -48,7 +48,7 @@ const MapController: React.FC<{ coords: L.LatLngExpression[] }> = ({ coords }) =
 
 const DetailAbsensiModal: React.FC<DetailAbsensiModalProps> = ({ isOpen, onClose, attendance, user, schedule }) => {
     if (!isOpen || !attendance) return null;
-    
+
     // FIX: Changed attendance.clockIn to attendance.clock_in
     const clockInDate = new Date(attendance.clock_in);
     // FIX: Changed attendance.clockOut to attendance.clock_out
@@ -68,16 +68,16 @@ const DetailAbsensiModal: React.FC<DetailAbsensiModalProps> = ({ isOpen, onClose
         }
         return coords;
     }, [attendance]);
-    
+
     const formatDate = (date: Date): string => {
-      return date.toLocaleDateString('id-ID', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+        return date.toLocaleDateString('id-ID', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
     };
-    
+
     const formatTimeWithWITA = (date: Date): string => {
         return `pukul ${date.toLocaleTimeString('id-ID', {
             hour: '2-digit',
@@ -88,9 +88,9 @@ const DetailAbsensiModal: React.FC<DetailAbsensiModalProps> = ({ isOpen, onClose
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-md z-50 flex justify-center items-center p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all relative">
-                 <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 p-2 z-10">
+                <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 p-2 z-10">
                     <XIcon className="h-6 w-6" />
                 </button>
                 <div className="p-6 space-y-4">
@@ -103,13 +103,13 @@ const DetailAbsensiModal: React.FC<DetailAbsensiModalProps> = ({ isOpen, onClose
                     <div>
                         <p className="text-sm text-gray-500">Hari, Tanggal</p>
                         <div className="flex items-center space-x-2">
-                           <p className="font-bold text-lg">{formatDate(clockInDate)}</p>
-                           {schedule?.shift && (
-                             <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded">{schedule.shift}</span>
-                           )}
+                            <p className="font-bold text-lg">{formatDate(clockInDate)}</p>
+                            {schedule?.shift && (
+                                <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded">{schedule.shift}</span>
+                            )}
                         </div>
                     </div>
-                    
+
                     <div className="h-64 w-full rounded-lg overflow-hidden bg-gray-200">
                         <MapContainer center={[-4.7877, 119.6157]} zoom={16} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -133,7 +133,7 @@ const DetailAbsensiModal: React.FC<DetailAbsensiModalProps> = ({ isOpen, onClose
                             <p className="text-sm text-gray-600 whitespace-pre-line">{attendance.clock_in_address}</p>
                         </div>
                         {clockOutDate && (
-                             <div>
+                            <div>
                                 <p className="font-bold text-red-600">Out</p>
                                 <p className="font-semibold">{clockOutDate.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'long', year: 'numeric' })} {formatTimeWithWITA(clockOutDate)}</p>
                                 {/* FIX: Changed attendance.clockOutAddress to attendance.clock_out_address */}
@@ -142,7 +142,7 @@ const DetailAbsensiModal: React.FC<DetailAbsensiModalProps> = ({ isOpen, onClose
                         )}
                     </div>
                 </div>
-                 <div className="p-4 bg-gray-50 flex justify-end space-x-3">
+                <div className="p-4 bg-gray-50 flex justify-end space-x-3">
                     <button type="button" onClick={onClose} className="px-6 py-2 bg-gray-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-gray-700 focus:outline-none">
                         Kembali
                     </button>

@@ -86,12 +86,12 @@ const CameraCapture: React.FC<{ onCapture: (file: File) => void; onClose: () => 
             );
         }
     };
-    
+
     return (
         <div className="fixed inset-0 bg-black z-[60] flex flex-col justify-center items-center p-2">
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain max-h-[85%]" />
             <canvas ref={canvasRef} className="hidden" />
-             {error && <div className="absolute top-4 bg-red-500 text-white p-3 rounded-md">{error}</div>}
+            {error && <div className="absolute top-4 bg-red-500 text-white p-3 rounded-md">{error}</div>}
             <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-6">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-600 text-white rounded-md">Batal</button>
                 <button type="button" onClick={handleCapturePhoto} className="px-6 py-4 bg-blue-600 text-white rounded-full font-bold">Ambil Foto</button>
@@ -110,7 +110,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [reason, setReason] = useState('');
-    
+
     const [startTime, setStartTime] = useState('17:00');
     const [endTime, setEndTime] = useState('21:00');
 
@@ -181,7 +181,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                 setSelectedDateSchedule(null);
             }
         };
-        
+
         fetchScheduleForDate();
     }, [requestType, startDate, user.id]);
 
@@ -234,11 +234,11 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
 
         try {
             const { schedules, requests } = await apiService.getRequestPrerequisites(user.id, startDate, effectiveEndDate);
-            
+
             const activeRequests = requests.filter(
                 req => req.status === RequestStatus.PENDING || req.status === RequestStatus.APPROVED
             );
-            
+
             if (activeRequests.length > 0) {
                 const conflictingRequest = activeRequests.find(req => {
                     if (requestType === RequestType.LEMBUR) {
@@ -255,7 +255,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                     return;
                 }
             }
-            
+
             if (requestType === RequestType.SUBSTITUSI) {
                 if (!currentShiftCode && !isLoadingCurrentShift) {
                     setValidationError('Tidak ada jadwal kerja pada tanggal ini.');
@@ -268,7 +268,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                 if (allUsers.length > 0) {
                     const substituteIds = allUsers.map(u => u.id);
                     const allSchedulesData = await apiService.getTeamSchedules(substituteIds, startDate, effectiveEndDate);
-                    
+
                     const newAllSchedules: Record<string, Record<string, string>> = {};
                     allSchedulesData.forEach(schedule => {
                         if (!newAllSchedules[schedule.profile_id]) {
@@ -280,7 +280,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                 }
 
                 const scheduleMap = new Map(schedules.map(s => [s.date, s.shift]));
-                
+
                 const parseDate = (dateStr: string) => {
                     const [year, month, day] = dateStr.split('-').map(Number);
                     return new Date(Date.UTC(year, month - 1, day));
@@ -288,7 +288,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
 
                 const start = parseDate(startDate);
                 const end = parseDate(effectiveEndDate);
-                
+
                 let workingDays = 0;
                 const newWorkingDates: string[] = [];
                 for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
@@ -296,9 +296,9 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                     const month = String(d.getUTCMonth() + 1).padStart(2, '0');
                     const day = String(d.getUTCDate()).padStart(2, '0');
                     const dateStr = `${year}-${month}-${day}`;
-            
+
                     const shift = scheduleMap.get(dateStr);
-                    
+
                     if (shift && shift !== 'OFF') {
                         workingDays++;
                         newWorkingDates.push(dateStr);
@@ -359,7 +359,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
             setAttachment(e.target.files[0]);
         }
     };
-    
+
     const handleCapture = (file: File) => {
         setAttachment(file);
         setIsCameraOpen(false);
@@ -386,24 +386,24 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
         e.preventDefault();
         setLoading(true);
         setError(null);
-        
+
         try {
             let attachmentUrl: string | undefined = undefined;
             if (attachment && requestType === RequestType.SAKIT) {
                 const filePath = `${user.id}/${Date.now()}_${attachment.name}`;
                 const { error: uploadError } = await supabase.storage
-                  .from('attachments')
-                  .upload(filePath, attachment);
+                    .from('attachments')
+                    .upload(filePath, attachment);
 
                 if (uploadError) throw uploadError;
 
                 const { data: urlData } = supabase.storage
-                  .from('attachments')
-                  .getPublicUrl(filePath);
-                
+                    .from('attachments')
+                    .getPublicUrl(filePath);
+
                 attachmentUrl = urlData.publicUrl;
             }
-            
+
             const baseRequestData = {
                 profile_id: user.id,
                 request_type: requestType,
@@ -488,7 +488,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
         if (requestType === RequestType.SUBSTITUSI) {
             return !!(currentShiftCode && newShiftCode && newShiftCode !== currentShiftCode);
         }
-        
+
         if (requestType !== RequestType.LEMBUR) {
             if (!endDate || new Date(endDate) < new Date(startDate)) return false;
         }
@@ -497,7 +497,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
             return !!(startTime && endTime);
         }
         if (requestType === RequestType.SAKIT) {
-             return !!attachment;
+            return !!attachment;
         }
         if (requestType === RequestType.CUTI) {
             return leaveDays !== null && leaveDays > 0;
@@ -510,7 +510,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-md z-50 flex justify-center items-center p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
                 <div className="flex justify-between items-center p-4 border-b">
                     <h3 className="text-xl font-semibold text-gray-800">Buat Pengajuan Baru</h3>
@@ -541,11 +541,11 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                                 {Object.values(RequestType)
                                     .filter(type => type !== RequestType.KOREKSI && type !== RequestType.IZIN && type !== RequestType.REGISTRASI)
                                     .map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
                             </select>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {requestType === RequestType.LEMBUR ? (
                                 <div className="sm:col-span-2">
@@ -555,12 +555,12 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                                     <div className="grid grid-cols-2 gap-4">
                                         <input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             value={isCheckingSchedule ? 'Memeriksa...' : selectedDateSchedule || ''}
                                             placeholder="Jadwal Kerja"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed" 
-                                            disabled 
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+                                            disabled
                                         />
                                     </div>
                                 </div>
@@ -570,12 +570,12 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                                         <label htmlFor="substituteDate" className="block text-sm font-medium text-gray-700 mb-1">
                                             Tanggal <span className="text-red-500">*</span>
                                         </label>
-                                        <input 
-                                            type="date" 
-                                            id="substituteDate" 
-                                            value={startDate} 
+                                        <input
+                                            type="date"
+                                            id="substituteDate"
+                                            value={startDate}
                                             onChange={(e) => setStartDate(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                                         />
                                     </div>
                                     <div>
@@ -624,30 +624,30 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                                 </>
                             )}
                         </div>
-                        
+
                         {requestType === RequestType.LEMBUR && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                 <div>
+                                <div>
                                     <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-1">Jam Mulai</label>
                                     <input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
                                 </div>
-                                 <div>
+                                <div>
                                     <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">Jam Selesai</label>
                                     <input type="time" id="endTime" value={endTime} onChange={e => setEndTime(e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
                                 </div>
                             </div>
                         )}
-                        
+
                         {requestType === RequestType.CUTI && (
                             <>
                                 {leaveDays !== null && (
-                                <div className="bg-blue-50 p-3 rounded-md text-center">
-                                    <p className="text-sm font-medium text-blue-800">Total Hari Kerja Cuti: <span className="font-bold text-lg">{leaveDays} hari</span></p>
-                                </div>
+                                    <div className="bg-blue-50 p-3 rounded-md text-center">
+                                        <p className="text-sm font-medium text-blue-800">Total Hari Kerja Cuti: <span className="font-bold text-lg">{leaveDays} hari</span></p>
+                                    </div>
                                 )}
-                                
+
                                 {workingDates.length > 0 && (
                                     <div className="space-y-3 pt-2">
                                         <div className="grid grid-cols-[1fr,2fr,2fr] gap-x-3 text-sm font-medium text-gray-700 px-2">
@@ -663,7 +663,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
                                             return (
                                                 <div key={date} className="grid grid-cols-[1fr,2fr,2fr] gap-x-3 items-center">
                                                     <label className="text-sm font-medium text-gray-800 bg-gray-100 p-2 rounded-md text-center">{formattedDate}</label>
-                                                    
+
                                                     <div className="flex items-center gap-1 bg-white border border-gray-300 rounded-md shadow-sm focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500">
                                                         <select
                                                             value={selectedDaySub || ''}
@@ -709,30 +709,30 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
 
 
                         {(requestType === RequestType.SAKIT) && (
-                           <div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Lampiran <span className="text-red-500">*</span>
                                 </label>
                                 <div className="flex items-center gap-4 mt-2">
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onClick={() => fileInputRef.current?.click()}
                                         className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                                     >
-                                        <UploadIcon className="h-5 w-5 mr-2"/>
+                                        <UploadIcon className="h-5 w-5 mr-2" />
                                         Unggah File
                                     </button>
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onClick={() => setIsCameraOpen(true)}
                                         className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                                     >
-                                        <CameraIcon className="h-5 w-5 mr-2"/>
+                                        <CameraIcon className="h-5 w-5 mr-2" />
                                         Ambil Foto
                                     </button>
                                 </div>
-                                <input 
-                                    type="file" 
+                                <input
+                                    type="file"
                                     id="attachments"
                                     ref={fileInputRef}
                                     onChange={handleFileChange}

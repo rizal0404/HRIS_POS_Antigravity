@@ -2,14 +2,14 @@
 
 import React from 'react';
 import { UserProfile } from '../../../types';
-import JadwalTimView from '../../../components/jadwal/JadwalTimView';
+import ModernJadwalView from '../../../components/jadwal/ModernJadwalView';
 
 interface TimSayaPageProps {
   user: UserProfile;
 }
 
 const TimSayaPage: React.FC<TimSayaPageProps> = ({ user }) => {
-  return <JadwalTimView user={user} mode="team" />;
+  return <ModernJadwalView user={user} mode="team" />;
 };
 
 export default TimSayaPage;

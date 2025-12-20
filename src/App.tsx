@@ -10,6 +10,7 @@ import { getAllSubordinates } from './lib/utils';
 import { logInfo, logError, logWarn } from './lib/logger';
 import ErrorBoundary from './components/ErrorBoundary';
 import PasswordResetModal from './components/PasswordResetModal';
+import InstallPWABanner from './components/InstallPWABanner';
 
 // Import pages
 import AbsensiPage from './app/(app)/(bawahan)/absensiPage';
@@ -190,42 +191,42 @@ export default function App() {
                     if (profileError) throw profileError;
                     if (usersError) throw usersError;
                     setAllUsers(users as UserProfile[]);
-                        if (profile) {
-                            const { data: pendingReg, error: regErr } = await supabase
-                                .from('requests')
-                                .select('status')
-                                .eq('profile_id', profile.id)
-                                .eq('request_type', RequestType.REGISTRASI)
-                                .order('created_at', { ascending: false })
-                                .limit(1)
-                                .maybeSingle();
-                            if (regErr && regErr.code !== 'PGRST116') logWarn('Failed to check registration status', regErr);
-                            const isRegistrationPending = pendingReg?.status === RequestStatus.PENDING;
-                            // Jika sudah di-approve, paksa pending = false meski request belum di-update.
-                            setRegistrationPending(profile.approved === false ? isRegistrationPending : false);
+                    if (profile) {
+                        const { data: pendingReg, error: regErr } = await supabase
+                            .from('requests')
+                            .select('status')
+                            .eq('profile_id', profile.id)
+                            .eq('request_type', RequestType.REGISTRASI)
+                            .order('created_at', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+                        if (regErr && regErr.code !== 'PGRST116') logWarn('Failed to check registration status', regErr);
+                        const isRegistrationPending = pendingReg?.status === RequestStatus.PENDING;
+                        // Jika sudah di-approve, paksa pending = false meski request belum di-update.
+                        setRegistrationPending(profile.approved === false ? isRegistrationPending : false);
 
-                            if (profile.approved === false) {
-                                setBlockedMessage('Akun menunggu persetujuan superadmin.');
-                                setRegistrationPending(true);
-                                await supabase.auth.signOut();
-                                setCurrentUser(null);
-                                setLoading(false);
-                                return;
-                            } else {
-                                setBlockedMessage(null);
-                            }
-
-                            const { count, error: managerError } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('manager_id', profile.id);
-                            if (managerError) logWarn('Could not determine manager status', managerError);
-                            const isManager = (count ?? 0) > 0;
-                            const completeProfile = { ...profile, isManager } as UserProfile;
-                            setCurrentUser(completeProfile);
-                            loadNotifications(completeProfile, users as UserProfile[]);
-                        } else {
-                            logWarn('User authenticated but no profile found.', { userId: session.user.id });
+                        if (profile.approved === false) {
+                            setBlockedMessage('Akun menunggu persetujuan superadmin.');
+                            setRegistrationPending(true);
+                            await supabase.auth.signOut();
                             setCurrentUser(null);
+                            setLoading(false);
+                            return;
+                        } else {
+                            setBlockedMessage(null);
                         }
-                    } catch (error) {
+
+                        const { count, error: managerError } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('manager_id', profile.id);
+                        if (managerError) logWarn('Could not determine manager status', managerError);
+                        const isManager = (count ?? 0) > 0;
+                        const completeProfile = { ...profile, isManager } as UserProfile;
+                        setCurrentUser(completeProfile);
+                        loadNotifications(completeProfile, users as UserProfile[]);
+                    } else {
+                        logWarn('User authenticated but no profile found.', { userId: session.user.id });
+                        setCurrentUser(null);
+                    }
+                } catch (error) {
                     logError('Failed to fetch user profile or all users', error);
                     setCurrentUser(null);
                     setAllUsers([]);
@@ -271,6 +272,7 @@ export default function App() {
                     onSuccess={() => setShowPasswordResetModal(false)}
                 />
             )}
+            <InstallPWABanner />
             <Routes>
                 {currentUser ? (
                     <Route path="/" element={<AppLayout currentUser={currentUser} allUsers={allUsers} notifications={notifications} handleLogout={handleLogout} />}>
@@ -284,7 +286,7 @@ export default function App() {
                                 />
                             }
                         />
-                        
+
                         {/* Bawahan Routes */}
                         <Route path="beranda" element={<DashboardBawahanPage user={currentUser} />} />
                         <Route path="absensi" element={<AbsensiPage user={currentUser} />} />
@@ -314,7 +316,7 @@ export default function App() {
                         {/* General Routes */}
                         <Route path="presensi" element={<PresensiPage user={currentUser} />} />
                         <Route path="kpi" element={<KpiPage user={currentUser} />} />
-                        
+
                         {/* Redirect any other authenticated path to role-specific landing */}
                         <Route
                             path="*"

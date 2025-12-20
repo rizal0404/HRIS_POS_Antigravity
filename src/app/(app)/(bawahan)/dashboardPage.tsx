@@ -6,7 +6,19 @@ import { apiService } from '../../../services/apiService';
 import { KPI_DEFAULT_CONFIG, KPI_STORAGE_KEY, computeKpiScore, normalizeKpiConfig } from '@/components/kpi/KpiCalculator';
 import { APP_TIME_ZONE, APP_TIME_OFFSET, formatDateKey, formatTime } from '@/lib/utils';
 import Spinner from '@/components/ui/Spinner';
-import { CalendarIcon, CheckCircleIcon, ClockIcon, DocumentAddIcon, RefreshIcon } from '@/components/icons';
+import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import ProgressBar from '@/components/ui/ProgressBar';
+import {
+    CalendarIcon,
+    CheckCircleIcon,
+    ClockIcon,
+    DocumentAddIcon,
+    RefreshIcon,
+    TimeIcon,
+    DocumentReportIcon,
+    BriefcaseIcon
+} from '@/components/icons';
 
 type KpiConfigShape = typeof KPI_DEFAULT_CONFIG;
 type KpiResultShape = ReturnType<typeof computeKpiScore>;
@@ -15,38 +27,38 @@ interface RecentDay {
     dateKey: string;
     shift: string;
     status: string;
-    statusTone: string;
+    statusVariant: 'success' | 'warning' | 'danger' | 'info' | 'secondary';
     clockIn?: string;
     clockOut?: string;
 }
 
 const formatDuration = (minutes: number): string => {
-    if (!Number.isFinite(minutes) || minutes <= 0) return '0 menit';
+    if (!Number.isFinite(minutes) || minutes <= 0) return '0m';
     const hrs = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
-    if (hrs <= 0) return `${mins} menit`;
-    if (mins === 0) return `${hrs} jam`;
-    return `${hrs} jam ${mins} menit`;
+    if (hrs <= 0) return `${mins}m`;
+    if (mins === 0) return `${hrs}j`;
+    return `${hrs}j ${mins}m`;
 };
 
-const statusMeta = (status?: string, isLeave?: boolean) => {
+const statusMeta = (status?: string, isLeave?: boolean): { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'secondary' } => {
     if (isLeave) {
-        return { label: 'Cuti/Izin/Sakit', tone: 'text-indigo-700 bg-indigo-50' };
+        return { label: 'Cuti/Izin', variant: 'info' };
     }
     switch ((status || '').toLowerCase()) {
         case 'hadir':
-            return { label: 'Hadir', tone: 'text-emerald-700 bg-emerald-50' };
+            return { label: 'Hadir', variant: 'success' };
         case 'terlambat':
-            return { label: 'Terlambat', tone: 'text-amber-700 bg-amber-50' };
+            return { label: 'Terlambat', variant: 'warning' };
         case 'pulang_cepat':
-            return { label: 'Pulang cepat', tone: 'text-orange-700 bg-orange-50' };
+            return { label: 'Pulang Cepat', variant: 'warning' };
         case 'in_progress':
-            return { label: 'Sedang bekerja', tone: 'text-blue-700 bg-blue-50' };
+            return { label: 'Working', variant: 'info' };
         case 'absent':
         case 'incomplete':
-            return { label: 'Tidak lengkap', tone: 'text-rose-700 bg-rose-50' };
+            return { label: 'Absen', variant: 'danger' };
         default:
-            return { label: 'Belum absen', tone: 'text-slate-700 bg-slate-100' };
+            return { label: '-', variant: 'secondary' };
     }
 };
 
@@ -236,7 +248,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                     dateKey: key,
                     shift: shiftLabel,
                     status: meta.label,
-                    statusTone: meta.tone,
+                    statusVariant: meta.variant,
                     clockIn: att?.clock_in,
                     clockOut: att?.clock_out,
                 });
@@ -248,13 +260,13 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
             const durationMinutes =
                 todayAtt && todayAtt.clock_in
                     ? Math.max(
-                          0,
-                          Math.round(
-                              ((todayAtt.clock_out ? new Date(todayAtt.clock_out) : now).getTime() -
-                                  new Date(todayAtt.clock_in).getTime()) /
-                                  (1000 * 60),
-                          ),
-                      )
+                        0,
+                        Math.round(
+                            ((todayAtt.clock_out ? new Date(todayAtt.clock_out) : now).getTime() -
+                                new Date(todayAtt.clock_in).getTime()) /
+                            (1000 * 60),
+                        ),
+                    )
                     : 0;
             setTodaySummary({
                 clockIn: todayAtt?.clock_in,
@@ -275,27 +287,6 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
         fetchDashboard();
     }, [fetchDashboard]);
 
-    const labelRequestStatus = (status: RequestStatus) => {
-        switch (status) {
-            case RequestStatus.APPROVED:
-                return 'Disetujui';
-            case RequestStatus.REJECTED:
-                return 'Ditolak';
-            case RequestStatus.REVISED:
-                return 'Revisi';
-            default:
-                return 'Pending';
-        }
-    };
-
-    const statusChip = (status: RequestStatus) => {
-        const base = 'px-3 py-1 text-xs font-semibold rounded-full';
-        if (status === RequestStatus.APPROVED) return `${base} bg-emerald-50 text-emerald-700`;
-        if (status === RequestStatus.REJECTED) return `${base} bg-rose-50 text-rose-700`;
-        if (status === RequestStatus.REVISED) return `${base} bg-amber-50 text-amber-700`;
-        return `${base} bg-blue-50 text-blue-700`;
-    };
-
     const requestSummary = useMemo(() => {
         const pending = recentRequests.filter((r) => r.status === RequestStatus.PENDING).length;
         const approved = recentRequests.filter((r) => r.status === RequestStatus.APPROVED).length;
@@ -309,192 +300,212 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
         };
     }, [recentRequests]);
 
+    const getRequestStatusBadge = (status: RequestStatus) => {
+        switch (status) {
+            case RequestStatus.APPROVED: return <Badge variant="success">Disetujui</Badge>;
+            case RequestStatus.REJECTED: return <Badge variant="danger">Ditolak</Badge>;
+            case RequestStatus.REVISED: return <Badge variant="warning">Revisi</Badge>;
+            default: return <Badge variant="info">Pending</Badge>;
+        }
+    };
+
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between gap-3">
+        <div className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+            {/* Page Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Dashboard Saya</h1>
-                    <p className="text-gray-600">Ringkasan kehadiran, disiplin, dan ajuan Anda.</p>
+                    <h1 className="text-2xl font-bold text-text-main">Welcome back, {user.full_name.split(' ')[0]}!</h1>
+                    <p className="text-text-secondary mt-1">Here's your daily attendance summary.</p>
                 </div>
                 <button
                     onClick={fetchDashboard}
                     disabled={loading}
-                    className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 disabled:bg-slate-500"
+                    className="inline-flex items-center gap-2 rounded-xl bg-surface-light border border-[#f0f2f4] text-text-main px-4 py-2 text-sm font-semibold shadow-sm hover:bg-background-light transition-all disabled:opacity-50"
                 >
-                    {loading ? <Spinner /> : <RefreshIcon className="h-4 w-4" />} Segarkan
+                    {loading ? <Spinner /> : <RefreshIcon className="text-[18px]" />}
+                    <span>Refresh</span>
                 </button>
             </div>
 
-            {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">{error}</div>}
+            {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>}
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                <div className="xl:col-span-2 space-y-5">
-                    <div className="bg-white rounded-xl shadow-sm border p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <p className="text-sm text-gray-500">KPI bulan ini</p>
-                                <h2 className="text-lg font-semibold text-gray-800">Kehadiran & Disiplin</h2>
-                            </div>
-                            <span className="inline-flex items-center gap-2 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                <CalendarIcon className="h-4 w-4" /> Periode {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-                            </span>
+            {/* Bento Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+                {/* Hero Attendance Card (Span 2 cols on lg) */}
+                <Card variant="hero" className="col-span-1 lg:col-span-2 relative overflow-hidden p-6 flex flex-col justify-between min-h-[240px]">
+                    <div className="relative z-10 flex justify-between items-start">
+                        <div>
+                            <p className="opacity-90 font-medium">Have a great day!</p>
+                            <h2 className="text-3xl font-bold mt-1">{formatTime(new Date(), { hour: '2-digit', minute: '2-digit' })}</h2>
+                            <p className="text-sm opacity-80 mt-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
+                        <div className="bg-white/20 backdrop-blur-md rounded-lg p-2">
+                            <span className="material-symbols-outlined text-[32px]">{statusMeta(todaySummary.status).variant === 'success' ? 'sunny' : 'cloud'}</span>
+                        </div>
+                    </div>
 
-                        {loading && !kpiSnapshot ? (
-                            <div className="py-6 flex justify-center text-sm text-gray-500">
-                                <Spinner /> <span className="ml-2">Menghitung KPI...</span>
+                    <div className="relative z-10 grid grid-cols-3 gap-4 mt-6">
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
+                            <div className="flex items-center gap-2 opacity-80 mb-1">
+                                <span className="material-symbols-outlined text-[16px]">login</span>
+                                <span className="text-xs font-medium">Clock In</span>
                             </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm font-medium text-gray-700">
-                                        <span>Kehadiran</span>
-                                        <span className="font-mono text-gray-900">
-                                            {kpiSnapshot ? kpiSnapshot.presence.toFixed(1) : '0.0'}%
-                                        </span>
+                            <p className="text-lg font-bold">{todaySummary.clockIn ? formatTime(new Date(todaySummary.clockIn), { second: undefined }) : '--:--'}</p>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
+                            <div className="flex items-center gap-2 opacity-80 mb-1">
+                                <span className="material-symbols-outlined text-[16px]">logout</span>
+                                <span className="text-xs font-medium">Clock Out</span>
+                            </div>
+                            <p className="text-lg font-bold">
+                                {todaySummary.clockOut
+                                    ? formatTime(new Date(todaySummary.clockOut), { second: undefined })
+                                    : todaySummary.clockIn ? '--:--' : '--:--'
+                                }
+                            </p>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
+                            <div className="flex items-center gap-2 opacity-80 mb-1">
+                                <span className="material-symbols-outlined text-[16px]">timer</span>
+                                <span className="text-xs font-medium">Duration</span>
+                            </div>
+                            <p className="text-lg font-bold">{formatDuration(todaySummary.durationMinutes)}</p>
+                        </div>
+                    </div>
+
+                    {/* Decorative Shapes */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-xl"></div>
+                </Card>
+
+                {/* KPI Stats Grid (Span 1 or 2 cols depending on layout) */}
+                <div className="col-span-1 lg:col-span-1 xl:col-span-2 grid grid-cols-2 gap-4">
+                    <Card variant="stat" className="p-4 flex flex-col justify-center">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                                <CheckCircleIcon className="text-[20px]" />
+                            </div>
+                            <span className="text-sm font-medium text-text-secondary">Presence</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.presence.toFixed(0) : '0'}%</span>
+                        </div>
+                        <ProgressBar value={kpiSnapshot?.presence || 0} color="bg-emerald-500" className="mt-2" />
+                    </Card>
+
+                    <Card variant="stat" className="p-4 flex flex-col justify-center">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                <BriefcaseIcon className="text-[20px]" />
+                            </div>
+                            <span className="text-sm font-medium text-text-secondary">Discipline</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.discipline.toFixed(0) : '0'}%</span>
+                        </div>
+                        <ProgressBar value={kpiSnapshot?.discipline || 0} color="bg-blue-500" className="mt-2" />
+                    </Card>
+
+                    <Card variant="stat" className="p-4 flex flex-col justify-center">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+                                <TimeIcon className="text-[20px]" />
+                            </div>
+                            <span className="text-sm font-medium text-text-secondary">Hours Worked</span>
+                        </div>
+                        <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.workedHours.toFixed(1) : '0'}h</span>
+                        <p className="text-xs text-text-secondary mt-1">This month</p>
+                    </Card>
+
+                    <Card variant="stat" className="p-4 flex flex-col justify-center">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                                <ClockIcon className="text-[20px]" />
+                            </div>
+                            <span className="text-sm font-medium text-text-secondary">Overtime</span>
+                        </div>
+                        <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.overtimeHours.toFixed(1) : '0'}h</span>
+                        <p className="text-xs text-text-secondary mt-1">Approved</p>
+                    </Card>
+                </div>
+
+                {/* Recent Activity List */}
+                <div className="col-span-1 lg:col-span-2 xl:col-span-2 space-y-4">
+                    <h3 className="font-bold text-text-main text-lg">Recent Activity</h3>
+                    <div className="space-y-3">
+                        {recentAttendance.map((item) => (
+                            <Card key={item.dateKey} className="flex items-center justify-between p-4">
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-3 rounded-full ${item.statusVariant === 'success' ? 'bg-green-100 text-green-600' :
+                                            item.statusVariant === 'warning' ? 'bg-yellow-100 text-yellow-600' :
+                                                item.statusVariant === 'danger' ? 'bg-red-100 text-red-600' :
+                                                    'bg-gray-100 text-gray-600'
+                                        }`}>
+                                        <CalendarIcon className="text-[20px]" />
                                     </div>
-                                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                                        <div
-                                            className="h-full bg-emerald-500"
-                                            style={{ width: `${Math.min(120, Math.max(0, kpiSnapshot?.presence || 0))}%` }}
-                                        />
+                                    <div>
+                                        <p className="font-bold text-text-main text-sm">
+                                            {new Date(item.dateKey).toLocaleDateString('en-US', { day: 'numeric', month: 'short', weekday: 'short' })}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <Badge variant={item.statusVariant}>{item.status}</Badge>
+                                            <span className="text-xs text-text-secondary">• Shift: {item.shift}</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm font-medium text-gray-700">
-                                        <span>Disiplin</span>
-                                        <span className="font-mono text-gray-900">
-                                            {kpiSnapshot ? kpiSnapshot.discipline.toFixed(1) : '0.0'}%
-                                        </span>
-                                    </div>
-                                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                                        <div
-                                            className="h-full bg-blue-500"
-                                            style={{ width: `${Math.min(120, Math.max(0, kpiSnapshot?.discipline || 0))}%` }}
-                                        />
-                                    </div>
+                                <div className="text-right">
+                                    <p className="text-sm font-bold text-text-main">
+                                        {item.clockIn ? formatTime(new Date(item.clockIn), { second: undefined }) : '-'}
+                                    </p>
+                                    <p className="text-xs text-text-secondary">Clock In</p>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-700 pt-1">
-                                    <div className="p-3 rounded-lg bg-slate-50 border">
-                                        <p className="text-xs text-gray-500">Jam kerja tercatat</p>
-                                        <p className="text-lg font-semibold text-gray-900">
-                                            {kpiSnapshot ? kpiSnapshot.workedHours.toFixed(1) : '0.0'} jam
-                                        </p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-slate-50 border">
-                                        <p className="text-xs text-gray-500">Jam lembur (disetujui)</p>
-                                        <p className="text-lg font-semibold text-gray-900">
-                                            {kpiSnapshot ? kpiSnapshot.overtimeHours.toFixed(1) : '0.0'} jam
-                                        </p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-slate-50 border">
-                                        <p className="text-xs text-gray-500">Hari cuti/izin/sakit</p>
-                                        <p className="text-lg font-semibold text-gray-900">
-                                            {kpiSnapshot ? kpiSnapshot.plannedLeaveDays : 0} hari
-                                        </p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-slate-50 border">
-                                        <p className="text-xs text-gray-500">Hari tidak disiplin</p>
-                                        <p className="text-lg font-semibold text-gray-900">
-                                            {kpiSnapshot ? kpiSnapshot.unauthDays : 0} hari
-                                        </p>
-                                    </div>
-                                </div>
+                            </Card>
+                        ))}
+                        {recentAttendance.length === 0 && (
+                            <div className="text-center py-8 text-text-secondary bg-surface-light rounded-2xl border border-dashed border-gray-200">
+                                No recent activity
                             </div>
                         )}
                     </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border p-5">
-                        <div className="flex items-center justify-between mb-2">
-                            <div>
-                                <p className="text-sm text-gray-500">Resume presensi hari ini</p>
-                                <h2 className="text-lg font-semibold text-gray-800">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="p-4 border rounded-lg bg-slate-50">
-                                <p className="text-xs text-gray-500">Jam Masuk</p>
-                                <p className="text-xl font-semibold text-gray-900">
-                                    {todaySummary.clockIn ? formatTime(new Date(todaySummary.clockIn), { second: undefined }) : '-'}
-                                </p>
-                            </div>
-                            <div className="p-4 border rounded-lg bg-slate-50">
-                                <p className="text-xs text-gray-500">Jam Pulang</p>
-                                <p className="text-xl font-semibold text-gray-900">
-                                    {todaySummary.clockOut
-                                        ? formatTime(new Date(todaySummary.clockOut), { second: undefined })
-                                        : todaySummary.clockIn
-                                            ? 'Belum clock-out'
-                                            : '-'}
-                                </p>
-                            </div>
-                            <div className="p-4 border rounded-lg bg-slate-50">
-                                <p className="text-xs text-gray-500">Durasi Kerja</p>
-                                <p className="text-xl font-semibold text-gray-900">{formatDuration(todaySummary.durationMinutes)}</p>
-                            </div>
-                        </div>
-                        <div className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium bg-slate-100 text-slate-700">
-                            <ClockIcon className="h-4 w-4" />
-                            {statusMeta(todaySummary.status).label}
-                        </div>
-                    </div>
                 </div>
 
-                <div className="space-y-5">
-                    <div className="bg-white rounded-xl shadow-sm border p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold text-gray-800">Status absensi 3 hari terakhir</h3>
-                            <CalendarIcon className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <div className="space-y-3">
-                            {recentAttendance.map((item) => (
-                                <div key={item.dateKey} className="p-3 border rounded-lg hover:bg-slate-50 transition-colors">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm font-semibold text-gray-800">
-                                            {new Date(item.dateKey).toLocaleDateString('id-ID', {
-                                                weekday: 'short',
-                                                day: '2-digit',
-                                                month: 'short',
-                                            })}
-                                        </p>
-                                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${item.statusTone}`}>
-                                            {item.status}
-                                        </span>
+                {/* Recent Requests Section */}
+                <div className="col-span-1 lg:col-span-1 xl:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-text-main text-lg">Recent Requests</h3>
+                        <button className="text-sm font-semibold text-primary hover:underline">View All</button>
+                    </div>
+                    <div className="space-y-3">
+                        {recentRequests.slice(0, 3).map((req) => (
+                            <Card key={req.id} className="p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-md">
+                                            {req.request_type === 'LEAVE' ? <BriefcaseIcon className="text-[16px]" /> :
+                                                req.request_type === 'OVERTIME' ? <ClockIcon className="text-[16px]" /> :
+                                                    <DocumentAddIcon className="text-[16px]" />}
+                                        </div>
+                                        <span className="text-sm font-bold text-text-main capitalize">{req.request_type.replace('_', ' ').toLowerCase()}</span>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-1">Shift: {item.shift}</p>
-                                    {(item.clockIn || item.clockOut) && (
-                                        <p className="text-xs text-gray-600 mt-1">
-                                            {item.clockIn ? formatTime(new Date(item.clockIn), { second: undefined }) : '-'} &mdash;{' '}
-                                            {item.clockOut ? formatTime(new Date(item.clockOut), { second: undefined }) : '-'}
-                                        </p>
-                                    )}
+                                    {getRequestStatusBadge(req.status)}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold text-gray-800">Status ajuan ke atasan</h3>
-                            <DocumentAddIcon className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className="p-4 rounded-lg border bg-slate-50">
-                                <p className="text-xs text-gray-500">Pending</p>
-                                <p className="text-2xl font-semibold text-gray-900">{requestSummary.pending}</p>
+                                <p className="text-xs text-text-secondary line-clamp-2 mb-2">
+                                    {req.reason || 'No description provided.'}
+                                </p>
+                                <p className="text-xs text-text-secondary font-medium">
+                                    {new Date(req.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                </p>
+                            </Card>
+                        ))}
+                        {recentRequests.length === 0 && (
+                            <div className="text-center py-8 text-text-secondary bg-surface-light rounded-2xl border border-dashed border-gray-200">
+                                No recent requests
                             </div>
-                            <div className="p-4 rounded-lg border bg-slate-50">
-                                <p className="text-xs text-gray-500">Revisi / Ditolak</p>
-                                <p className="text-2xl font-semibold text-gray-900">{requestSummary.rejectedOrRevised}</p>
-                            </div>
-                            <div className="p-4 rounded-lg border bg-slate-50">
-                                <p className="text-xs text-gray-500">Disetujui</p>
-                                <p className="text-2xl font-semibold text-gray-900">{requestSummary.approved}</p>
-                            </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-3">Mengacu {requestSummary.total} ajuan terbaru.</p>
+                        )}
                     </div>
                 </div>
+
             </div>
         </div>
     );

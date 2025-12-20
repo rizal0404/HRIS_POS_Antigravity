@@ -39,7 +39,7 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                         .select('*')
                         .eq('id', request.attendance_id_to_correct)
                         .single();
-                    
+
                     if (error && error.code !== 'PGRST116') throw error;
                     setOriginalAttendance(data as Attendance | null);
                 } catch (err) {
@@ -71,7 +71,7 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
         }
         return null;
     }, [request]);
-    
+
     const cutiDetails = useMemo(() => {
         if (!request || request.request_type !== RequestType.CUTI || !request.reason.startsWith('{')) {
             return null;
@@ -113,7 +113,7 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
         if (request.status === RequestStatus.APPROVED || request.status === RequestStatus.REJECTED) {
             return formatDate(new Date(request.updated_at));
         }
-        
+
         return null;
     }, [request]);
 
@@ -145,7 +145,7 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
     const renderRequestSpecificDetails = () => {
         switch (request.request_type) {
             case RequestType.CUTI:
-                 if (!cutiDetails?.substitutes || Object.keys(cutiDetails.substitutes).length === 0) {
+                if (!cutiDetails?.substitutes || Object.keys(cutiDetails.substitutes).length === 0) {
                     return <InfoRow label="Pengganti Shift" value="Tidak ada" />;
                 }
                 return (
@@ -177,9 +177,9 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                 );
             case RequestType.SAKIT:
             case RequestType.KOREKSI: // Also show attachment for Koreksi
-                 return (
-                    <InfoRow 
-                        label="Lampiran" 
+                return (
+                    <InfoRow
+                        label="Lampiran"
                         value={
                             request.attachment_url ? (
                                 <button onClick={() => setAttachmentViewerOpen(true)} className="flex items-center text-blue-600 hover:underline">
@@ -187,14 +187,14 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                                     Lihat Lampiran
                                 </button>
                             ) : '-'
-                        } 
+                        }
                     />
-                 );
+                );
             default:
                 return null;
         }
     };
-    
+
     const renderAlasan = () => {
         if (request.request_type === RequestType.KOREKSI && correctionDetails) {
             const actualClockIn = loadingAttendance
@@ -228,9 +228,9 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                     default: return (correctionDetails.type || '').toString().toUpperCase();
                 }
             })();
-            
+
             return (
-                 <div className="bg-gray-50 p-3 rounded-md mt-1 space-y-2">
+                <div className="bg-gray-50 p-3 rounded-md mt-1 space-y-2">
                     <InfoRow label="Tipe Koreksi" value={correctionLabel} />
                     <InfoRow label="Clock-In Aktual" value={actualClockIn} />
                     <InfoRow label="Clock-In Koreksi" value={correctedClockIn} />
@@ -248,27 +248,27 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                 </p>
             );
         }
-        
+
         return <p className="text-md text-gray-800 bg-gray-50 p-3 rounded-md mt-1 italic whitespace-pre-line">{reasonText}</p>
     };
 
     const approverName = findUserNameById(request.approver_id);
     const requesterName = findUserNameById(request.profile_id);
-    
+
     const formattedStartDate = formatDate(new Date(request.start_date));
     const formattedEndDate = formatDate(new Date(request.end_date));
-    const period = request.start_date === request.end_date 
-        ? formattedStartDate 
+    const period = request.start_date === request.end_date
+        ? formattedStartDate
         : `${formattedStartDate} - ${formattedEndDate}`;
-    const periodLabel = request.request_type === RequestType.LEMBUR 
-        ? "Tanggal Lembur" 
-        : request.request_type === RequestType.SUBSTITUSI 
-            ? "Tanggal" 
+    const periodLabel = request.request_type === RequestType.LEMBUR
+        ? "Tanggal Lembur"
+        : request.request_type === RequestType.SUBSTITUSI
+            ? "Tanggal"
             : "Periode";
 
     return (
         <>
-            <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-md z-50 flex justify-center items-center p-4">
                 <div className="bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all">
                     <div className="flex justify-between items-center p-4 border-b">
                         <h3 className="text-xl font-semibold text-gray-800">Detail Pengajuan {request.request_type}</h3>
@@ -281,27 +281,27 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                             <h4 className="text-lg font-bold text-gray-900">{request.request_type}</h4>
                             <Badge status={request.status} />
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <InfoRow label={periodLabel} value={period} />
                             {renderRequestSpecificDetails()}
                         </div>
-                        
+
                         <div>
-                             <p className="text-sm font-medium text-gray-500">Alasan</p>
-                             {renderAlasan()}
+                            <p className="text-sm font-medium text-gray-500">Alasan</p>
+                            {renderAlasan()}
                         </div>
 
                         <div className="border-t pt-4">
-                             <h4 className="text-md font-semibold text-gray-700 mb-2">Informasi Pengajuan</h4>
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                 <InfoRow label="Diajukan oleh" value={requesterName} />
-                                 <InfoRow label="Tanggal Pengajuan" value={formatDate(new Date(request.created_at))} />
-                                 <InfoRow label="Penyetuju" value={approverName} />
-                                 {actionDate && (
-                                     <InfoRow label={actionDateLabel} value={actionDate} />
-                                 )}
-                             </div>
+                            <h4 className="text-md font-semibold text-gray-700 mb-2">Informasi Pengajuan</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <InfoRow label="Diajukan oleh" value={requesterName} />
+                                <InfoRow label="Tanggal Pengajuan" value={formatDate(new Date(request.created_at))} />
+                                <InfoRow label="Penyetuju" value={approverName} />
+                                {actionDate && (
+                                    <InfoRow label={actionDateLabel} value={actionDate} />
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className="p-4 bg-gray-50 flex justify-end">

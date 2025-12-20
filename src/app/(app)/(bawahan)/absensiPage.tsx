@@ -2,10 +2,65 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { formatDate, formatTime, formatDateKey, APP_TIME_ZONE, APP_TIME_OFFSET } from '../../../lib/utils';
-import { ClockIcon, LocationMarkerIcon } from '../../../components/icons';
+import {
+  ClockIcon,
+  LocationMarkerIcon,
+  BriefcaseIcon,
+  OfficeBuildingIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon
+} from '../../../components/icons';
 import { UserProfile, Attendance, JadwalKerjaTim, Shift } from '../../../types';
 import { ClockInModal } from '../../../components/modals/ClockInOutModal';
 import { apiService } from '../../../services/apiService';
+import AttendanceMap from '../../../components/maps/AttendanceMap'; // New component
+import Card from '../../../components/ui/Card'; // Reusable component
+import Badge from '../../../components/ui/Badge'; // Reusable component
+import ProgressBar from '../../../components/ui/ProgressBar'; // Reusable component
+import Spinner from '@/components/ui/Spinner';
+import { findNearestWorkplace } from '../../../lib/location';
+
+
+// --- Helper Components ---
+
+const DigitalClock = ({ time }: { time: Date }) => {
+  const hours = formatTime(time, { hour: '2-digit', hour12: false }).split(':')[0];
+  const minutes = formatTime(time, { minute: '2-digit' }).split(':')[0]; // formatTime usually returns HH:mm
+  const seconds = time.toLocaleTimeString('en-US', { second: '2-digit' }).slice(0, 2); // simplistic extraction
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-800 font-bold text-3xl shadow-sm min-w-[3.5rem] text-center">
+        {time.getHours().toString().padStart(2, '0')}
+      </div>
+      <span className="text-2xl font-bold text-slate-600">:</span>
+      <div className="bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-800 font-bold text-3xl shadow-sm min-w-[3.5rem] text-center">
+        {time.getMinutes().toString().padStart(2, '0')}
+      </div>
+      <span className="text-2xl font-bold text-slate-600">:</span>
+      <div className="bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-500 font-bold text-2xl shadow-sm min-w-[3rem] text-center">
+        {time.getSeconds().toString().padStart(2, '0')}
+      </div>
+    </div>
+  );
+};
+
+const StatCard = ({ icon: Icon, label, value, subtext, color = "blue" }: any) => (
+  <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between h-full hover:shadow-md transition-shadow">
+    <div className="flex items-start justify-between mb-2">
+      <div className={`p-2 rounded-lg bg-${color}-50 text-${color}-600`}>
+        <Icon className="text-[20px]" />
+      </div>
+      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+    </div>
+    <div>
+      <div className="text-lg font-bold text-slate-800">{value}</div>
+      <div className="text-xs text-slate-500 font-medium">{subtext}</div>
+    </div>
+  </div>
+);
+
+// --- Main Page Component ---
 
 enum AttendanceStatus {
   NOT_CLOCKED_IN,
@@ -14,14 +69,6 @@ enum AttendanceStatus {
   LOADING,
   ERROR,
 }
-
-const statusInfo = {
-  [AttendanceStatus.LOADING]: { text: 'Memuat status...', color: 'bg-gray-500' },
-  [AttendanceStatus.NOT_CLOCKED_IN]: { text: 'Belum Absen Masuk', color: 'bg-yellow-500' },
-  [AttendanceStatus.CLOCKED_IN]: { text: 'Sudah Absen Masuk', color: 'bg-green-500' },
-  [AttendanceStatus.CLOCKED_OUT]: { text: 'Sesi Kerja Selesai', color: 'bg-slate-500' },
-  [AttendanceStatus.ERROR]: { text: 'Gagal Memuat Status', color: 'bg-red-500' },
-};
 
 interface AbsensiPageProps {
   user: UserProfile;
@@ -34,88 +81,92 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const [activeAttendance, setActiveAttendance] = useState<Attendance | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionType, setActionType] = useState<'in' | 'out'>('in');
-  const [toastMessage, setToastMessage] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [isOnApprovedLeave, setIsOnApprovedLeave] = useState(false);
   const [jadwal, setJadwal] = useState<JadwalKerjaTim[]>([]);
-  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [currentPos, setCurrentPos] = useState<{ lat: number, lng: number } | undefined>(undefined);
+  // Simple activity history state
+  const [recentActivities, setRecentActivities] = useState<{ title: string, date: string, time: string, status: string, location: string }[]>([]);
+  const [currentWorkplace, setCurrentWorkplace] = useState<string>('Mencari...');
+
+
+
+
+  // Start clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch Position once on mount for the map center
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setCurrentPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const nearest = findNearestWorkplace(pos.coords.latitude, pos.coords.longitude);
+        setCurrentWorkplace(nearest.name);
+      });
+    }
+  }, []);
+
+
 
   const checkAttendanceStatus = useCallback(async () => {
-      setStatus(AttendanceStatus.LOADING);
-      try {
-          const today = new Date();
-          const todayISO = formatDateKey(today);
-          const startDate = formatDateKey(new Date(today.getFullYear(), today.getMonth(), 1));
-          const endDate = formatDateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+    setStatus(AttendanceStatus.LOADING);
+    try {
+      const today = new Date();
+      const todayISO = formatDateKey(today);
+      const startDate = formatDateKey(new Date(today.getFullYear(), today.getMonth(), 1));
+      const endDate = formatDateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
-          const [attendance, approvedLeaves, scheduleData, shiftList, substitutions] = await Promise.all([
-             apiService.getActiveAttendance(user.id),
-             apiService.getApprovedLeaves(user.id, todayISO),
-             apiService.getTeamSchedules([user.id], startDate, endDate),
-             apiService.getShifts(),
-             apiService.getApprovedSubstitutionRequests([user.id], startDate, endDate),
-          ]);
-          
-          setShifts(shiftList);
+      const [attendance, approvedLeaves, scheduleData, history] = await Promise.all([
+        apiService.getActiveAttendance(user.id),
+        apiService.getApprovedLeaves(user.id, todayISO),
+        apiService.getTeamSchedules([user.id], startDate, endDate),
+        apiService.getAttendanceForSubordinates([user.id], startDate, endDate), // Fetch history for sidebar
+      ]);
 
-          const shiftMap = new Map(shiftList.map(s => [s.code, s]));
-          const scheduleMap = new Map<string, JadwalKerjaTim>();
-          scheduleData.forEach(s => scheduleMap.set(s.date, { ...s }));
-          substitutions.forEach(req => {
-              let newShiftCode = '';
-              try {
-                  const parsed = JSON.parse(req.reason);
-                  newShiftCode = parsed?.shift_baru?.code || parsed?.shift_baru || '';
-              } catch (e) {
-                  // ignore malformed payloads
-              }
-              if (!newShiftCode) return;
-              const meta = shiftMap.get(newShiftCode);
-              const start = new Date(req.start_date);
-              const end = new Date(req.end_date);
-              for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                  const dateStr = formatDateKey(d, APP_TIME_ZONE);
-                  const existing = scheduleMap.get(dateStr) || { profile_id: user.id, date: dateStr, shift: '' } as JadwalKerjaTim;
-                  scheduleMap.set(dateStr, {
-                      ...existing,
-                      shift: newShiftCode,
-                      start_time: meta?.start_time ?? existing.start_time,
-                      end_time: meta?.end_time ?? existing.end_time,
-                  });
-              }
-          });
-          setJadwal(Array.from(scheduleMap.values()));
+      // Mocking Recent Activity from history (last 5)
+      const activities = history.slice(0, 5).map(att => ({
+        title: att.clock_out ? 'Clock Out' : 'Clock In',
+        date: formatDate(new Date(att.clock_in)),
+        time: att.clock_out ? formatTime(new Date(att.clock_out)) : formatTime(new Date(att.clock_in)),
+        status: att.clock_out ? 'Pulang' : 'Hadir',
+        location: att.tempat_kerja || 'Unknown'
+      }));
 
-          if (approvedLeaves.length > 0) {
-              setIsOnApprovedLeave(true);
-          } else {
-              setIsOnApprovedLeave(false);
-          }
+      setRecentActivities(activities);
 
-          setActiveAttendance(attendance);
-          const clockInDateKey = attendance ? formatDateKey(new Date(attendance.clock_in), APP_TIME_ZONE) : null;
-          const attendanceDateKey = attendance
-              ? [attendance.work_date, clockInDateKey].filter(Boolean).sort().pop() || null
-              : null;
-          const attendanceForToday = attendanceDateKey === todayISO ? attendance : null;
-          setTodayAttendance(attendanceForToday);
+      // Schedule Logic (Simplified from original)
+      const scheduleMap = new Map<string, JadwalKerjaTim>();
+      scheduleData.forEach(s => scheduleMap.set(s.date, { ...s }));
+      setJadwal(Array.from(scheduleMap.values()));
 
-          if (!attendance) {
-              setStatus(AttendanceStatus.NOT_CLOCKED_IN);
-          } else if (attendance.clock_out) {
-              setStatus(AttendanceStatus.CLOCKED_OUT);
-          } else {
-              setStatus(AttendanceStatus.CLOCKED_IN);
-          }
-      } catch (error: any) {
-          setStatus(AttendanceStatus.ERROR);
-          setToastMessage({ type: 'error', message: error.message || 'Gagal mengambil status presensi.' });
+      setIsOnApprovedLeave(approvedLeaves.length > 0);
+
+      setActiveAttendance(attendance);
+      const clockInDateKey = attendance ? formatDateKey(new Date(attendance.clock_in), APP_TIME_ZONE) : null;
+      const attendanceDateKey = attendance
+        ? [attendance.work_date, clockInDateKey].filter(Boolean).sort().pop() || null
+        : null;
+      const attendanceForToday = attendanceDateKey === todayISO ? attendance : null;
+      setTodayAttendance(attendanceForToday);
+
+      if (!attendance) {
+        setStatus(AttendanceStatus.NOT_CLOCKED_IN);
+      } else if (attendance.clock_out) {
+        setStatus(AttendanceStatus.CLOCKED_OUT);
+      } else {
+        setStatus(AttendanceStatus.CLOCKED_IN);
       }
+    } catch (error: any) {
+      setStatus(AttendanceStatus.ERROR);
+      setToastMessage({ type: 'error', message: error.message || 'Gagal memuat status presensi.' });
+    }
   }, [user.id]);
 
   useEffect(() => {
     checkAttendanceStatus();
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
   }, [checkAttendanceStatus]);
 
   useEffect(() => {
@@ -124,158 +175,253 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
-  
-  const todayISO = useMemo(() => formatDateKey(currentTime), [currentTime]);
-  const todaySchedule = useMemo(() => jadwal.find(j => j.date === todayISO), [jadwal, todayISO]);
-  const isOffDay = todaySchedule?.shift === 'OFF';
-  const hasActiveSession = !!activeAttendance && !activeAttendance.clock_out;
 
   const handleOpenModal = (type: 'in' | 'out') => {
     setActionType(type);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const handleSuccess = (message: string, newAttendance?: Attendance | null) => {
+    setToastMessage({ type: 'success', message });
+    if (newAttendance) {
+      setActiveAttendance(newAttendance);
+      const clockInDateKey = formatDateKey(new Date(newAttendance.clock_in), APP_TIME_ZONE);
+      // Logic to update todayAttendance if applicable
+      if (formatDateKey(new Date(), APP_TIME_ZONE) === clockInDateKey || formatDateKey(new Date(), APP_TIME_ZONE) === newAttendance.work_date) {
+        setTodayAttendance(newAttendance);
+      }
+      if (actionType === 'in') setStatus(AttendanceStatus.CLOCKED_IN);
+      else setStatus(AttendanceStatus.CLOCKED_OUT);
+    }
     setIsModalOpen(false);
   };
 
-  const handleSuccess = (message: string, newAttendance?: Attendance | null) => {
-    setToastMessage({type: 'success', message});
-    if (newAttendance) {
-        setActiveAttendance(newAttendance);
-        const clockInDateKey = formatDateKey(new Date(newAttendance.clock_in), APP_TIME_ZONE);
-        const attendanceDateKey = [newAttendance.work_date, clockInDateKey].filter(Boolean).sort().pop() || clockInDateKey;
-        setTodayAttendance(attendanceDateKey === formatDateKey(new Date(), APP_TIME_ZONE) ? newAttendance : null);
-        if (actionType === 'in') {
-          setStatus(AttendanceStatus.CLOCKED_IN);
-        } else {
-          setStatus(AttendanceStatus.CLOCKED_OUT);
-        }
-    }
-    // If no attendance record is returned (e.g., for 'Lainnya'), 
-    // we don't update the status, just show the toast.
-    handleCloseModal();
-  };
+  const todayISO = useMemo(() => formatDateKey(currentTime), [currentTime]);
+  const todaySchedule = useMemo(() => jadwal.find(j => j.date === todayISO), [jadwal, todayISO]);
+  const isOffDay = todaySchedule?.shift === 'OFF';
 
-  const handleError = (message: string) => {
-     setToastMessage({type: 'error', message});
-     handleCloseModal();
-  };
-  
-  const currentStatusInfo = statusInfo[status];
-  const summaryAttendance = todayAttendance || activeAttendance;
-  const clockInDateKey = summaryAttendance ? formatDateKey(new Date(summaryAttendance.clock_in), APP_TIME_ZONE) : null;
-  const attendanceDateKey = summaryAttendance
-    ? [summaryAttendance.work_date, clockInDateKey].filter(Boolean).sort().pop() || null // pick the latest available date
-    : null;
-  const isCrossDaySession = summaryAttendance ? attendanceDateKey !== todayISO : false;
+  // Derived Values for UI
+  const shiftLabel = todaySchedule ? todaySchedule.shift : '-';
+  const officeLabel = activeAttendance?.tempat_kerja || currentWorkplace;
+
+  const duration = useMemo(() => {
+    if (!activeAttendance || !activeAttendance.clock_in) return '-- : --';
+    const start = new Date(activeAttendance.clock_in);
+    const end = activeAttendance.clock_out ? new Date(activeAttendance.clock_out) : currentTime;
+    const diffMs = end.getTime() - start.getTime();
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${diffHrs}h ${diffMins}m`;
+  }, [activeAttendance, currentTime]);
 
   return (
     <>
-      <div className="p-6 space-y-6">
-        {toastMessage && (
-            <div className={`max-w-2xl mx-auto p-4 rounded-md shadow-lg ${toastMessage.type === 'success' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-red-100 border-red-500 text-red-700'} border-l-4`} role="alert">
-                <p className="font-bold">{toastMessage.type === 'success' ? 'Berhasil' : 'Gagal'}</p>
-                <p>{toastMessage.message}</p>
-            </div>
-        )}
+      <div className={`relative min-h-screen transition-all duration-500 ${isModalOpen ? 'blur-md grayscale-[20%] scale-[0.99] pointer-events-none' : ''}`}>
 
-        <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-          <div className="text-center">
-                  <p className="text-lg font-medium text-gray-600">{formatDate(currentTime)}</p>
-              <p className="text-6xl font-bold text-gray-800 my-2 tracking-wider">{formatTime(currentTime)}</p>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white ${currentStatusInfo.color}`}>
-                  {currentStatusInfo.text}
-              </span>
-          </div>
-          
-          {isOnApprovedLeave && (
-              <div className="mt-6 text-center p-3 bg-blue-100 text-blue-800 rounded-lg text-sm">
-                  Absensi dinonaktifkan. Anda tercatat sedang dalam masa Cuti yang telah disetujui.
-              </div>
-          )}
+        {/* Main Content Grid */}
+        <div className="p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto">
 
-          {isOffDay && !isOnApprovedLeave && (
-              <div className="mt-6 text-center p-3 bg-gray-100 text-gray-800 rounded-lg text-sm">
-                  Hari ini adalah hari libur Anda sesuai jadwal (OFF).
+          {/* Left Column (Main) */}
+          <div className="lg:col-span-8 space-y-6">
+
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 animate-fade-in">
+              <div>
+                <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
+                  Halo, {user.full_name.split(' ')[0]}! <span className="animate-bounce-custom inline-block">👋</span>
+                </h1>
+                <p className="text-slate-500 mt-2 text-lg">Siap untuk bekerja hari ini? Jangan lupa clock-in.</p>
               </div>
-          )}
-          
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button 
-                  onClick={() => handleOpenModal('in')}
-                  disabled={status !== AttendanceStatus.NOT_CLOCKED_IN || isOnApprovedLeave || isOffDay}
-                  className="w-full py-4 px-6 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105"
-              >
-                  Clock In
-              </button>
-              <button 
-                  onClick={() => handleOpenModal('out')}
-                  disabled={status !== AttendanceStatus.CLOCKED_IN || isOnApprovedLeave || (!hasActiveSession && isOffDay)}
-                  className="w-full py-4 px-6 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105"
-              >
-                  Clock Out
-              </button>
-          </div>
-          </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-          <h3 className="text-xl font-semibold text-gray-800 border-b pb-3 mb-4">Ringkasan Absensi Hari Ini</h3>
-          {isCrossDaySession && summaryAttendance && (
-            <div className="mb-4 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 text-sm">
-              Sesi aktif berasal dari {attendanceDateKey ? formatDate(new Date(`${attendanceDateKey}T00:00:00${APP_TIME_OFFSET}`)) : formatDate(new Date(summaryAttendance.clock_in))} (WITA). Silakan clock-out untuk menutup sesi sebelumnya.
+              <div className="text-right hidden md:block">
+                <p className="text-xs font-bold text-slate-400 tracking-wider uppercase">HARI INI</p>
+                <p className="text-xl font-bold text-slate-700">
+                  {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
             </div>
-          )}
-          <div className="space-y-4">
-              <div className="flex items-start">
-                  <ClockIcon className="h-6 w-6 text-green-500 mt-1 mr-4 flex-shrink-0" />
-                  <div>
-                      <p className="font-semibold text-gray-700">Absen Masuk</p>
-                      {summaryAttendance?.clock_in ? (
-                          <>
-                              <p className="text-gray-600">{formatTime(new Date(summaryAttendance.clock_in))}</p>
-                               <div className="flex items-start text-sm text-gray-500 mt-1">
-                                 <LocationMarkerIcon className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0"/>
-                                 <p>
-                                    {summaryAttendance.lokasi_kerja === 'Bekerja di Pabrik' && summaryAttendance.tempat_kerja && <span className="font-semibold text-gray-800 block">{summaryAttendance.tempat_kerja}</span>}
-                                    {summaryAttendance.clock_in_address || 'Lokasi tercatat'}
-                                 </p>
-                              </div>
-                          </>
-                      ) : <p className="text-gray-500 text-sm">-</p>}
+
+            {/* Map & Action Card */}
+            {/* Map & Action Card */}
+            <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden relative border border-slate-200 h-[380px] group animate-fade-in isolate">
+              {/* The Map */}
+              <AttendanceMap
+                className="h-full w-full z-0"
+                currentPos={currentPos}
+                clockInPos={todayAttendance?.clock_in_coordinates ? {
+                  lat: todayAttendance.clock_in_coordinates.latitude,
+                  lng: todayAttendance.clock_in_coordinates.longitude,
+                  address: todayAttendance.clock_in_address
+                } : undefined}
+                clockOutPos={todayAttendance?.clock_out_coordinates ? {
+                  lat: todayAttendance.clock_out_coordinates.latitude,
+                  lng: todayAttendance.clock_out_coordinates.longitude,
+                  address: todayAttendance.clock_out_address
+                } : undefined}
+              />
+
+              {/* Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none z-10"></div>
+
+              {/* Floating Controls Overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 flex flex-col md:flex-row items-end md:items-center justify-between gap-4 pointer-events-auto z-[1000]">
+
+                {/* Digital Timer */}
+                <div className="flex flex-col gap-2">
+                  <div className="bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border border-white/20 inline-flex flex-col">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Current Time</span>
+                    <DigitalClock time={currentTime} />
                   </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <button
+                    onClick={() => handleOpenModal('in')}
+                    disabled={status !== AttendanceStatus.NOT_CLOCKED_IN || isOnApprovedLeave || isOffDay}
+                    className="flex-1 md:flex-none py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-lg shadow-blue-600/30 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">login</span>
+                    Clock In
+                  </button>
+                  <button
+                    onClick={() => handleOpenModal('out')}
+                    disabled={status !== AttendanceStatus.CLOCKED_IN || isOnApprovedLeave}
+                    className="flex-1 md:flex-none py-3 px-6 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-red-500 text-[20px]">logout</span>
+                    Clock Out
+                  </button>
+                </div>
               </div>
-               <div className="flex items-start">
-                  <ClockIcon className="h-6 w-6 text-red-500 mt-1 mr-4 flex-shrink-0" />
-                  <div>
-                      <p className="font-semibold text-gray-700">Absen Pulang</p>
-                       {summaryAttendance?.clock_out ? (
-                          <>
-                              <p className="text-gray-600">{formatTime(new Date(summaryAttendance.clock_out))}</p>
-                              <div className="flex items-start text-sm text-gray-500 mt-1">
-                                 <LocationMarkerIcon className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0"/>
-                                  <p>
-                                    {summaryAttendance.lokasi_kerja === 'Bekerja di Pabrik' && summaryAttendance.tempat_kerja && <span className="font-semibold text-gray-800 block">{summaryAttendance.tempat_kerja}</span>}
-                                    {summaryAttendance.clock_out_address || 'Lokasi tercatat'}
-                                 </p>
-                              </div>
-                          </>
-                      ) : <p className="text-gray-500 text-sm">-</p>}
-                  </div>
+
+              {/* Location Badge Overlay */}
+              <div className="absolute top-6 left-6 pointer-events-none z-[1000]">
+                <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-md border border-white/20 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-500 text-[20px]">my_location</span>
+                  <span className="font-semibold text-slate-700 text-sm">{currentWorkplace}</span>
+                </div>
               </div>
+            </div>
+
+            {/* Status Cards Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in delay-100">
+              <StatCard
+                icon={ClockIcon}
+                label="SHIFT"
+                value={shiftLabel}
+                subtext="09:00 - 18:00"
+                color="blue"
+              />
+              <StatCard
+                icon={BriefcaseIcon}
+                label="DURASI"
+                value={duration}
+                subtext="Hours Worked"
+                color="green"
+              />
+              <StatCard
+                icon={status === AttendanceStatus.CLOCKED_IN ? CheckCircleIcon : ExclamationCircleIcon}
+                label="STATUS"
+                value={status === AttendanceStatus.CLOCKED_IN ? 'Present' : status === AttendanceStatus.CLOCKED_OUT ? 'Finished' : 'Absent'}
+                subtext={status === AttendanceStatus.CLOCKED_IN ? 'On Time' : 'Belum Absen'}
+                color={status === AttendanceStatus.CLOCKED_IN ? 'emerald' : 'orange'}
+              />
+              <StatCard
+                icon={OfficeBuildingIcon}
+                label="OFFICE"
+                value={officeLabel === 'Bekerja di Pabrik' ? 'Factory' : officeLabel}
+                subtext="HQ - Lt. 12"
+                color="purple"
+              />
+            </div>
+
+          </div>
+
+          {/* Right Column (Sidebar) */}
+          <div className="lg:col-span-4 space-y-6">
+
+            {/* Total Hours Widget */}
+            <Card className="p-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none shadow-xl shadow-blue-500/20">
+              <div className="mb-6">
+                <h3 className="text-blue-100 font-semibold text-sm uppercase tracking-wider mb-1">Total Jam Kerja Minggu Ini</h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-bold">38.5</span>
+                  <span className="text-xl font-medium text-blue-200">Jam</span>
+                </div>
+              </div>
+              <div className="relative pt-1">
+                <div className="flex mb-2 items-center justify-between">
+                  <span className="text-xs font-semibold inline-block text-blue-100">Progress</span>
+                  <span className="text-xs font-semibold inline-block text-blue-100">Target: 40 Jam</span>
+                </div>
+                <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-800/50">
+                  <div style={{ width: "85%" }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-white rounded-full"></div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Activity History */}
+            <Card className="p-0 overflow-hidden border border-slate-100 shadow-lg">
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="font-bold text-slate-800">Riwayat Aktivitas</h3>
+                <button className="text-blue-600 text-sm font-semibold hover:underline">Lihat Semua</button>
+              </div>
+              <div className="p-0">
+                <div className="relative">
+                  {/* Vertical Line */}
+                  <div className="absolute top-0 bottom-0 left-8 w-px bg-slate-200"></div>
+
+                  {/* Timeline Items */}
+                  <ul className="py-2">
+                    {recentActivities.length > 0 ? recentActivities.map((act, idx) => (
+                      <li key={idx} className="relative pl-16 pr-6 py-4 hover:bg-slate-50 transition-colors group cursor-default">
+                        <div className={`absolute left-[29px] top-6 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10 ${act.title.includes('In') ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-xs text-slate-400 font-semibold mb-0.5">{act.date}</p>
+                            <p className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{act.title}</p>
+                            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                              <span className="material-symbols-outlined text-[14px]">location_on</span>
+                              {act.location}
+                            </p>
+
+                          </div>
+                          <div className="bg-slate-100 px-2 py-1 rounded-md text-xs font-bold text-slate-600 group-hover:bg-white group-hover:shadow-sm transition-all">{act.time}</div>
+                        </div>
+                      </li>
+                    )) : (
+                      <li className="p-6 text-center text-slate-400 text-sm">Belum ada aktivitas baru.</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </Card>
+
           </div>
         </div>
       </div>
-      <ClockInModal 
+
+      {/* Modal and Toast outside of blurred content */}
+      <ClockInModal
         isOpen={isModalOpen}
-        onClose={handleCloseModal}
+        onClose={() => setIsModalOpen(false)}
         onSuccess={handleSuccess}
-        onError={handleError}
+        onError={(msg) => setToastMessage({ type: 'error', message: msg })}
         user={user}
         actionType={actionType}
         jadwal={jadwal}
         todayAttendance={activeAttendance}
       />
+
+      {/* Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 animate-fade-in">
+          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 ${toastMessage.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+            <span className="material-symbols-outlined">{toastMessage.type === 'success' ? 'check_circle' : 'error'}</span>
+            <p className="font-medium">{toastMessage.message}</p>
+          </div>
+        </div>
+      )}
     </>
   );
 }

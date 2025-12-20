@@ -84,12 +84,12 @@ const CameraCapture: React.FC<{ onCapture: (file: File) => void; onClose: () => 
             );
         }
     };
-    
+
     return (
         <div className="fixed inset-0 bg-black z-[60] flex flex-col justify-center items-center p-2">
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain max-h-[85%]" />
             <canvas ref={canvasRef} className="hidden" />
-             {error && <div className="absolute top-4 bg-red-500 text-white p-3 rounded-md">{error}</div>}
+            {error && <div className="absolute top-4 bg-red-500 text-white p-3 rounded-md">{error}</div>}
             <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-6">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-600 text-white rounded-md">Batal</button>
                 <button type="button" onClick={handleCapturePhoto} className="px-6 py-4 bg-blue-600 text-white rounded-full font-bold">Ambil Foto</button>
@@ -141,14 +141,14 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
             setIsCameraOpen(false);
         }
     }, [isOpen, attendanceData]);
-    
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             setAttachment(e.target.files[0]);
         }
     };
 
-  const handleCapture = (file: File) => {
+    const handleCapture = (file: File) => {
         setAttachment(file);
         setIsCameraOpen(false);
     };
@@ -191,7 +191,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
         (correctionType === 'wrong_time' && !!newClockOut);
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-md z-50 flex justify-center items-center p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl transform transition-all">
                 <div className="flex justify-between items-center p-4 border-b">
                     <h3 className="text-xl font-semibold text-gray-800">Pembetulan Presensi</h3>
@@ -273,25 +273,25 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
                                         Bukti Alasan <span className="text-red-500">*</span>
                                     </label>
                                     <div className="flex items-center gap-4 mt-2">
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             onClick={() => fileInputRef.current?.click()}
                                             className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                                         >
-                                            <UploadIcon className="h-5 w-5 mr-2"/>
+                                            <UploadIcon className="h-5 w-5 mr-2" />
                                             Unggah File
                                         </button>
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             onClick={() => setIsCameraOpen(true)}
                                             className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                                         >
-                                            <CameraIcon className="h-5 w-5 mr-2"/>
+                                            <CameraIcon className="h-5 w-5 mr-2" />
                                             Ambil Foto
                                         </button>
                                     </div>
-                                    <input 
-                                        type="file" 
+                                    <input
+                                        type="file"
                                         id="file-upload"
                                         ref={fileInputRef}
                                         onChange={handleFileChange}

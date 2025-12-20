@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserProfile, Request } from '../types';
-import { MenuIcon, BellIcon, AcademicCapIcon, LogoutIcon } from './icons';
+import { MenuIcon, BellIcon, AcademicCapIcon, LogoutIcon, SearchIcon, CogIcon } from './icons';
 import { timeAgo } from '../lib/utils';
 
 // Notification Panel sub-component
@@ -50,13 +50,13 @@ const NotificationPanel: React.FC<{
 };
 
 interface HeaderProps {
-  user: UserProfile;
-  pageTitle: string;
-  onMenuClick: () => void;
-  notifications: Request[];
-  onNotificationClick: (notification: Request) => void;
-  allUsers: UserProfile[];
-  onLogout: () => void;
+    user: UserProfile;
+    pageTitle: string;
+    onMenuClick: () => void;
+    notifications: Request[];
+    onNotificationClick: (notification: Request) => void;
+    allUsers: UserProfile[];
+    onLogout: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ user, pageTitle, onMenuClick, notifications, onNotificationClick, allUsers, onLogout }) => {
@@ -83,86 +83,117 @@ const Header: React.FC<HeaderProps> = ({ user, pageTitle, onMenuClick, notificat
         };
     }, []);
 
-  return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
-      <div className="flex items-center">
-        <button onClick={onMenuClick} className="lg:hidden mr-4 text-gray-600 hover:text-gray-800" aria-label="Open menu">
-          <MenuIcon className="h-6 w-6" />
-        </button>
-        <h1 className="text-xl font-semibold text-gray-800 capitalize">{pageTitle.replace(/[_-]/g, ' ')}</h1>
-      </div>
-      <div className="flex items-center space-x-4">
-        
-        {/* Notification Bell */}
-        <div ref={notificationRef} className="relative">
-            <button onClick={() => setIsPanelOpen(!isPanelOpen)} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none">
-                <BellIcon className="h-6 w-6" />
-                {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
-                )}
-            </button>
-            {isPanelOpen && (
-                <NotificationPanel 
-                    notifications={notifications}
-                    allUsers={allUsers}
-                    onNotificationClick={(notif) => {
-                        onNotificationClick(notif);
-                        setIsPanelOpen(false); // Close panel on click
-                    }}
-                />
-            )}
-        </div>
+    return (
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/50 flex items-center justify-between px-6 lg:px-8 flex-shrink-0 z-20 sticky top-0 transition-all duration-200">
+            <div className="flex items-center gap-4">
+                <button onClick={onMenuClick} className="lg:hidden text-slate-500 hover:text-blue-600 transition-colors p-1" aria-label="Open menu">
+                    <MenuIcon className="text-[28px]" />
+                </button>
+                <h1 className="text-xl font-bold text-slate-800 capitalize lg:hidden">{pageTitle.replace(/[_-]/g, ' ')}</h1>
 
-        <div ref={profileMenuRef} className="relative">
-            <button
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-100"
-                aria-label="Open user menu"
-                aria-haspopup="true"
-                aria-expanded={isProfileMenuOpen}
-            >
-                <div className="text-right hidden sm:block">
-                    <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                    <div className="text-xs text-gray-500 capitalize">{user.position}</div>
+                {/* Search Bar (Desktop) */}
+                <div className="hidden lg:flex w-full max-w-md relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-500">
+                        <SearchIcon className="text-slate-400 text-[20px] group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search for employees, documents..."
+                        className="block w-96 pl-10 pr-3 py-2.5 border-none rounded-xl bg-slate-100/50 text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:bg-white text-sm font-medium transition-all outline-none shadow-sm group-focus-within:shadow-md"
+                    />
                 </div>
-                <img
-                    className="h-10 w-10 rounded-full object-cover"
-                    src={user.avatar_url}
-                    alt={user.full_name}
-                />
-            </button>
-            
-            {isProfileMenuOpen && (
-                 <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50 py-1" role="menu">
+            </div>
+
+            <div className="flex items-center gap-4">
+
+                {/* Notification Bell */}
+                <div ref={notificationRef} className="relative">
                     <button
-                        onClick={() => {
-                            navigate('/profil');
-                            setIsProfileMenuOpen(false);
-                        }}
-                        className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        role="menuitem"
+                        onClick={() => setIsPanelOpen(!isPanelOpen)}
+                        className="relative p-2 rounded-lg hover:bg-background-light text-text-secondary transition-colors"
                     >
-                        <AcademicCapIcon className="h-5 w-5 mr-3 text-gray-500" />
-                        Profil Saya
+                        <BellIcon className="text-[24px]" />
+                        {notifications.length > 0 && (
+                            <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full ring-2 ring-surface-light animate-pulse"></span>
+                        )}
                     </button>
-                    <div className="border-t my-1"></div>
-                    <button
-                        onClick={() => {
-                            onLogout();
-                            setIsProfileMenuOpen(false);
-                        }}
-                        className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                        role="menuitem"
-                    >
-                        <LogoutIcon className="h-5 w-5 mr-3" />
-                        Logout
-                    </button>
+                    {isPanelOpen && (
+                        <NotificationPanel
+                            notifications={notifications}
+                            allUsers={allUsers}
+                            onNotificationClick={(notif) => {
+                                onNotificationClick(notif);
+                                setIsPanelOpen(false); // Close panel on click
+                            }}
+                        />
+                    )}
                 </div>
-            )}
-        </div>
-      </div>
-    </header>
-  );
+
+                <button className="p-2 rounded-lg hover:bg-background-light text-text-secondary transition-colors hidden sm:block">
+                    <CogIcon className="text-[24px]" />
+                </button>
+
+                <div className="h-8 w-px bg-[#f0f2f4] mx-2 hidden md:block"></div>
+
+                <div ref={profileMenuRef} className="relative">
+                    <button
+                        onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                        className="flex items-center gap-3 pl-1 focus:outline-none"
+                        aria-label="Open user menu"
+                        aria-haspopup="true"
+                        aria-expanded={isProfileMenuOpen}
+                    >
+                        <div className="flex flex-col items-end hidden md:flex text-right">
+                            <span className="text-sm font-bold text-text-main leading-none">{user.full_name}</span>
+                            <span className="text-xs text-text-secondary mt-1 capitalize">{user.position || 'Employee'}</span>
+                        </div>
+                        <div className="size-10 rounded-full border-2 border-surface-light shadow-sm overflow-hidden bg-background-light">
+                            <img
+                                className="h-full w-full object-cover"
+                                src={user.avatar_url || 'https://via.placeholder.com/150'}
+                                alt={user.full_name}
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=' + user.full_name;
+                                }}
+                            />
+                        </div>
+                    </button>
+
+                    {isProfileMenuOpen && (
+                        <div className="absolute top-full right-0 mt-3 w-56 bg-surface-light rounded-2xl shadow-xl border border-[#f0f2f4] z-50 py-2 overflow-hidden" role="menu">
+                            <div className="px-4 py-3 border-b border-[#f0f2f4] md:hidden">
+                                <p className="text-sm font-bold text-text-main">{user.full_name}</p>
+                                <p className="text-xs text-text-secondary capitalize">{user.position}</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    navigate('/profil');
+                                    setIsProfileMenuOpen(false);
+                                }}
+                                className="w-full text-left flex items-center px-4 py-3 text-sm font-medium text-text-main hover:bg-background-light transition-colors"
+                                role="menuitem"
+                            >
+                                <AcademicCapIcon className="text-[20px] mr-3 text-text-secondary" />
+                                Profil Saya
+                            </button>
+                            <div className="border-t border-[#f0f2f4] my-1"></div>
+                            <button
+                                onClick={() => {
+                                    onLogout();
+                                    setIsProfileMenuOpen(false);
+                                }}
+                                className="w-full text-left flex items-center px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors"
+                                role="menuitem"
+                            >
+                                <LogoutIcon className="text-[20px] mr-3" />
+                                Logout
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </header>
+    );
 };
 
 export default Header;

@@ -1,11 +1,16 @@
 {
-  "name": "HRIS Prototype",
-  "short_name": "HRIS",
-  "description": "Human Resource Information System prototype for attendance, leave, and approvals.",
+  "name": "HRIS POS Mobile",
+  "short_name": "HRIS POS",
+  "description": "Sistem Informasi Kepegawaian - Presensi, Pengajuan, dan Persetujuan.",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#2563eb",
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -18,6 +23,41 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Presensi",
+      "short_name": "Presensi",
+      "description": "Buka halaman presensi",
+      "url": "/presensi",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Pengajuan",
+      "short_name": "Pengajuan",
+      "description": "Buat pengajuan baru",
+      "url": "/pengajuan",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/mobile-login.png",
+      "sizes": "375x812",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Halaman Login HRIS POS"
     }
   ]
 }
