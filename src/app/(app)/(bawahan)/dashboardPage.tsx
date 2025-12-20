@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { UserProfile, Attendance, Request, RequestStatus } from '../../../types';
+import { UserProfile, Attendance, Request, RequestStatus, JadwalKerjaTim } from '../../../types';
 import { apiService } from '../../../services/apiService';
 import { KPI_DEFAULT_CONFIG, KPI_STORAGE_KEY, computeKpiScore, normalizeKpiConfig } from '@/components/kpi/KpiCalculator';
 import { APP_TIME_ZONE, APP_TIME_OFFSET, formatDateKey, formatTime } from '@/lib/utils';
@@ -9,6 +9,7 @@ import Spinner from '@/components/ui/Spinner';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import ProgressBar from '@/components/ui/ProgressBar';
+import { ClockInModal } from '@/components/modals/ClockInOutModal';
 import {
     CalendarIcon,
     CheckCircleIcon,
@@ -53,7 +54,7 @@ const statusMeta = (status?: string, isLeave?: boolean): { label: string; varian
         case 'pulang_cepat':
             return { label: 'Pulang Cepat', variant: 'warning' };
         case 'in_progress':
-            return { label: 'Working', variant: 'info' };
+            return { label: 'Bekerja', variant: 'info' };
         case 'absent':
         case 'incomplete':
             return { label: 'Absen', variant: 'danger' };
@@ -80,6 +81,12 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
     const [recentRequests, setRecentRequests] = useState<Request[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalAction, setModalAction] = useState<'in' | 'out'>('in');
+    const [activeAttendance, setActiveAttendance] = useState<Attendance | null>(null);
+    const [jadwal, setJadwal] = useState<JadwalKerjaTim[]>([]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -123,6 +130,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                 schedulesLast3,
                 requests,
                 overtimeApproved,
+                activeAtt
             ] = await Promise.all([
                 apiService.getAttendanceForSubordinates([user.id], startIso, endIso),
                 apiService.getOtherApprovedRequestsForPeriod(
@@ -138,7 +146,21 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                 ),
                 apiService.getRequestsForUser(user.id, 6),
                 apiService.getOvertimeRequestsForSubordinates([user.id], startDateStr, endDateStr),
+                apiService.getActiveAttendance(user.id)
             ]);
+
+            setActiveAttendance(activeAtt);
+
+            // Convert schedules to JadwalKerjaTim[] for modal
+            const jadwalList: JadwalKerjaTim[] = schedulesLast3.map(s => ({
+                date: s.date,
+                shift: s.shift,
+                is_off: s.shift === 'OFF',
+                // Map other properties if needed or create partial content
+                start_time: '08:00', // Default or fetch real shift times if needed
+                end_time: '17:00'
+            }));
+            setJadwal(jadwalList);
 
             const leaveDays = new Set<string>();
             leaves.forEach((req) => {
@@ -256,7 +278,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
             setRecentAttendance(lastThreeDays);
 
             const todayKey = formatDateKey(now, APP_TIME_ZONE);
-            const todayAtt = attendanceLast3Map.get(todayKey) || attendanceByDate.get(todayKey);
+            const todayAtt = activeAtt && formatDateKey(new Date(activeAtt.clock_in), APP_TIME_ZONE) === todayKey ? activeAtt : (attendanceLast3Map.get(todayKey) || attendanceByDate.get(todayKey));
             const durationMinutes =
                 todayAtt && todayAtt.clock_in
                     ? Math.max(
@@ -287,18 +309,16 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
         fetchDashboard();
     }, [fetchDashboard]);
 
-    const requestSummary = useMemo(() => {
-        const pending = recentRequests.filter((r) => r.status === RequestStatus.PENDING).length;
-        const approved = recentRequests.filter((r) => r.status === RequestStatus.APPROVED).length;
-        const rejected = recentRequests.filter((r) => r.status === RequestStatus.REJECTED).length;
-        const revised = recentRequests.filter((r) => r.status === RequestStatus.REVISED).length;
-        return {
-            pending,
-            approved,
-            rejectedOrRevised: rejected + revised,
-            total: recentRequests.length,
-        };
-    }, [recentRequests]);
+    const handleOpenModal = (type: 'in' | 'out') => {
+        setModalAction(type);
+        setIsModalOpen(true);
+    };
+
+    const handleModalSuccess = (msg: string) => {
+        setIsModalOpen(false);
+        // Refresh dashboard to show new status
+        fetchDashboard();
+    };
 
     const getRequestStatusBadge = (status: RequestStatus) => {
         switch (status) {
@@ -314,8 +334,8 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-text-main">Welcome back, {user.full_name.split(' ')[0]}!</h1>
-                    <p className="text-text-secondary mt-1">Here's your daily attendance summary.</p>
+                    <h1 className="text-2xl font-bold text-text-main">Selamat datang kembali, {user.full_name.split(' ')[0]}!</h1>
+                    <p className="text-text-secondary mt-1">Berikut ringkasan kehadiran harian Anda.</p>
                 </div>
                 <button
                     onClick={fetchDashboard}
@@ -323,7 +343,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                     className="inline-flex items-center gap-2 rounded-xl bg-surface-light border border-[#f0f2f4] text-text-main px-4 py-2 text-sm font-semibold shadow-sm hover:bg-background-light transition-all disabled:opacity-50"
                 >
                     {loading ? <Spinner /> : <RefreshIcon className="text-[18px]" />}
-                    <span>Refresh</span>
+                    <span>Segarkan</span>
                 </button>
             </div>
 
@@ -336,9 +356,9 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                 <Card variant="hero" className="col-span-1 lg:col-span-2 relative overflow-hidden p-6 flex flex-col justify-between min-h-[240px]">
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
-                            <p className="opacity-90 font-medium">Have a great day!</p>
+                            <p className="opacity-90 font-medium">Semoga harimu menyenangkan!</p>
                             <h2 className="text-3xl font-bold mt-1">{formatTime(new Date(), { hour: '2-digit', minute: '2-digit' })}</h2>
-                            <p className="text-sm opacity-80 mt-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            <p className="text-sm opacity-80 mt-1">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
                         <div className="bg-white/20 backdrop-blur-md rounded-lg p-2">
                             <span className="material-symbols-outlined text-[32px]">{statusMeta(todaySummary.status).variant === 'success' ? 'sunny' : 'cloud'}</span>
@@ -346,17 +366,23 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                     </div>
 
                     <div className="relative z-10 grid grid-cols-3 gap-4 mt-6">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
+                        <div
+                            onClick={() => handleOpenModal('in')}
+                            className="bg-white/10 backdrop-blur-sm rounded-xl p-3 cursor-pointer hover:bg-white/20 transition-colors"
+                        >
                             <div className="flex items-center gap-2 opacity-80 mb-1">
                                 <span className="material-symbols-outlined text-[16px]">login</span>
-                                <span className="text-xs font-medium">Clock In</span>
+                                <span className="text-xs font-medium">Masuk</span>
                             </div>
                             <p className="text-lg font-bold">{todaySummary.clockIn ? formatTime(new Date(todaySummary.clockIn), { second: undefined }) : '--:--'}</p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
+                        <div
+                            onClick={() => handleOpenModal('out')}
+                            className="bg-white/10 backdrop-blur-sm rounded-xl p-3 cursor-pointer hover:bg-white/20 transition-colors"
+                        >
                             <div className="flex items-center gap-2 opacity-80 mb-1">
                                 <span className="material-symbols-outlined text-[16px]">logout</span>
-                                <span className="text-xs font-medium">Clock Out</span>
+                                <span className="text-xs font-medium">Pulang</span>
                             </div>
                             <p className="text-lg font-bold">
                                 {todaySummary.clockOut
@@ -368,7 +394,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
                             <div className="flex items-center gap-2 opacity-80 mb-1">
                                 <span className="material-symbols-outlined text-[16px]">timer</span>
-                                <span className="text-xs font-medium">Duration</span>
+                                <span className="text-xs font-medium">Durasi</span>
                             </div>
                             <p className="text-lg font-bold">{formatDuration(todaySummary.durationMinutes)}</p>
                         </div>
@@ -386,7 +412,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                                 <CheckCircleIcon className="text-[20px]" />
                             </div>
-                            <span className="text-sm font-medium text-text-secondary">Presence</span>
+                            <span className="text-sm font-medium text-text-secondary">Kehadiran</span>
                         </div>
                         <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.presence.toFixed(0) : '0'}%</span>
@@ -399,7 +425,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
                                 <BriefcaseIcon className="text-[20px]" />
                             </div>
-                            <span className="text-sm font-medium text-text-secondary">Discipline</span>
+                            <span className="text-sm font-medium text-text-secondary">Disiplin</span>
                         </div>
                         <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.discipline.toFixed(0) : '0'}%</span>
@@ -412,10 +438,10 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                             <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
                                 <TimeIcon className="text-[20px]" />
                             </div>
-                            <span className="text-sm font-medium text-text-secondary">Hours Worked</span>
+                            <span className="text-sm font-medium text-text-secondary">Jam Kerja</span>
                         </div>
-                        <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.workedHours.toFixed(1) : '0'}h</span>
-                        <p className="text-xs text-text-secondary mt-1">This month</p>
+                        <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.workedHours.toFixed(1) : '0'}j</span>
+                        <p className="text-xs text-text-secondary mt-1">Bulan ini</p>
                     </Card>
 
                     <Card variant="stat" className="p-4 flex flex-col justify-center">
@@ -423,30 +449,30 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                             <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
                                 <ClockIcon className="text-[20px]" />
                             </div>
-                            <span className="text-sm font-medium text-text-secondary">Overtime</span>
+                            <span className="text-sm font-medium text-text-secondary">Lembur</span>
                         </div>
-                        <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.overtimeHours.toFixed(1) : '0'}h</span>
-                        <p className="text-xs text-text-secondary mt-1">Approved</p>
+                        <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.overtimeHours.toFixed(1) : '0'}j</span>
+                        <p className="text-xs text-text-secondary mt-1">Disetujui</p>
                     </Card>
                 </div>
 
                 {/* Recent Activity List */}
                 <div className="col-span-1 lg:col-span-2 xl:col-span-2 space-y-4">
-                    <h3 className="font-bold text-text-main text-lg">Recent Activity</h3>
+                    <h3 className="font-bold text-text-main text-lg">Aktivitas Terkini</h3>
                     <div className="space-y-3">
                         {recentAttendance.map((item) => (
                             <Card key={item.dateKey} className="flex items-center justify-between p-4">
                                 <div className="flex items-center gap-4">
                                     <div className={`p-3 rounded-full ${item.statusVariant === 'success' ? 'bg-green-100 text-green-600' :
-                                            item.statusVariant === 'warning' ? 'bg-yellow-100 text-yellow-600' :
-                                                item.statusVariant === 'danger' ? 'bg-red-100 text-red-600' :
-                                                    'bg-gray-100 text-gray-600'
+                                        item.statusVariant === 'warning' ? 'bg-yellow-100 text-yellow-600' :
+                                            item.statusVariant === 'danger' ? 'bg-red-100 text-red-600' :
+                                                'bg-gray-100 text-gray-600'
                                         }`}>
                                         <CalendarIcon className="text-[20px]" />
                                     </div>
                                     <div>
                                         <p className="font-bold text-text-main text-sm">
-                                            {new Date(item.dateKey).toLocaleDateString('en-US', { day: 'numeric', month: 'short', weekday: 'short' })}
+                                            {new Date(item.dateKey).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', weekday: 'short' })}
                                         </p>
                                         <div className="flex items-center gap-2 mt-0.5">
                                             <Badge variant={item.statusVariant}>{item.status}</Badge>
@@ -458,13 +484,13 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                                     <p className="text-sm font-bold text-text-main">
                                         {item.clockIn ? formatTime(new Date(item.clockIn), { second: undefined }) : '-'}
                                     </p>
-                                    <p className="text-xs text-text-secondary">Clock In</p>
+                                    <p className="text-xs text-text-secondary">Masuk</p>
                                 </div>
                             </Card>
                         ))}
                         {recentAttendance.length === 0 && (
                             <div className="text-center py-8 text-text-secondary bg-surface-light rounded-2xl border border-dashed border-gray-200">
-                                No recent activity
+                                Belum ada aktivitas terkini
                             </div>
                         )}
                     </div>
@@ -473,8 +499,8 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                 {/* Recent Requests Section */}
                 <div className="col-span-1 lg:col-span-1 xl:col-span-2 space-y-4">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-text-main text-lg">Recent Requests</h3>
-                        <button className="text-sm font-semibold text-primary hover:underline">View All</button>
+                        <h3 className="font-bold text-text-main text-lg">Permintaan Terkini</h3>
+                        <button className="text-sm font-semibold text-primary hover:underline">Lihat Semua</button>
                     </div>
                     <div className="space-y-3">
                         {recentRequests.slice(0, 3).map((req) => (
@@ -491,22 +517,34 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                                     {getRequestStatusBadge(req.status)}
                                 </div>
                                 <p className="text-xs text-text-secondary line-clamp-2 mb-2">
-                                    {req.reason || 'No description provided.'}
+                                    {req.reason || 'Tidak ada keterangan.'}
                                 </p>
                                 <p className="text-xs text-text-secondary font-medium">
-                                    {new Date(req.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                    {new Date(req.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                 </p>
                             </Card>
                         ))}
                         {recentRequests.length === 0 && (
                             <div className="text-center py-8 text-text-secondary bg-surface-light rounded-2xl border border-dashed border-gray-200">
-                                No recent requests
+                                Belum ada permintaan terkini
                             </div>
                         )}
                     </div>
                 </div>
 
             </div>
+
+            {/* Clock In Modal */}
+            <ClockInModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSuccess={handleModalSuccess}
+                onError={(msg) => alert(msg)} // Simple alert or toast if available
+                user={user}
+                actionType={modalAction}
+                jadwal={jadwal}
+                todayAttendance={activeAttendance}
+            />
         </div>
     );
 };

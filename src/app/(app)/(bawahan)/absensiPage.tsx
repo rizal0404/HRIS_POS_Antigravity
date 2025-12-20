@@ -268,7 +268,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                 {/* Digital Timer */}
                 <div className="flex flex-col gap-2">
                   <div className="bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border border-white/20 inline-flex flex-col">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Current Time</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Waktu Saat Ini</span>
                     <DigitalClock time={currentTime} />
                   </div>
                 </div>
@@ -281,7 +281,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                     className="flex-1 md:flex-none py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-lg shadow-blue-600/30 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
                   >
                     <span className="material-symbols-outlined text-[20px]">login</span>
-                    Clock In
+                    Masuk
                   </button>
                   <button
                     onClick={() => handleOpenModal('out')}
@@ -289,7 +289,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                     className="flex-1 md:flex-none py-3 px-6 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
                   >
                     <span className="material-symbols-outlined text-red-500 text-[20px]">logout</span>
-                    Clock Out
+                    Pulang
                   </button>
                 </div>
               </div>
@@ -316,20 +316,20 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                 icon={BriefcaseIcon}
                 label="DURASI"
                 value={duration}
-                subtext="Hours Worked"
+                subtext="Jam Kerja"
                 color="green"
               />
               <StatCard
                 icon={status === AttendanceStatus.CLOCKED_IN ? CheckCircleIcon : ExclamationCircleIcon}
                 label="STATUS"
-                value={status === AttendanceStatus.CLOCKED_IN ? 'Present' : status === AttendanceStatus.CLOCKED_OUT ? 'Finished' : 'Absent'}
-                subtext={status === AttendanceStatus.CLOCKED_IN ? 'On Time' : 'Belum Absen'}
+                value={status === AttendanceStatus.CLOCKED_IN ? 'Hadir' : status === AttendanceStatus.CLOCKED_OUT ? 'Selesai' : 'Absen'}
+                subtext={status === AttendanceStatus.CLOCKED_IN ? 'Tepat Waktu' : 'Belum Absen'}
                 color={status === AttendanceStatus.CLOCKED_IN ? 'emerald' : 'orange'}
               />
               <StatCard
                 icon={OfficeBuildingIcon}
-                label="OFFICE"
-                value={officeLabel === 'Bekerja di Pabrik' ? 'Factory' : officeLabel}
+                label="KANTOR"
+                value={officeLabel === 'Bekerja di Pabrik' ? 'Pabrik' : officeLabel}
                 subtext="HQ - Lt. 12"
                 color="purple"
               />
@@ -351,7 +351,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
               </div>
               <div className="relative pt-1">
                 <div className="flex mb-2 items-center justify-between">
-                  <span className="text-xs font-semibold inline-block text-blue-100">Progress</span>
+                  <span className="text-xs font-semibold inline-block text-blue-100">Progres</span>
                   <span className="text-xs font-semibold inline-block text-blue-100">Target: 40 Jam</span>
                 </div>
                 <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-800/50">
