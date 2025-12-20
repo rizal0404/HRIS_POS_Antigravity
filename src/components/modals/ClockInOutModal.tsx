@@ -683,40 +683,43 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           </div>
         )}
 
-        <div className="h-48 w-full rounded-lg overflow-hidden relative bg-slate-200">
-          <MapContainer center={DEFAULT_MAP_CENTER} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-            <ChangeView
-              userPos={position ? [position.coords.latitude, position.coords.longitude] : null}
-              workplacePos={selectedWorkplaceDetails ? [selectedWorkplaceDetails.lat, selectedWorkplaceDetails.lon] : null}
-            />
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            {position && (
-              <>
-                <Marker position={[position.coords.latitude, position.coords.longitude]} icon={blueIcon}>
-                  <Popup>Lokasi Anda Saat Ini</Popup>
-                </Marker>
-                <Circle
-                  center={[position.coords.latitude, position.coords.longitude]}
-                  radius={position.coords.accuracy}
-                  pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6' }}
-                />
-              </>
-            )}
-            {selectedWorkplaceDetails && (
-              <>
-                <Marker position={[selectedWorkplaceDetails.lat, selectedWorkplaceDetails.lon]} icon={redIcon}>
-                  <Popup>{selectedWorkplaceDetails.name}</Popup>
-                </Marker>
-                <Circle
-                  center={[selectedWorkplaceDetails.lat, selectedWorkplaceDetails.lon]}
-                  radius={MAX_DISTANCE_METERS}
-                  pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.1 }}
-                />
-              </>
-            )}
-          </MapContainer>
+        {/* Map Container - Mobile Style */}
+        <div className="bg-white rounded-3xl p-2 shadow-lg">
+          <div className="h-52 w-full rounded-2xl overflow-hidden relative bg-slate-800">
+            <MapContainer center={DEFAULT_MAP_CENTER} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
+              <ChangeView
+                userPos={position ? [position.coords.latitude, position.coords.longitude] : null}
+                workplacePos={selectedWorkplaceDetails ? [selectedWorkplaceDetails.lat, selectedWorkplaceDetails.lon] : null}
+              />
+              <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+              {position && (
+                <>
+                  <Marker position={[position.coords.latitude, position.coords.longitude]} icon={blueIcon}>
+                    <Popup>Lokasi Anda Saat Ini</Popup>
+                  </Marker>
+                  <Circle
+                    center={[position.coords.latitude, position.coords.longitude]}
+                    radius={position.coords.accuracy}
+                    pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.1 }}
+                  />
+                </>
+              )}
+              {selectedWorkplaceDetails && (
+                <>
+                  <Marker position={[selectedWorkplaceDetails.lat, selectedWorkplaceDetails.lon]} icon={redIcon}>
+                    <Popup>{selectedWorkplaceDetails.name}</Popup>
+                  </Marker>
+                  <Circle
+                    center={[selectedWorkplaceDetails.lat, selectedWorkplaceDetails.lon]}
+                    radius={MAX_DISTANCE_METERS}
+                    pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.1 }}
+                  />
+                </>
+              )}
+            </MapContainer>
+          </div>
         </div>
-        <div className={`text-center text-sm p-2 rounded-md ${locColor}`}>
+        <div className={`text-center text-sm p-2 rounded-xl ${locColor}`}>
           <p className="font-semibold">{locText}</p>
           {!isFetchingLocation && (
             <button onClick={fetchLocation} className="text-blue-600 font-semibold hover:underline">
@@ -820,20 +823,53 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           <p className="text-xs text-slate-500">Zona: {APP_TIME_ZONE}</p>
         </div>
 
+        {/* Work Location Toggle - Mobile Style */}
         <div>
-          <label htmlFor="workLocation" className="block text-sm font-medium text-slate-700">
-            Lokasi Kerja Anda Hari Ini
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+            Lokasi Kerja
           </label>
-          <select
-            id="workLocation"
-            value={workLocation}
-            onChange={(e) => setWorkLocation(e.target.value)}
-            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 rounded-md"
-          >
-            <option>Bekerja di Pabrik</option>
-            <option>Lainnya</option>
-          </select>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setWorkLocation('Bekerja di Pabrik')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all ${workLocation === 'Bekerja di Pabrik'
+                ? 'bg-yellow-400 text-gray-900 shadow-lg'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">business</span>
+              Pabrik
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkLocation('Lainnya')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all ${workLocation === 'Lainnya'
+                ? 'bg-yellow-400 text-gray-900 shadow-lg'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">place</span>
+              Lainnya
+            </button>
+          </div>
         </div>
+
+        {/* Schedule Grid - Mobile Style */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <p className="text-xs text-slate-500 mb-1">Jadwal Masuk</p>
+            <p className="text-lg font-bold text-slate-800">
+              {scheduleForAction?.start_time?.slice(0, 5) || '--:--'}
+            </p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <p className="text-xs text-slate-500 mb-1">Jadwal Pulang</p>
+            <p className="text-lg font-bold text-slate-800">
+              {scheduleForAction?.end_time?.slice(0, 5) || '--:--'}
+            </p>
+          </div>
+        </div>
+
         {workLocation === 'Bekerja di Pabrik' && (
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in shadow-inner">
             <div className="flex items-center justify-between mb-3">
@@ -854,6 +890,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Notes Input */}
         <div>
           <label htmlFor="notes" className="block text-sm font-medium text-slate-700">
             Catatan/Alasan
@@ -864,7 +902,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className={`mt-1 block w-full shadow-sm sm:text-sm rounded-md ${validation.notesRequired && notes.trim().length < 5
+            className={`mt-1 block w-full shadow-sm sm:text-sm rounded-xl ${validation.notesRequired && notes.trim().length < 5
               ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500'
               : 'border-slate-300'
               }`}
@@ -875,24 +913,44 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             <p className="text-xs text-amber-600 mt-1">Minimal 5 karakter ({notes.trim().length}/5)</p>
           )}
         </div>
-        <div className="flex justify-end gap-3 pt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-slate-400 py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-slate-500"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isActionDisabled}
-            className={`py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${actionType === 'in' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'
-              } disabled:bg-slate-300 disabled:cursor-not-allowed`}
-          >
-            {isSubmitting ? 'Memproses...' : workLocation === 'Lainnya' ? 'Kirim Ajuan' : title}
-          </button>
-        </div>
+
+        {/* Large Action Button - Mobile Style */}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={isActionDisabled}
+          className={`w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl shadow-lg text-lg font-bold transition-all ${actionType === 'in'
+            ? 'bg-yellow-400 text-gray-900 hover:bg-yellow-500 disabled:bg-slate-200'
+            : 'bg-red-500 text-white hover:bg-red-600 disabled:bg-slate-300'
+            } disabled:cursor-not-allowed disabled:shadow-none`}
+        >
+          {isSubmitting ? (
+            <>
+              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+              Memproses...
+            </>
+          ) : (
+            <>
+              <span className="material-symbols-outlined text-[28px]">
+                {actionType === 'in' ? 'login' : 'logout'}
+              </span>
+              <div className="text-left">
+                <div>{workLocation === 'Lainnya' ? 'Kirim Ajuan' : actionType === 'in' ? 'CLOCK IN' : 'CLOCK OUT'}</div>
+                <div className="text-sm font-normal opacity-70">
+                  {formatTime(currentTime, { second: '2-digit' })} WITA
+                </div>
+              </div>
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-2 text-slate-500 text-sm font-medium hover:text-slate-700"
+        >
+          Batal
+        </button>
       </div>
     </Modal>
   );
