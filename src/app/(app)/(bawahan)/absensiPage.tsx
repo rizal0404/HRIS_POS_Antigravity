@@ -119,21 +119,48 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
       const startDate = formatDateKey(new Date(today.getFullYear(), today.getMonth(), 1));
       const endDate = formatDateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
-      const [attendance, approvedLeaves, scheduleData, history] = await Promise.all([
+      const [attendance, approvedLeaves, scheduleData, historyData] = await Promise.all([
         apiService.getActiveAttendance(user.id),
         apiService.getApprovedLeaves(user.id, todayISO),
         apiService.getTeamSchedules([user.id], startDate, endDate),
-        apiService.getAttendanceForSubordinates([user.id], startDate, endDate), // Fetch history for sidebar
+        apiService.getHistory(user.id), // Fetch full history
       ]);
 
-      // Mocking Recent Activity from history (last 5)
-      const activities = history.slice(0, 5).map(att => ({
-        title: att.clock_out ? 'Clock Out' : 'Clock In',
-        date: formatDate(new Date(att.clock_in)),
-        time: att.clock_out ? formatTime(new Date(att.clock_out)) : formatTime(new Date(att.clock_in)),
-        status: att.clock_out ? 'Pulang' : 'Hadir',
-        location: att.tempat_kerja || 'Unknown'
-      }));
+      // Process Real History Data
+      const allEvents: { title: string, date: string, time: string, status: string, location: string, timestamp: number }[] = [];
+
+      historyData.attendance.forEach(att => {
+        // Add Clock In Event
+        if (att.clock_in) {
+          const dt = new Date(att.clock_in);
+          allEvents.push({
+            title: 'Clock In',
+            date: formatDate(dt),
+            time: formatTime(dt),
+            status: 'Hadir',
+            location: att.clock_in_address || att.tempat_kerja || 'Unknown',
+            timestamp: dt.getTime()
+          });
+        }
+        // Add Clock Out Event
+        if (att.clock_out) {
+          const dt = new Date(att.clock_out);
+          allEvents.push({
+            title: 'Clock Out',
+            date: formatDate(dt),
+            time: formatTime(dt),
+            status: 'Pulang',
+            location: att.clock_out_address || att.tempat_kerja || 'Unknown',
+            timestamp: dt.getTime()
+          });
+        }
+      });
+
+      // Sort descending and take top 5
+      const activities = allEvents
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 5)
+        .map(({ title, date, time, status, location }) => ({ title, date, time, status, location }));
 
       setRecentActivities(activities);
 

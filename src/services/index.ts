@@ -9,6 +9,7 @@ export { profilesService } from './profiles';
 export { schedulesService } from './schedules';
 export { configService } from './config';
 export { reportsService } from './reports';
+export { disciplineService } from './discipline';
 
 // Re-export helpers
 export { handleSupabaseError, getAddressFromCoords } from './helpers';
@@ -23,6 +24,7 @@ export * from './profiles';
 export * from './schedules';
 export * from './config';
 export * from './reports';
+export * from './discipline';
 
 // Import all services for the combined apiService object
 import { attendanceService } from './attendance';
@@ -31,6 +33,7 @@ import { profilesService } from './profiles';
 import { schedulesService } from './schedules';
 import { configService } from './config';
 import { reportsService } from './reports';
+import { disciplineService } from './discipline';
 
 // Combined apiService object for backward compatibility
 // This maintains the same interface as the original apiService

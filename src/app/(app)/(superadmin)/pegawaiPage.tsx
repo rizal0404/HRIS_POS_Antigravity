@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { UserProfile, Department, UserRole } from '../../../types';
+import { UserProfile, Department, UserRole, Workplace } from '../../../types';
 import { apiService } from '../../../services/apiService';
+import { disciplineService } from '../../../services/discipline';
 import { supabase } from '../../../services/supabase';
 import { PlusCircleIcon, PencilIcon, TrashIcon, SearchIcon, UsersIcon, CurrencyDollarIcon } from '../../../components/icons';
 import Pagination from '../../../components/ui/Pagination';
@@ -24,6 +25,7 @@ type Tab = 'pegawai' | 'gaji';
 const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user }) => {
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     const [organizationStructure, setOrganizationStructure] = useState<Department[]>([]);
+    const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -43,12 +45,14 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
     const fetchAllData = useCallback(async () => {
         setLoading(true);
         try {
-            const [users, structure] = await Promise.all([
+            const [users, structure, wpList] = await Promise.all([
                 apiService.getProfiles(),
-                apiService.getOrganizationStructure()
+                apiService.getOrganizationStructure(),
+                disciplineService.getAllWorkplaces()
             ]);
             setAllUsers(users);
             setOrganizationStructure(structure);
+            setWorkplaces(wpList as Workplace[]);
         } catch (error) {
             console.error("Failed to fetch page data:", error);
         } finally {
@@ -61,7 +65,7 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
     }, [fetchAllData]);
 
     const usersMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
-    
+
     const positions = useMemo(() => {
         const cleanAndTitleCase = (str: string) => {
             let cleaned = str.replace(/^(DEPARTEMEN|BIRO|SEKSI)\s/i, '');
@@ -147,7 +151,7 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
             });
         }
     };
-    
+
     const handleSave = async (userData: Omit<UserProfile, 'id'> & { id?: string; password?: string }) => {
         try {
             if (userData.id) { // Editing existing user
@@ -207,7 +211,7 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
             setEditingUser(null);
         }
     };
-    
+
     const handleUpdateSalary = async (userId: string, newSalary: UserProfile['salary']) => {
         try {
             await apiService.saveProfile({ id: userId, salary: newSalary });
@@ -242,11 +246,11 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
         return values;
     };
 
-        const parseCsv = (text: string): Record<string, string>[] => {
-            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-            if (lines.length === 0) return [];
-            const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
-            return lines.slice(1).map(line => {
+    const parseCsv = (text: string): Record<string, string>[] => {
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length === 0) return [];
+        const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
+        return lines.slice(1).map(line => {
             const cols = parseCsvLine(line);
             const row: Record<string, string> = {};
             headers.forEach((header, idx) => {
@@ -298,7 +302,7 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
                 return;
             }
 
-            const existingByEmail = new Map(allUsers.map(u => [u.email.toLowerCase(), u]));
+            const existingByEmail = new Map<string, UserProfile>(allUsers.map(u => [u.email.toLowerCase(), u]));
             let created = 0;
             let updated = 0;
             const errors: string[] = [];
@@ -395,124 +399,124 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
 
     const renderPegawaiTab = () => (
         <>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-            <div className="relative w-full sm:w-auto">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                    type="text"
-                    placeholder="Cari berdasarkan nama atau email..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full sm:w-80 border rounded-md pl-10 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                />
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                <div className="relative w-full sm:w-auto">
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Cari berdasarkan nama atau email..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full sm:w-80 border rounded-md pl-10 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                </div>
+                <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
+                    <button
+                        onClick={handleDownloadTemplate}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                        Download Template CSV
+                    </button>
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                        disabled={isImporting}
+                    >
+                        <SearchIcon className="h-5 w-5 mr-2" />
+                        {isImporting ? 'Memproses CSV...' : 'Import CSV'}
+                    </button>
+                    <button onClick={handleAdd} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        <PlusCircleIcon className="h-5 w-5 mr-2" />
+                        Tambah Pegawai
+                    </button>
+                </div>
             </div>
-            <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
-                <button
-                    onClick={handleDownloadTemplate}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
-                >
-                    Download Template CSV
-                </button>
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
-                    disabled={isImporting}
-                >
-                    <SearchIcon className="h-5 w-5 mr-2" />
-                    {isImporting ? 'Memproses CSV...' : 'Import CSV'}
-                </button>
-                <button onClick={handleAdd} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-                    <PlusCircleIcon className="h-5 w-5 mr-2" />
-                    Tambah Pegawai
-                </button>
-            </div>
-        </div>
-        <input
-            type="file"
-            accept=".csv"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleImportFile}
-        />
-        {importSummary && (
-            <div className="mb-4 px-4 py-3 rounded-md bg-blue-50 text-blue-800 text-sm border border-blue-100">
-                {importSummary}
-            </div>
-        )}
-        {loading ? (
-             <div className="text-center py-12">Memuat data pegawai...</div>
-        ) : (
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left min-w-[800px]">
-                <thead className="bg-gray-50 text-xs text-gray-700 uppercase">
-                    <tr>
-                        <th className="px-4 py-3">Nama Pegawai</th>
-                        <th className="px-4 py-3">Jabatan</th>
-                        <th className="px-4 py-3">Atasan Langsung</th>
-                        <th className="px-4 py-3">Email</th>
-                        <th className="px-4 py-3">Approved</th>
-                        <th className="px-4 py-3 text-right">Tindakan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {paginatedUsers.map(user => (
-                        <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                                <div className="flex items-center space-x-3">
-                                    <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt={user.full_name} />
-                                    <div>
-                                        <p>{user.full_name}</p>
-                                        <p className="text-xs text-gray-500">{user.nik || 'NIK belum diatur'}</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td className="px-4 py-3 capitalize">{user.position}</td>
-                            <td className="px-4 py-3">{user.manager_id ? (usersMap.get(user.manager_id)?.full_name || 'N/A') : '-'}</td>
-                            <td className="px-4 py-3">{user.email}</td>
-                            <td className="px-4 py-3">
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.approved === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                    {user.approved === false ? 'Menunggu' : 'Aktif'}
-                                </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                                <div className="flex items-center justify-end space-x-3">
-                                    {user.approved === false && (
-                                        <button
-                                            onClick={() => handleToggleApproval(user, true)}
-                                            disabled={approvingIds.has(user.id)}
-                                            className="px-3 py-1 text-xs font-semibold rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-60"
-                                        >
-                                            {approvingIds.has(user.id) ? 'Menyetujui...' : 'Setujui'}
-                                        </button>
-                                    )}
-                                    <button onClick={() => handleEdit(user)} className="p-1 text-gray-500 hover:text-blue-600">
-                                        <PencilIcon className="h-5 w-5" />
-                                    </button>
-                                    <button onClick={() => handleDeleteRequest(user.id)} className="p-1 text-gray-500 hover:text-red-600">
-                                        <TrashIcon className="h-5 w-5" />
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-        )}
-        {filteredUsers.length === 0 && !loading && (
-            <div className="text-center py-12 text-gray-500">
-                <p>Tidak ada pegawai yang ditemukan.</p>
-            </div>
-        )}
-        {filteredUsers.length > PAGE_SIZE && (
-             <Pagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(filteredUsers.length / PAGE_SIZE)}
-                onPageChange={setCurrentPage}
-                totalRecords={filteredUsers.length}
-                pageSize={PAGE_SIZE}
+            <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleImportFile}
             />
-        )}
+            {importSummary && (
+                <div className="mb-4 px-4 py-3 rounded-md bg-blue-50 text-blue-800 text-sm border border-blue-100">
+                    {importSummary}
+                </div>
+            )}
+            {loading ? (
+                <div className="text-center py-12">Memuat data pegawai...</div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left min-w-[800px]">
+                        <thead className="bg-gray-50 text-xs text-gray-700 uppercase">
+                            <tr>
+                                <th className="px-4 py-3">Nama Pegawai</th>
+                                <th className="px-4 py-3">Jabatan</th>
+                                <th className="px-4 py-3">Atasan Langsung</th>
+                                <th className="px-4 py-3">Email</th>
+                                <th className="px-4 py-3">Approved</th>
+                                <th className="px-4 py-3 text-right">Tindakan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {paginatedUsers.map(user => (
+                                <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
+                                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                                        <div className="flex items-center space-x-3">
+                                            <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt={user.full_name} />
+                                            <div>
+                                                <p>{user.full_name}</p>
+                                                <p className="text-xs text-gray-500">{user.nik || 'NIK belum diatur'}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3 capitalize">{user.position}</td>
+                                    <td className="px-4 py-3">{user.manager_id ? (usersMap.get(user.manager_id)?.full_name || 'N/A') : '-'}</td>
+                                    <td className="px-4 py-3">{user.email}</td>
+                                    <td className="px-4 py-3">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.approved === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                            {user.approved === false ? 'Menunggu' : 'Aktif'}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <div className="flex items-center justify-end space-x-3">
+                                            {user.approved === false && (
+                                                <button
+                                                    onClick={() => handleToggleApproval(user, true)}
+                                                    disabled={approvingIds.has(user.id)}
+                                                    className="px-3 py-1 text-xs font-semibold rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-60"
+                                                >
+                                                    {approvingIds.has(user.id) ? 'Menyetujui...' : 'Setujui'}
+                                                </button>
+                                            )}
+                                            <button onClick={() => handleEdit(user)} className="p-1 text-gray-500 hover:text-blue-600">
+                                                <PencilIcon className="h-5 w-5" />
+                                            </button>
+                                            <button onClick={() => handleDeleteRequest(user.id)} className="p-1 text-gray-500 hover:text-red-600">
+                                                <TrashIcon className="h-5 w-5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {filteredUsers.length === 0 && !loading && (
+                <div className="text-center py-12 text-gray-500">
+                    <p>Tidak ada pegawai yang ditemukan.</p>
+                </div>
+            )}
+            {filteredUsers.length > PAGE_SIZE && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(filteredUsers.length / PAGE_SIZE)}
+                    onPageChange={setCurrentPage}
+                    totalRecords={filteredUsers.length}
+                    pageSize={PAGE_SIZE}
+                />
+            )}
         </>
     );
 
@@ -521,23 +525,23 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
             <div className="p-6">
                 <div className="bg-white rounded-lg shadow-md">
                     <div className="border-b border-gray-200">
-                         <div className="px-6">
-                             <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                        <div className="px-6">
+                            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                                 <button onClick={() => setActiveTab('pegawai')}
                                     className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'pegawai' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-                                    <UsersIcon className="h-5 w-5"/>
+                                    <UsersIcon className="h-5 w-5" />
                                     Manajemen Pegawai
                                 </button>
                                 <button onClick={() => setActiveTab('gaji')}
                                     className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'gaji' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-                                    <CurrencyDollarIcon className="h-5 w-5"/>
+                                    <CurrencyDollarIcon className="h-5 w-5" />
                                     Konfigurasi Gaji & Slip
                                 </button>
                             </nav>
                         </div>
                     </div>
                     <div className="p-6">
-                       {activeTab === 'pegawai' ? renderPegawaiTab() : <KonfigurasiGaji allUsers={allUsers} onUpdateSalary={handleUpdateSalary} />}
+                        {activeTab === 'pegawai' ? renderPegawaiTab() : <KonfigurasiGaji allUsers={allUsers} onUpdateSalary={handleUpdateSalary} />}
                     </div>
                 </div>
             </div>
@@ -549,6 +553,7 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
                 initialData={editingUser}
                 allUsers={allUsers}
                 positions={positions}
+                workplaces={workplaces}
             />
 
             <ConfirmationModal

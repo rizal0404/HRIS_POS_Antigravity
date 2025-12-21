@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserProfile, UserRole } from '../../types';
+import { UserProfile, UserRole, Workplace } from '../../types';
 import { XIcon } from '../icons';
 
 interface PegawaiModalProps {
@@ -11,6 +11,7 @@ interface PegawaiModalProps {
     initialData?: UserProfile | null;
     allUsers: UserProfile[];
     positions: string[];
+    workplaces?: Workplace[];
 }
 
 export const pegawaiDefaultFormData: Omit<UserProfile, 'id'> = {
@@ -31,9 +32,10 @@ export const pegawaiDefaultFormData: Omit<UserProfile, 'id'> = {
     employment_status: '',
     address: '',
     telegram_chat_id: '',
+    workplace_id: null,
 };
 
-const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, initialData, allUsers, positions }) => {
+const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, initialData, allUsers, positions, workplaces = [] }) => {
     const [formData, setFormData] = useState<Omit<UserProfile, 'id'>>(pegawaiDefaultFormData);
     const [password, setPassword] = useState('');
 
@@ -101,20 +103,20 @@ const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, in
                         {!isEditing && (
                             <div>
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                                <input 
-                                    type="password" 
-                                    id="password" 
-                                    name="password" 
-                                    value={password} 
+                                <input
+                                    type="password"
+                                    id="password"
+                                    name="password"
+                                    value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                                     placeholder="Set temporary password"
-                                    required 
+                                    required
                                 />
                             </div>
                         )}
 
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="position" className="block text-sm font-medium text-gray-700 mb-1">Jabatan</label>
                                 <select id="position" name="position" value={formData.position} onChange={handleChange}
@@ -136,7 +138,7 @@ const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, in
                             </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                             <div>
+                            <div>
                                 <label htmlFor="manager_id" className="block text-sm font-medium text-gray-700 mb-1">Atasan Langsung</label>
                                 <select id="manager_id" name="manager_id" value={formData.manager_id || 'null'} onChange={handleChange}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
@@ -150,6 +152,18 @@ const PegawaiModal: React.FC<PegawaiModalProps> = ({ isOpen, onClose, onSave, in
                                 <label htmlFor="default_shift" className="block text-sm font-medium text-gray-700 mb-1">Shift Default</label>
                                 <input type="text" id="default_shift" name="default_shift" value={formData.default_shift || ''} onChange={handleChange}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="workplace_id" className="block text-sm font-medium text-gray-700 mb-1">Lokasi Kerja (Tetap)</label>
+                                <select id="workplace_id" name="workplace_id" value={formData.workplace_id || 'null'} onChange={handleChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="null">-- Default (Fleksibel/Tidak Ada) --</option>
+                                    {workplaces.map(wp => (
+                                        <option key={wp.id} value={wp.id}>{wp.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

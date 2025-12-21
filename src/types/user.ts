@@ -1,4 +1,5 @@
 import React from 'react';
+import { Workplace } from './discipline';
 
 // ==== USER TYPES ====
 
@@ -20,6 +21,8 @@ export interface UserProfile {
     manager_id: string | null;
     avatar_url: string;
     default_shift?: string;
+    workplace_id?: string | null;
+    workplace?: Workplace | null;
     salary?: {
         gaji_pokok: number;
         tunjangan_jabatan: number;
@@ -33,6 +36,7 @@ export interface UserProfile {
     education_major?: string | null;
     employment_status?: string | null;
     address?: string | null;
+    telegram_chat_id?: string | null;
 }
 
 export interface NavLink {

@@ -7,3 +7,4 @@ export * from './attendance';
 export * from './request';
 export * from './organization';
 export * from './config';
+export * from './discipline';

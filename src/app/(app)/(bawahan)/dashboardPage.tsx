@@ -10,6 +10,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import ProgressBar from '@/components/ui/ProgressBar';
 import { ClockInModal } from '@/components/modals/ClockInOutModal';
+import SkorDisiplinCard from '../../../components/dashboard/SkorDisiplinCard';
 import {
     CalendarIcon,
     CheckCircleIcon,
@@ -258,7 +259,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                     attendanceLast3Map.set(key, att);
                 }
             });
-            const scheduleMap = new Map(schedulesLast3.map((s) => [s.date, s.shift]));
+            const scheduleMap = new Map<string, string>(schedulesLast3.map((s) => [s.date, s.shift]));
 
             const lastThreeDays: RecentDay[] = [];
             for (let d = new Date(last3End); d >= last3Start; d.setDate(d.getDate() - 1)) {
@@ -420,18 +421,7 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                         <ProgressBar value={kpiSnapshot?.presence || 0} color="bg-emerald-500" className="mt-2" />
                     </Card>
 
-                    <Card variant="stat" className="p-4 flex flex-col justify-center">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                                <BriefcaseIcon className="text-[20px]" />
-                            </div>
-                            <span className="text-sm font-medium text-text-secondary">Disiplin</span>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.discipline.toFixed(0) : '0'}%</span>
-                        </div>
-                        <ProgressBar value={kpiSnapshot?.discipline || 0} color="bg-blue-500" className="mt-2" />
-                    </Card>
+                    <SkorDisiplinCard user={user} />
 
                     <Card variant="stat" className="p-4 flex flex-col justify-center">
                         <div className="flex items-center gap-3 mb-2">
@@ -516,9 +506,41 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                                     </div>
                                     {getRequestStatusBadge(req.status)}
                                 </div>
-                                <p className="text-xs text-text-secondary line-clamp-2 mb-2">
-                                    {req.reason || 'Tidak ada keterangan.'}
-                                </p>
+                                {(() => {
+                                    let displayReason = req.reason || 'Tidak ada keterangan.';
+                                    let extraInfo = '';
+
+                                    try {
+                                        if (req.request_type === 'Koreksi Absensi' && req.reason?.startsWith('{')) {
+                                            const parsed = JSON.parse(req.reason) as any;
+                                            // Map correction types to readable text
+                                            const typeMap: Record<string, string> = {
+                                                'missed_in': 'Lupa Clock In',
+                                                'missed_out': 'Lupa Clock Out',
+                                                'missed_both': 'Lupa Clock In & Out',
+                                                'wrong_time': 'Kesalahan Waktu',
+                                                'out': 'Pembetulan Pulang', // fallback
+                                                'in': 'Pembetulan Masuk'   // fallback
+                                            };
+                                            const typeKey = String(parsed.type || '');
+                                            const correctionType = typeMap[typeKey] || typeKey;
+                                            displayReason = `${correctionType}: ${parsed.reason}`;
+
+                                            // Optional: Format new times if available
+                                            if (parsed.new_clock_in_iso || parsed.intended_iso) {
+                                                // extraInfo can be added here if needed
+                                            }
+                                        }
+                                    } catch (e) {
+                                        // Fallback to raw string if parse fails
+                                    }
+
+                                    return (
+                                        <p className="text-xs text-text-secondary line-clamp-2 mb-2">
+                                            {displayReason}
+                                        </p>
+                                    );
+                                })()}
                                 <p className="text-xs text-text-secondary font-medium">
                                     {new Date(req.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                 </p>
