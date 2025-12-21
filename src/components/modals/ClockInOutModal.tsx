@@ -659,62 +659,91 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
   const title = actionType === 'in' ? 'Clock In' : 'Clock Out';
   const { text: locText, color: locColor } = locationMessage();
 
+  // Determine highest severity for combined warning
+  const getWarningSeverity = () => {
+    if (validation.level === ValidationLevel.BLOCKED) return 'blocked';
+    if (isOutsideAssignedWorkplace && assignedWorkplace) return 'warning';
+    if (validation.level === ValidationLevel.NOTES_REQUIRED) return 'notes';
+    if (validation.level === ValidationLevel.APPROVAL_REQUIRED) return 'info';
+    return 'none';
+  };
+  const warningSeverity = getWarningSeverity();
+  const hasWarnings = warningSeverity !== 'none';
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <div className="space-y-4">
-        {user.role === UserRole.SUPERADMIN && (
-          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 p-3">
+      <div className="space-y-3">
+
+        {/* === HEADER: Date/Time/Shift (Moved to Top) === */}
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-4 rounded-2xl shadow-lg">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-amber-800">Bypass mode (darurat)</p>
-              <p className="text-xs text-amber-700">Aktifkan untuk melewati batas jarak/jadwal pada clock in/out.</p>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-md">
+                  {scheduleForAction?.shift || 'OFF'}
+                </span>
+                <span className="text-slate-300 text-sm">
+                  {currentTime.toLocaleDateString('id-ID', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    timeZone: APP_TIME_ZONE,
+                  })}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400">Periode: {targetWorkDateKey}</p>
             </div>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-amber-800">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={effectiveBypass}
-                onChange={(e) => {
-                  const enabled = e.target.checked;
-                  setBypassMode(enabled);
-                  setGlobalBypass(enabled);
-                  if (typeof window !== 'undefined') {
-                    window.localStorage.setItem(BYPASS_STORAGE_KEY, enabled ? 'on' : 'off');
-                  }
-                }}
-              />
-              Aktif
-            </label>
+            <div className="text-right">
+              <p className="font-mono text-2xl font-bold tracking-wide">
+                {formatTime(currentTime, { second: '2-digit' })}
+              </p>
+              <p className="text-[10px] text-slate-400">WITA</p>
+            </div>
           </div>
+        </div>
+
+        {/* === SUPERADMIN BYPASS (Compact) === */}
+        {user.role === UserRole.SUPERADMIN && (
+          <label className="flex items-center justify-between p-2 rounded-lg bg-amber-50 border border-amber-200 cursor-pointer">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-amber-600 text-[18px]">admin_panel_settings</span>
+              <span className="text-xs font-medium text-amber-800">Bypass Mode</span>
+            </div>
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-amber-600"
+              checked={effectiveBypass}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                setBypassMode(enabled);
+                setGlobalBypass(enabled);
+                if (typeof window !== 'undefined') {
+                  window.localStorage.setItem(BYPASS_STORAGE_KEY, enabled ? 'on' : 'off');
+                }
+              }}
+            />
+          </label>
         )}
 
-        {/* Offline Status Indicator */}
+        {/* === OFFLINE INDICATOR (Compact) === */}
         {(!isOnline || pendingCount > 0) && (
-          <div className={`flex items-center justify-between p-2 rounded-md text-xs ${!isOnline ? 'bg-slate-100 text-slate-700' : 'bg-blue-50 text-blue-700'
-            }`}>
+          <div className={`flex items-center justify-between p-2 rounded-lg text-xs ${!isOnline ? 'bg-slate-100' : 'bg-blue-50'}`}>
             <div className="flex items-center gap-2">
               <span className={`flex h-2 w-2 rounded-full ${!isOnline ? 'bg-slate-400' : 'bg-blue-500 animate-pulse'}`} />
               <span className="font-medium">
-                {!isOnline
-                  ? 'Mode Offline - Absensi akan disimpan lokal'
-                  : isSyncing
-                    ? 'Menyinkronkan...'
-                    : `${pendingCount} absensi tertunda`}
+                {!isOnline ? 'Offline' : isSyncing ? 'Syncing...' : `${pendingCount} pending`}
               </span>
             </div>
             {isOnline && pendingCount > 0 && !isSyncing && (
-              <button
-                onClick={syncNow}
-                className="text-blue-600 font-semibold hover:underline"
-              >
-                Sinkronkan
-              </button>
+              <button onClick={syncNow} className="text-blue-600 font-semibold text-xs">Sync</button>
             )}
           </div>
         )}
 
-        {/* Map Container - Mobile Style */}
-        <div className="bg-white rounded-3xl p-2 shadow-lg">
-          <div className="h-52 w-full rounded-2xl overflow-hidden relative bg-slate-800">
+        {/* === MAP CONTAINER === */}
+        <div className="rounded-2xl overflow-hidden shadow-md border border-slate-200">
+          <div className="h-44 w-full relative bg-slate-200">
             <MapContainer center={DEFAULT_MAP_CENTER} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
               <ChangeView
                 userPos={position ? [position.coords.latitude, position.coords.longitude] : null}
@@ -724,7 +753,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
               {position && (
                 <>
                   <Marker position={[position.coords.latitude, position.coords.longitude]} icon={blueIcon}>
-                    <Popup>Lokasi Anda Saat Ini</Popup>
+                    <Popup>Lokasi Anda</Popup>
                   </Marker>
                   <Circle
                     center={[position.coords.latitude, position.coords.longitude]}
@@ -748,230 +777,192 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             </MapContainer>
           </div>
         </div>
-        <div className={`text-center text-sm p-2 rounded-xl ${locColor}`}>
-          <p className="font-semibold">{locText}</p>
-          {!isFetchingLocation && (
-            <button onClick={fetchLocation} className="text-blue-600 font-semibold hover:underline">
-              Tekan u/ refresh lokasi Ta!
+
+        {/* === COMPACT STATUS BAR === */}
+        <div className="flex items-center justify-between p-2 bg-slate-50 rounded-xl text-xs">
+          {/* Location Status */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchLocation}
+              disabled={isFetchingLocation}
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-700 disabled:text-slate-400"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {isFetchingLocation ? 'progress_activity' : 'my_location'}
+              </span>
+              <span className="font-medium">
+                {isFetchingLocation ? 'Loading...' : distance != null ? `${distance.toFixed(0)}m` : 'Refresh'}
+              </span>
             </button>
+
+            {/* Accuracy indicator */}
+            {!isFetchingLocation && position && (
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${position.coords.accuracy <= 50 ? 'bg-green-100 text-green-700' :
+                  position.coords.accuracy <= 200 ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                }`}>
+                ±{position.coords.accuracy.toFixed(0)}m
+              </span>
+            )}
+          </div>
+
+          {/* Window Time */}
+          {windowLabel && (
+            <span className="text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded">
+              {windowLabel}
+            </span>
           )}
         </div>
 
-        {/* Mock Confidence Indicator */}
-        {!isFetchingLocation && mockConfidence > 0 && (
-          <div className={`flex items-center justify-between p-2 rounded-md text-xs ${mockConfidence >= 90 ? 'bg-red-100 text-red-800' :
-            mockConfidence >= 60 ? 'bg-orange-100 text-orange-800' :
-              mockConfidence >= 30 ? 'bg-yellow-100 text-yellow-800' :
-                'bg-green-100 text-green-800'
+        {/* === COMBINED WARNINGS (Collapsible) === */}
+        {hasWarnings && (
+          <details className={`rounded-xl border overflow-hidden ${warningSeverity === 'blocked' ? 'bg-red-50 border-red-200' :
+              warningSeverity === 'warning' ? 'bg-orange-50 border-orange-200' :
+                warningSeverity === 'notes' ? 'bg-amber-50 border-amber-200' :
+                  'bg-blue-50 border-blue-200'
             }`}>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px]">
-                {mockConfidence >= 60 ? 'gpp_bad' : mockConfidence >= 30 ? 'gpp_maybe' : 'verified_user'}
-              </span>
-              <span className="font-medium">
-                Validasi Lokasi: {mockConfidence >= 90 ? 'Terblokir' : mockConfidence >= 60 ? 'Mencurigakan' : mockConfidence >= 30 ? 'Perhatian' : 'Normal'}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-16 h-1.5 bg-white/50 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${mockConfidence >= 60 ? 'bg-red-500' : mockConfidence >= 30 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
-                  style={{ width: `${mockConfidence}%` }}
-                />
+            <summary className="flex items-center justify-between p-2 cursor-pointer list-none">
+              <div className="flex items-center gap-2">
+                <span className={`material-symbols-outlined text-[18px] ${warningSeverity === 'blocked' ? 'text-red-600' :
+                    warningSeverity === 'warning' ? 'text-orange-600' :
+                      warningSeverity === 'notes' ? 'text-amber-600' :
+                        'text-blue-600'
+                  }`}>
+                  {warningSeverity === 'blocked' ? 'block' :
+                    warningSeverity === 'warning' ? 'warning' :
+                      warningSeverity === 'notes' ? 'edit_note' : 'info'}
+                </span>
+                <span className={`text-sm font-semibold ${warningSeverity === 'blocked' ? 'text-red-800' :
+                    warningSeverity === 'warning' ? 'text-orange-800' :
+                      warningSeverity === 'notes' ? 'text-amber-800' :
+                        'text-blue-800'
+                  }`}>
+                  {warningSeverity === 'blocked' ? 'Tidak dapat melanjutkan' :
+                    warningSeverity === 'warning' ? 'Di luar lokasi tetap' :
+                      warningSeverity === 'notes' ? 'Catatan diperlukan' : 'Perlu persetujuan'}
+                </span>
               </div>
-              <span className="font-bold">{mockConfidence}%</span>
-            </div>
-          </div>
-        )}
-        {windowLabel ? (
-          <div className="text-center p-3 bg-emerald-50 text-emerald-800 rounded-lg text-sm">
-            Window clock-{actionType.toUpperCase()} : {windowLabel}
-          </div>
-        ) : null}
-
-        {/* Warning: Outside Assigned Workplace */}
-        {isOutsideAssignedWorkplace && assignedWorkplace && (
-          <div className="p-3 bg-orange-50 border border-orange-300 rounded-lg animate-pulse">
-            <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-orange-600 text-[20px] mt-0.5">location_off</span>
-              <div>
-                <p className="text-sm font-semibold text-orange-800">
-                  ⚠️ Anda absen di luar tempat kerja tetap
-                </p>
-                <p className="text-xs text-orange-700 mt-1">
-                  Lokasi tetap Anda: <strong>{assignedWorkplace.name}</strong> (radius {assignedWorkplace.radius_meters}m).
-                  Jarak Anda saat ini: <strong>{distanceToAssigned?.toFixed(0)}m</strong>.
-                </p>
-                <p className="text-xs text-orange-600 mt-1 italic">
-                  Absensi ini akan tercatat sebagai "lokasi salah" dan mempengaruhi skor disiplin (-5 poin).
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Validation Warning Banner */}
-        {validation.level === ValidationLevel.NOTES_REQUIRED && validation.reasons.length > 0 && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg animate-fade-in">
-            <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-amber-600 text-[20px] mt-0.5">warning</span>
-              <div>
-                <p className="text-sm font-semibold text-amber-800">Catatan wajib diisi</p>
-                <ul className="text-xs text-amber-700 mt-1 space-y-0.5">
-                  {validation.reasons.map((reason, idx) => (
-                    <li key={idx}>• {reason}</li>
-                  ))}
+              <span className="material-symbols-outlined text-slate-400 text-[18px]">expand_more</span>
+            </summary>
+            <div className="px-3 pb-3 pt-1 space-y-2 text-xs">
+              {/* Blocked reasons */}
+              {validation.level === ValidationLevel.BLOCKED && validation.reasons.length > 0 && (
+                <ul className="text-red-700 space-y-1">
+                  {validation.reasons.map((r, i) => <li key={i}>• {r}</li>)}
                 </ul>
-              </div>
-            </div>
-          </div>
-        )}
+              )}
 
-        {validation.level === ValidationLevel.APPROVAL_REQUIRED && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg animate-fade-in">
-            <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-blue-600 text-[20px] mt-0.5">info</span>
-              <div>
-                <p className="text-sm font-semibold text-blue-800">Perlu Persetujuan Atasan</p>
-                <p className="text-xs text-blue-700 mt-1">Absensi dari lokasi lain akan dikirim ke atasan untuk disetujui.</p>
-              </div>
-            </div>
-          </div>
-        )}
+              {/* Outside assigned workplace */}
+              {isOutsideAssignedWorkplace && assignedWorkplace && (
+                <p className="text-orange-700">
+                  Lokasi tetap: <strong>{assignedWorkplace.name}</strong> ({assignedWorkplace.radius_meters}m).
+                  Jarak Anda: <strong>{distanceToAssigned?.toFixed(0)}m</strong>.
+                  <span className="italic"> Akan tercatat sebagai lokasi salah (-5 poin).</span>
+                </p>
+              )}
 
-        {validation.level === ValidationLevel.BLOCKED && validation.reasons.length > 0 && !isFetchingLocation && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
-            <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-red-600 text-[20px] mt-0.5">block</span>
-              <div>
-                <p className="text-sm font-semibold text-red-800">Tidak dapat melanjutkan</p>
-                <ul className="text-xs text-red-700 mt-1 space-y-0.5">
-                  {validation.reasons.map((reason, idx) => (
-                    <li key={idx}>• {reason}</li>
-                  ))}
+              {/* Notes required reasons */}
+              {validation.level === ValidationLevel.NOTES_REQUIRED && validation.reasons.length > 0 && (
+                <ul className="text-amber-700 space-y-1">
+                  {validation.reasons.map((r, i) => <li key={i}>• {r}</li>)}
                 </ul>
-              </div>
+              )}
+
+              {/* Approval info */}
+              {validation.level === ValidationLevel.APPROVAL_REQUIRED && (
+                <p className="text-blue-700">Absensi dari lokasi lain akan dikirim ke atasan untuk persetujuan.</p>
+              )}
             </div>
-          </div>
+          </details>
         )}
-        <div className="text-center p-3 bg-slate-100 rounded-lg">
-          <p className="font-bold text-lg">
-            {currentTime.toLocaleDateString('id-ID', {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-              timeZone: APP_TIME_ZONE,
-            })}{' '}
-            <span className="text-blue-600">{scheduleForAction?.shift || 'OFF'}</span>
-          </p>
-          <p className="text-xs text-slate-500">Periode kerja: {targetWorkDateKey}</p>
-          <p className="font-mono text-2xl font-bold tracking-wider">
-            {formatTime(currentTime, { second: '2-digit' })} WITA
-          </p>
-          <p className="text-xs text-slate-500">Zona: {APP_TIME_ZONE}</p>
+
+        {/* === WORK LOCATION TOGGLE === */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setWorkLocation('Bekerja di Pabrik')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${workLocation === 'Bekerja di Pabrik'
+                ? 'bg-slate-800 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">business</span>
+            Pabrik
+          </button>
+          <button
+            type="button"
+            onClick={() => setWorkLocation('Lainnya')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${workLocation === 'Lainnya'
+                ? 'bg-slate-800 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">place</span>
+            Lainnya
+          </button>
         </div>
 
-        {/* Work Location Toggle - Mobile Style */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            Lokasi Kerja
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setWorkLocation('Bekerja di Pabrik')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all ${workLocation === 'Bekerja di Pabrik'
-                ? 'bg-yellow-400 text-gray-900 shadow-lg'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">business</span>
-              Pabrik
-            </button>
-            <button
-              type="button"
-              onClick={() => setWorkLocation('Lainnya')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all ${workLocation === 'Lainnya'
-                ? 'bg-yellow-400 text-gray-900 shadow-lg'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">place</span>
-              Lainnya
-            </button>
-          </div>
-        </div>
-
-        {/* Schedule Grid - Mobile Style */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <p className="text-xs text-slate-500 mb-1">Jadwal Masuk</p>
+        {/* === SCHEDULE GRID === */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-slate-50 p-2.5 rounded-xl text-center border border-slate-200">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide">Masuk</p>
             <p className="text-lg font-bold text-slate-800">
               {scheduleForAction?.start_time?.slice(0, 5) || '--:--'}
             </p>
           </div>
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <p className="text-xs text-slate-500 mb-1">Jadwal Pulang</p>
+          <div className="bg-slate-50 p-2.5 rounded-xl text-center border border-slate-200">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide">Pulang</p>
             <p className="text-lg font-bold text-slate-800">
               {scheduleForAction?.end_time?.slice(0, 5) || '--:--'}
             </p>
           </div>
         </div>
 
+        {/* === DETECTED WORKPLACE (Only for Pabrik mode) === */}
         {workLocation === 'Bekerja di Pabrik' && (
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in shadow-inner">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Lokasi Kerja Terdeteksi</span>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-100/50 rounded-full">
-                <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                <span className="text-[10px] font-bold text-green-700">Verified</span>
-              </div>
+          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <div className="size-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow">
+              <span className="material-symbols-outlined text-[22px]">location_on</span>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="size-11 bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <span className="material-symbols-outlined text-[24px]">location_on</span>
-              </div>
-              <div>
-                <div className="text-base font-extrabold text-slate-800 leading-none mb-1">{workplace}</div>
-                <div className="text-xs font-medium text-slate-500">PT Semen Tonasa</div>
-              </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-slate-800 truncate">{workplace}</p>
+              <p className="text-[10px] text-slate-500">PT Semen Tonasa</p>
             </div>
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 rounded-full">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-green-500"></span>
+              <span className="text-[10px] font-medium text-green-700">OK</span>
+            </span>
           </div>
         )}
 
-        {/* Notes Input */}
-        <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-slate-700">
-            Catatan/Alasan
-            {validation.notesRequired && <span className="text-red-500"> *</span>}
-          </label>
-          <textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            className={`mt-1 block w-full shadow-sm sm:text-sm rounded-xl ${validation.notesRequired && notes.trim().length < 5
-              ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500'
-              : 'border-slate-300'
-              }`}
-            required={validation.notesRequired}
-            placeholder={validation.notesRequired ? 'Wajib diisi (minimal 5 karakter)' : 'Opsional'}
-          />
-          {validation.notesRequired && notes.trim().length > 0 && notes.trim().length < 5 && (
-            <p className="text-xs text-amber-600 mt-1">Minimal 5 karakter ({notes.trim().length}/5)</p>
-          )}
-        </div>
+        {/* === NOTES INPUT === */}
+        {(validation.notesRequired || notes.trim().length > 0 || workLocation === 'Lainnya') && (
+          <div>
+            <label htmlFor="notes" className="block text-xs font-medium text-slate-600 mb-1">
+              Catatan {validation.notesRequired && <span className="text-red-500">*</span>}
+            </label>
+            <textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className={`w-full text-sm rounded-xl border px-3 py-2 ${validation.notesRequired && notes.trim().length < 5
+                  ? 'border-amber-400 focus:ring-amber-400'
+                  : 'border-slate-300 focus:ring-blue-400'
+                } focus:outline-none focus:ring-2`}
+              placeholder={validation.notesRequired ? 'Wajib (min 5 karakter)' : 'Opsional'}
+            />
+          </div>
+        )}
 
-        {/* Large Action Button - Mobile Style */}
+        {/* === ACTION BUTTON === */}
         <button
           type="button"
           onClick={handleSubmit}
           disabled={isActionDisabled}
-          className={`w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl shadow-lg text-lg font-bold transition-all ${actionType === 'in'
-            ? 'bg-yellow-400 text-gray-900 hover:bg-yellow-500 disabled:bg-slate-200'
-            : 'bg-red-500 text-white hover:bg-red-600 disabled:bg-slate-300'
+          className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-lg font-bold shadow-lg transition-all ${actionType === 'in'
+              ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300'
+              : 'bg-red-500 text-white hover:bg-red-600 disabled:bg-slate-300'
             } disabled:cursor-not-allowed disabled:shadow-none`}
         >
           {isSubmitting ? (
@@ -981,15 +972,10 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             </>
           ) : (
             <>
-              <span className="material-symbols-outlined text-[28px]">
+              <span className="material-symbols-outlined text-[26px]">
                 {actionType === 'in' ? 'login' : 'logout'}
               </span>
-              <div className="text-left">
-                <div>{workLocation === 'Lainnya' ? 'Kirim Ajuan' : actionType === 'in' ? 'CLOCK IN' : 'CLOCK OUT'}</div>
-                <div className="text-sm font-normal opacity-70">
-                  {formatTime(currentTime, { second: '2-digit' })} WITA
-                </div>
-              </div>
+              {workLocation === 'Lainnya' ? 'KIRIM AJUAN' : actionType === 'in' ? 'CLOCK IN' : 'CLOCK OUT'}
             </>
           )}
         </button>

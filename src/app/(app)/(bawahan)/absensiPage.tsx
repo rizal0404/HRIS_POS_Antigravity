@@ -10,7 +10,7 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon
 } from '../../../components/icons';
-import { UserProfile, Attendance, JadwalKerjaTim, Shift } from '../../../types';
+import { UserProfile, Attendance, JadwalKerjaTim, Shift, OvertimeConfiguration } from '../../../types';
 import { ClockInModal } from '../../../components/modals/ClockInOutModal';
 import { apiService } from '../../../services/apiService';
 import AttendanceMap from '../../../components/maps/AttendanceMap'; // New component
@@ -19,6 +19,7 @@ import Badge from '../../../components/ui/Badge'; // Reusable component
 import ProgressBar from '../../../components/ui/ProgressBar'; // Reusable component
 import Spinner from '@/components/ui/Spinner';
 import { findNearestWorkplace } from '../../../lib/location';
+import { useNavigate } from 'react-router-dom';
 
 
 // --- Helper Components ---
@@ -75,6 +76,7 @@ interface AbsensiPageProps {
 }
 
 const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [status, setStatus] = useState<AttendanceStatus>(AttendanceStatus.LOADING);
   const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null);
@@ -88,6 +90,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   // Simple activity history state
   const [recentActivities, setRecentActivities] = useState<{ title: string, date: string, time: string, status: string, location: string }[]>([]);
   const [currentWorkplace, setCurrentWorkplace] = useState<string>('Mencari...');
+  // Weekly hours tracking
+  const [weeklyHours, setWeeklyHours] = useState<number>(0);
+  const [targetHours, setTargetHours] = useState<number>(40);
 
 
 
@@ -119,12 +124,48 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
       const startDate = formatDateKey(new Date(today.getFullYear(), today.getMonth(), 1));
       const endDate = formatDateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
-      const [attendance, approvedLeaves, scheduleData, historyData] = await Promise.all([
+      // Calculate week boundaries (Monday to Sunday)
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() + mondayOffset);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      const [attendance, approvedLeaves, scheduleData, historyData, overtimeConfig] = await Promise.all([
         apiService.getActiveAttendance(user.id),
         apiService.getApprovedLeaves(user.id, todayISO),
         apiService.getTeamSchedules([user.id], startDate, endDate),
         apiService.getHistory(user.id), // Fetch full history
+        apiService.getOvertimeConfiguration(),
       ]);
+
+      // Set target hours from overtime config
+      if (overtimeConfig) {
+        // Use weekly target (40 hours is typical, or calculate from monthly)
+        const monthlyMax = user.default_shift
+          ? overtimeConfig.max_hours_per_month_shift
+          : overtimeConfig.max_hours_per_month_non_shift;
+        // Approximate weekly target = monthly / 4
+        setTargetHours(monthlyMax ? Math.round(monthlyMax / 4) : 40);
+      }
+
+      // Calculate weekly worked hours
+      let weekHours = 0;
+      historyData.attendance.forEach(att => {
+        if (att.clock_in && att.clock_out) {
+          const clockIn = new Date(att.clock_in);
+          const clockOut = new Date(att.clock_out);
+          // Check if within this week
+          if (clockIn >= weekStart && clockIn <= weekEnd) {
+            const workedMs = clockOut.getTime() - clockIn.getTime();
+            weekHours += workedMs / (1000 * 60 * 60);
+          }
+        }
+      });
+      setWeeklyHours(weekHours);
 
       // Process Real History Data
       const allEvents: { title: string, date: string, time: string, status: string, location: string, timestamp: number }[] = [];
@@ -241,6 +282,27 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
     return `${diffHrs}h ${diffMins}m`;
   }, [activeAttendance, currentTime]);
 
+  // Get shift time from schedule template
+  const shiftTimeLabel = useMemo(() => {
+    if (!todaySchedule || todaySchedule.shift === 'OFF' || todaySchedule.shift === '-') {
+      return 'Libur';
+    }
+    // Use start_time and end_time from schedule (joined from shifts table)
+    if (todaySchedule.start_time && todaySchedule.end_time) {
+      return `${todaySchedule.start_time.slice(0, 5)} - ${todaySchedule.end_time.slice(0, 5)}`;
+    }
+    return todaySchedule.shift;
+  }, [todaySchedule]);
+
+  // Get office/workplace label
+  const officeSubtext = useMemo(() => {
+    // Use the user's assigned workplace name or current workplace
+    if (activeAttendance?.tempat_kerja && activeAttendance.tempat_kerja !== 'Bekerja di Pabrik') {
+      return activeAttendance.tempat_kerja;
+    }
+    return currentWorkplace !== 'Mencari...' ? currentWorkplace : 'Lokasi kerja';
+  }, [activeAttendance, currentWorkplace]);
+
   return (
     <>
       <div className={`relative min-h-screen transition-all duration-500 ${isModalOpen ? 'blur-md grayscale-[20%] scale-[0.99] pointer-events-none' : ''}`}>
@@ -336,7 +398,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                 icon={ClockIcon}
                 label="SHIFT"
                 value={shiftLabel}
-                subtext="09:00 - 18:00"
+                subtext={shiftTimeLabel}
                 color="blue"
               />
               <StatCard
@@ -357,7 +419,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                 icon={OfficeBuildingIcon}
                 label="KANTOR"
                 value={officeLabel === 'Bekerja di Pabrik' ? 'Pabrik' : officeLabel}
-                subtext="HQ - Lt. 12"
+                subtext={officeSubtext}
                 color="purple"
               />
             </div>
@@ -372,17 +434,17 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
               <div className="mb-6">
                 <h3 className="text-blue-100 font-semibold text-sm uppercase tracking-wider mb-1">Total Jam Kerja Minggu Ini</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold">38.5</span>
+                  <span className="text-5xl font-bold">{weeklyHours.toFixed(1)}</span>
                   <span className="text-xl font-medium text-blue-200">Jam</span>
                 </div>
               </div>
               <div className="relative pt-1">
                 <div className="flex mb-2 items-center justify-between">
                   <span className="text-xs font-semibold inline-block text-blue-100">Progres</span>
-                  <span className="text-xs font-semibold inline-block text-blue-100">Target: 40 Jam</span>
+                  <span className="text-xs font-semibold inline-block text-blue-100">Target: {targetHours} Jam</span>
                 </div>
                 <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-800/50">
-                  <div style={{ width: "85%" }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-white rounded-full"></div>
+                  <div style={{ width: `${Math.min((weeklyHours / targetHours) * 100, 100)}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-white rounded-full"></div>
                 </div>
               </div>
             </Card>
@@ -391,7 +453,12 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
             <Card className="p-0 overflow-hidden border border-slate-100 shadow-lg">
               <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <h3 className="font-bold text-slate-800">Riwayat Aktivitas</h3>
-                <button className="text-blue-600 text-sm font-semibold hover:underline">Lihat Semua</button>
+                <button
+                  onClick={() => navigate('/presensi')}
+                  className="text-blue-600 text-sm font-semibold hover:underline"
+                >
+                  Lihat Semua
+                </button>
               </div>
               <div className="p-0">
                 <div className="relative">
