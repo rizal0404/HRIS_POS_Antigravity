@@ -5,7 +5,8 @@ import { UserProfile, DisciplineScore } from '../../types';
 import { disciplineService } from '@/services/discipline';
 import Card from '@/components/ui/Card';
 import ProgressBar from '@/components/ui/ProgressBar';
-import { RefreshIcon, CheckCircleIcon, BriefcaseIcon } from '@/components/icons';
+import Modal from '@/components/Modal';
+import { RefreshIcon, BriefcaseIcon } from '@/components/icons';
 import Spinner from '@/components/ui/Spinner';
 
 interface SkorDisiplinCardProps {
@@ -15,17 +16,14 @@ interface SkorDisiplinCardProps {
 const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
     const [score, setScore] = useState<DisciplineScore | null>(null);
     const [loading, setLoading] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const loadScore = async () => {
         setLoading(true);
         try {
             const now = new Date();
-            // Try to get existing score first
             let data = await disciplineService.getDisciplineScore(user.id, now.getMonth() + 1, now.getFullYear());
-
-            // If no data, try to refresh/calculate it
             if (!data) {
-                // Initial calculation or creation
                 data = await disciplineService.refreshDisciplineScore(user.id, now.getMonth() + 1, now.getFullYear());
             }
             setScore(data);
@@ -40,93 +38,150 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
         loadScore();
     }, [user.id]);
 
-    if (!score && loading) {
-        return (
-            <Card className="p-4 flex items-center justify-center min-h-[200px]">
-                <Spinner />
-            </Card>
-        );
-    }
+    // Default values when loading or no data
+    const finalScore = score?.final_score ?? 0;
+    const baseScore = score?.base_score ?? 100;
 
-    if (!score) {
-        return (
-            <Card className="p-4 flex flex-col justify-center h-full">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                        <BriefcaseIcon className="text-[20px]" />
-                    </div>
-                    <h3 className="font-semibold text-text-main">Skor Disiplin</h3>
-                </div>
-                <div className="text-center text-text-secondary py-2">
-                    <p className="text-sm mb-2">Data belum tersedia.</p>
-                    <button onClick={loadScore} className="text-primary text-xs font-medium hover:underline">
-                        Hitung Sekarang
-                    </button>
-                </div>
-            </Card>
-        );
-    }
-
-    const { final_score, base_score, late_count, early_leave_count, wrong_location_count, correction_count } = score;
-
+    // Color coding based on score
     let colorClass = 'text-emerald-600';
     let bgClass = 'bg-emerald-50';
     let barColor = 'bg-emerald-500';
 
-    if (final_score < 70) {
+    if (finalScore < 70) {
         colorClass = 'text-red-600';
         bgClass = 'bg-red-50';
         barColor = 'bg-red-500';
-    } else if (final_score < 90) {
+    } else if (finalScore < 90) {
         colorClass = 'text-orange-600';
         bgClass = 'bg-orange-50';
         barColor = 'bg-orange-500';
     }
 
+    const handleCardClick = () => {
+        if (score) {
+            setIsModalOpen(true);
+        }
+    };
+
+    const handleRefreshClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent card click
+        loadScore();
+    };
+
     return (
-        <Card className="p-4 flex flex-col h-full bg-white">
-            <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-2">
-                    <div className={`p-2 rounded-lg ${bgClass} ${colorClass}`}>
-                        <BriefcaseIcon className="w-5 h-5" />
+        <>
+            <Card
+                variant="stat"
+                className="p-4 flex flex-col justify-center cursor-pointer hover:shadow-md transition-shadow"
+                onClick={handleCardClick}
+            >
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 ${bgClass} ${colorClass} rounded-lg`}>
+                            <BriefcaseIcon className="text-[20px]" />
+                        </div>
+                        <span className="text-sm font-medium text-text-secondary">Disiplin</span>
                     </div>
-                    <h3 className="font-semibold text-text-main">Skor Disiplin</h3>
+                    <button
+                        onClick={handleRefreshClick}
+                        disabled={loading}
+                        className="text-text-secondary hover:text-primary disabled:opacity-50 transition-colors p-1"
+                        title="Refresh skor"
+                    >
+                        {loading ? <Spinner className="w-4 h-4" /> : <RefreshIcon className="w-4 h-4" />}
+                    </button>
                 </div>
-                <button
-                    onClick={loadScore}
-                    disabled={loading}
-                    className="text-text-secondary hover:text-primary disabled:opacity-50 transition-colors"
-                >
-                    <RefreshIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                </button>
-            </div>
+                <div className="flex items-baseline gap-1">
+                    <span className={`text-2xl font-bold ${colorClass}`}>{finalScore}</span>
+                    <span className="text-sm text-text-secondary">/ {baseScore}</span>
+                </div>
+                <ProgressBar value={finalScore} max={baseScore} color={barColor} className="mt-2" />
+            </Card>
 
-            <div className="flex items-baseline gap-2 mb-2">
-                <span className={`text-4xl font-bold ${colorClass}`}>{final_score}</span>
-                <span className="text-sm text-text-secondary">/ {base_score}</span>
-            </div>
+            {/* Detail Modal */}
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Detail Skor Disiplin">
+                {score ? (
+                    <div className="space-y-4">
+                        {/* Main Score */}
+                        <div className="text-center p-4 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100">
+                            <p className="text-sm text-text-secondary mb-1">Skor Bulan Ini</p>
+                            <div className="flex items-baseline justify-center gap-2">
+                                <span className={`text-5xl font-bold ${colorClass}`}>{score.final_score}</span>
+                                <span className="text-lg text-text-secondary">/ {score.base_score}</span>
+                            </div>
+                            <ProgressBar value={score.final_score} max={score.base_score} color={barColor} className="mt-3" height={8} />
+                        </div>
 
-            <ProgressBar value={final_score} max={base_score} color={barColor} className="mb-6" />
+                        {/* Breakdown */}
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-text-main border-b pb-2">Breakdown Pelanggaran</h4>
 
-            <div className="space-y-3 border-t border-gray-100 pt-4">
-                <div className="flex justify-between items-center text-sm">
-                    <span className="text-text-secondary">Terlambat</span>
-                    <span className={`font-medium ${late_count > 0 ? 'text-red-500' : 'text-text-main'}`}>{late_count}x</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                    <span className="text-text-secondary">Pulang Cepat</span>
-                    <span className={`font-medium ${early_leave_count > 0 ? 'text-red-500' : 'text-text-main'}`}>{early_leave_count}x</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                    <span className="text-text-secondary">Lokasi Salah</span>
-                    <span className={`font-medium ${wrong_location_count > 0 ? 'text-red-500' : 'text-text-main'}`}>{wrong_location_count}x</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                    <span className="text-text-secondary">Koreksi Absen</span>
-                    <span className={`font-medium ${correction_count > 0 ? 'text-orange-500' : 'text-text-main'}`}>{correction_count}x</span>
-                </div>
-            </div>
-        </Card>
+                            <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-slate-50">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                    <span className="text-sm text-text-main">Terlambat</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-sm font-bold ${score.late_count > 0 ? 'text-red-600' : 'text-text-main'}`}>
+                                        {score.late_count}x
+                                    </span>
+                                    <span className="text-xs text-text-secondary">(-2 poin/x)</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-slate-50">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                    <span className="text-sm text-text-main">Pulang Cepat</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-sm font-bold ${score.early_leave_count > 0 ? 'text-orange-600' : 'text-text-main'}`}>
+                                        {score.early_leave_count}x
+                                    </span>
+                                    <span className="text-xs text-text-secondary">(-2 poin/x)</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-slate-50">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                                    <span className="text-sm text-text-main">Lokasi Salah</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-sm font-bold ${score.wrong_location_count > 0 ? 'text-purple-600' : 'text-text-main'}`}>
+                                        {score.wrong_location_count}x
+                                    </span>
+                                    <span className="text-xs text-text-secondary">(-5 poin/x)</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center py-2 px-3 rounded-lg bg-slate-50">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                                    <span className="text-sm text-text-main">Koreksi Absen</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-sm font-bold ${score.correction_count > 0 ? 'text-amber-600' : 'text-text-main'}`}>
+                                        {score.correction_count}x
+                                    </span>
+                                    <span className="text-xs text-text-secondary">(-1 poin/x)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Info */}
+                        <div className="text-xs text-text-secondary bg-blue-50 p-3 rounded-lg">
+                            <p className="font-medium text-blue-700 mb-1">ℹ️ Cara Perhitungan:</p>
+                            <p>Skor dasar 100 poin, dikurangi berdasarkan pelanggaran. Skor ≥90 (Baik), 70-89 (Perlu Perhatian), &lt;70 (Kurang).</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-8 text-text-secondary">
+                        <p>Data tidak tersedia</p>
+                    </div>
+                )}
+            </Modal>
+        </>
     );
 };
 

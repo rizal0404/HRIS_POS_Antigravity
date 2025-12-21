@@ -2,8 +2,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { UserProfile, JadwalKerjaTim, Attendance, UserRole } from '../../types';
+import { UserProfile, JadwalKerjaTim, Attendance, UserRole, Workplace } from '../../types';
 import { apiService } from '../../services/apiService';
+import { disciplineService } from '../../services/discipline';
 import { APP_TIME_ZONE, formatDateKey, formatTime } from '../../lib/utils';
 import Modal from '../Modal';
 import { MapContainer, TileLayer, Marker, Circle, useMap, Popup } from 'react-leaflet';
@@ -123,6 +124,11 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
 
   // Offline queue status
   const { isOnline, pendingCount, isSyncing, syncNow } = useOfflineQueue();
+
+  // User's assigned workplace from database
+  const [assignedWorkplace, setAssignedWorkplace] = useState<Workplace | null>(null);
+  const [isOutsideAssignedWorkplace, setIsOutsideAssignedWorkplace] = useState(false);
+  const [distanceToAssigned, setDistanceToAssigned] = useState<number | null>(null);
 
   const targetWorkDateKey = useMemo(() => {
     if (actionType === 'out' && todayAttendance) {
@@ -296,9 +302,17 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     if (isOpen) {
       fetchLocation();
       const timerId = setInterval(() => setCurrentTime(new Date()), 1000);
+
+      // Fetch user's assigned workplace from database
+      if (user.workplace_id) {
+        disciplineService.getWorkplaceById(user.workplace_id)
+          .then(wp => setAssignedWorkplace(wp))
+          .catch(err => console.warn('Failed to fetch assigned workplace:', err));
+      }
+
       return () => clearInterval(timerId);
     }
-  }, [isOpen, fetchLocation]);
+  }, [isOpen, fetchLocation, user.workplace_id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -332,7 +346,22 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     } else {
       setDistance(null);
     }
-  }, [position, selectedWorkplaceDetails]);
+
+    // Check distance to user's ASSIGNED workplace (from database)
+    if (position && assignedWorkplace) {
+      const distToAssigned = getDistanceFromLatLonInM(
+        position.coords.latitude,
+        position.coords.longitude,
+        assignedWorkplace.latitude,
+        assignedWorkplace.longitude,
+      );
+      setDistanceToAssigned(distToAssigned);
+      setIsOutsideAssignedWorkplace(distToAssigned > assignedWorkplace.radius_meters);
+    } else {
+      setDistanceToAssigned(null);
+      setIsOutsideAssignedWorkplace(false);
+    }
+  }, [position, selectedWorkplaceDetails, assignedWorkplace]);
 
   const hasActiveAttendance = useMemo(
     () => !!todayAttendance && !todayAttendance.clock_out,
@@ -760,6 +789,27 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             Window clock-{actionType.toUpperCase()} : {windowLabel}
           </div>
         ) : null}
+
+        {/* Warning: Outside Assigned Workplace */}
+        {isOutsideAssignedWorkplace && assignedWorkplace && (
+          <div className="p-3 bg-orange-50 border border-orange-300 rounded-lg animate-pulse">
+            <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-orange-600 text-[20px] mt-0.5">location_off</span>
+              <div>
+                <p className="text-sm font-semibold text-orange-800">
+                  ⚠️ Anda absen di luar tempat kerja tetap
+                </p>
+                <p className="text-xs text-orange-700 mt-1">
+                  Lokasi tetap Anda: <strong>{assignedWorkplace.name}</strong> (radius {assignedWorkplace.radius_meters}m).
+                  Jarak Anda saat ini: <strong>{distanceToAssigned?.toFixed(0)}m</strong>.
+                </p>
+                <p className="text-xs text-orange-600 mt-1 italic">
+                  Absensi ini akan tercatat sebagai "lokasi salah" dan mempengaruhi skor disiplin (-5 poin).
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Validation Warning Banner */}
         {validation.level === ValidationLevel.NOTES_REQUIRED && validation.reasons.length > 0 && (

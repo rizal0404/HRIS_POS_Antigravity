@@ -51,7 +51,6 @@ const privateServiceLinks: NavLinkItem[] = [
 // Link khusus untuk atasan, sekarang termasuk 'Presensi'
 const managerLinks: NavLinkItem[] = [
     { key: 'dashboard', label: 'Dashboard Tim', icon: HomeIcon, path: '/dashboard' },
-    presensiLink, // Pindahkan presensi ke sini untuk atasan
     { key: 'persetujuan', label: 'Persetujuan Tim', icon: CheckCircleIcon, path: '/persetujuan' },
     { key: 'tim', label: 'Tim Saya', icon: UsersIcon, path: '/tim' },
     { key: 'laporan_tim', label: 'Laporan Tim', icon: DocumentReportIcon, path: '/laporan-tim' },

@@ -167,29 +167,29 @@ BEGIN
     
     -- Count late arrivals
     SELECT COUNT(*)::INTEGER INTO v_late_count
-    FROM attendances
-    WHERE attendances.profile_id = p_profile_id
-      AND EXTRACT(MONTH FROM attendances.clock_in::timestamp) = p_month
-      AND EXTRACT(YEAR FROM attendances.clock_in::timestamp) = p_year
-      AND (attendances.status = 'terlambat' OR COALESCE(attendances.late_minutes, 0) > 0);
+    FROM attendance
+    WHERE attendance.profile_id = p_profile_id
+      AND EXTRACT(MONTH FROM attendance.clock_in::timestamp) = p_month
+      AND EXTRACT(YEAR FROM attendance.clock_in::timestamp) = p_year
+      AND (attendance.status = 'terlambat' OR COALESCE(attendance.late_minutes, 0) > 0);
     
     -- Count early leaves
     SELECT COUNT(*)::INTEGER INTO v_early_leave_count
-    FROM attendances
-    WHERE attendances.profile_id = p_profile_id
-      AND EXTRACT(MONTH FROM attendances.clock_in::timestamp) = p_month
-      AND EXTRACT(YEAR FROM attendances.clock_in::timestamp) = p_year
-      AND (attendances.status = 'pulang_cepat' OR COALESCE(attendances.early_leave_minutes, 0) > 0);
+    FROM attendance
+    WHERE attendance.profile_id = p_profile_id
+      AND EXTRACT(MONTH FROM attendance.clock_in::timestamp) = p_month
+      AND EXTRACT(YEAR FROM attendance.clock_in::timestamp) = p_year
+      AND (attendance.status = 'pulang_cepat' OR COALESCE(attendance.early_leave_minutes, 0) > 0);
     
     -- Count wrong location (attendance from different workplace)
     -- Check if user has assigned workplace and calculate distance
     IF v_user_workplace.id IS NOT NULL THEN
         FOR v_attendance IN
-            SELECT * FROM attendances
-            WHERE attendances.profile_id = p_profile_id
-              AND EXTRACT(MONTH FROM attendances.clock_in::timestamp) = p_month
-              AND EXTRACT(YEAR FROM attendances.clock_in::timestamp) = p_year
-              AND attendances.clock_in_coords IS NOT NULL
+            SELECT * FROM attendance
+            WHERE attendance.profile_id = p_profile_id
+              AND EXTRACT(MONTH FROM attendance.clock_in::timestamp) = p_month
+              AND EXTRACT(YEAR FROM attendance.clock_in::timestamp) = p_year
+              AND attendance.clock_in_coords IS NOT NULL
         LOOP
             -- Calculate distance using Haversine formula (approximation)
             IF calculate_distance_meters(

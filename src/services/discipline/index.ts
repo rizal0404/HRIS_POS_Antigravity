@@ -197,6 +197,7 @@ export const disciplineService = {
      * Refresh (recalculate and save) discipline score
      */
     async refreshDisciplineScore(profileId: string, month: number, year: number): Promise<DisciplineScore | null> {
+        console.log('[DisciplineService] Calling upsert_discipline_score RPC:', { profileId, month, year });
         const { data, error } = await supabase
             .rpc('upsert_discipline_score', {
                 p_profile_id: profileId,
@@ -205,9 +206,10 @@ export const disciplineService = {
             });
 
         if (error) {
-            console.error('Error refreshing discipline score:', error);
+            console.error('[DisciplineService] RPC Error:', error);
             return null;
         }
+        console.log('[DisciplineService] RPC Success, data:', data);
         return data;
     },
 

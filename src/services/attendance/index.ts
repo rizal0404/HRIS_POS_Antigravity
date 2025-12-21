@@ -11,6 +11,7 @@ import {
 } from '../../types';
 import { buildAttendanceWindow, computeAttendanceOutcome, CORRECTION_MAX_DAYS, deriveWorkDate } from '../../lib/attendanceRules';
 import { handleSupabaseError, getAddressFromCoords } from '../helpers';
+import { disciplineService } from '../discipline';
 
 // ==== ATTENDANCE SERVICE ====
 
@@ -56,7 +57,20 @@ export const attendanceService = {
             .insert([payload])
             .select()
             .single();
-        return handleSupabaseError({ data, error }, 'submitClockIn');
+        const result = handleSupabaseError({ data, error }, 'submitClockIn');
+
+        // Trigger discipline score refresh asynchronously (fire-and-forget)
+        if (result.profile_id) {
+            const now = new Date();
+            const month = now.getMonth() + 1;
+            const year = now.getFullYear();
+            console.log('[Discipline] Triggering score refresh after clock-in:', { profile_id: result.profile_id, month, year });
+            disciplineService.refreshDisciplineScore(result.profile_id, month, year)
+                .then(score => console.log('[Discipline] Score refresh result:', score))
+                .catch(err => console.error('[Discipline] Score refresh FAILED:', err));
+        }
+
+        return result;
     },
 
     async createAttendanceForSubordinate(attendanceData: Partial<Attendance>): Promise<Attendance> {
@@ -122,14 +136,28 @@ export const attendanceService = {
         return Array.isArray(data) ? data[0] : data;
     },
 
-    async submitClockOut(attendanceId: string, clockOutData: Partial<Attendance> & { clock_out: string }): Promise<Attendance> {
+    async submitClockOut(attendanceId: string, clockOutData: Partial<Attendance> & { clock_out: string }, profileId?: string): Promise<Attendance> {
         const { data, error } = await supabase
             .from('attendance')
             .update(clockOutData)
             .eq('id', attendanceId)
             .select()
             .single();
-        return handleSupabaseError({ data, error }, 'submitClockOut');
+        const result = handleSupabaseError({ data, error }, 'submitClockOut');
+
+        // Trigger discipline score refresh asynchronously (fire-and-forget)
+        const pId = profileId || result.profile_id;
+        if (pId) {
+            const now = new Date();
+            const month = now.getMonth() + 1;
+            const year = now.getFullYear();
+            console.log('[Discipline] Triggering score refresh after clock-out:', { profile_id: pId, month, year });
+            disciplineService.refreshDisciplineScore(pId, month, year)
+                .then(score => console.log('[Discipline] Score refresh result:', score))
+                .catch(err => console.error('[Discipline] Score refresh FAILED:', err));
+        }
+
+        return result;
     },
 
     async submitClockEvent(user: UserProfile, actionType: 'in' | 'out', payload: any): Promise<Attendance> {
@@ -194,7 +222,7 @@ export const attendanceService = {
                 clock_out_address: address,
                 source: openAttendance.source || 'MANUAL',
             };
-            return this.submitClockOut(openAttendance.id, clockOutData);
+            return this.submitClockOut(openAttendance.id, clockOutData, user.id);
         }
     },
 
