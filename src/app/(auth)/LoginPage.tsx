@@ -47,7 +47,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
     }, []);
 
     return (
-        <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden font-sans max-w-md mx-auto bg-[#f6f7f8] transition-colors duration-200">
+        <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden font-sans max-w-md mx-auto bg-gradient-to-b from-blue-50 via-slate-50 to-white transition-colors duration-200">
             {/* Header / Logo Area */}
             <div className="flex flex-col items-center justify-center pt-16 pb-6 px-4">
                 <div className="w-20 h-20 rounded-2xl bg-[#308ce8]/10 flex items-center justify-center mb-6 overflow-hidden">

@@ -283,14 +283,18 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                     apiService.getProfiles(),
                     apiService.getShifts()
                 ]);
-                setAllUsers(usersData.filter(u => u.id !== user.id));
+                // Filter to show only colleagues from the same section (same manager_id)
+                const sectionColleagues = usersData.filter(u =>
+                    u.id !== user.id && u.manager_id === user.manager_id
+                );
+                setAllUsers(sectionColleagues);
                 setShifts(shiftsData);
             } catch (e) {
                 console.error("Failed to load prerequisites", e);
             }
         };
         fetchData();
-    }, [user.id]);
+    }, [user.id, user.manager_id]);
 
     // Fetch Current Shift when Date/Category changes for Substitusi
     useEffect(() => {

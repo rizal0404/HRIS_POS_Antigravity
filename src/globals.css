@@ -1,16 +1,35 @@
 @import "tailwindcss";
 
 body {
-  background-color: #f1f5f9; /* bg-slate-100 */
+  background-color: #f1f5f9;
+  /* bg-slate-100 */
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  /* Default size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
 }
 
 @media print {
   body * {
     visibility: hidden;
   }
-  #print-area, #print-area * {
+
+  #print-area,
+  #print-area * {
     visibility: visible;
   }
+
   #print-area {
     position: absolute;
     left: 0;
@@ -19,6 +38,7 @@ body {
     margin: 0;
     padding: 0;
   }
+
   @page {
     size: A4 portrait;
     margin: 15mm;
@@ -29,16 +49,20 @@ body {
   .animate-bounce-custom {
     animation: bounce 1s infinite;
   }
+
   .animate-fade-in {
     animation: fadeIn 0.5s ease-out;
   }
 }
 
 @keyframes bounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(-5%);
     animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
   }
+
   50% {
     transform: translateY(0);
     animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
@@ -46,6 +70,13 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

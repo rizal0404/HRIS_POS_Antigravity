@@ -134,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     };
 
     const sidebarContent = (
-        <div className="flex flex-col h-full bg-white/70 backdrop-blur-xl shadow-xl shadow-slate-200/50 z-10 relative">
+        <div className="flex flex-col h-full bg-white shadow-xl shadow-slate-200/50 z-10 relative">
             <button
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="lg:hidden absolute top-3 right-3 text-slate-400 hover:text-slate-600 z-50 p-1"
