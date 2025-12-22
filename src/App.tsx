@@ -13,6 +13,7 @@ import PasswordResetModal from './components/PasswordResetModal';
 import InstallPWABanner from './components/InstallPWABanner';
 import { ToastProvider } from './components/ui/Toast';
 import MobileBottomNav from './components/MobileBottomNav';
+import { useTheme } from './hooks/useTheme';
 
 // Import pages
 import AbsensiPage from './app/(app)/(bawahan)/absensiPage';
@@ -52,7 +53,7 @@ const AppLayout: React.FC<{
     const navigate = useNavigate();
 
     return (
-        <div className="relative flex h-screen bg-gray-100 font-sans">
+        <div className="relative flex h-screen bg-gray-100 dark:bg-slate-900 font-sans">
             <Sidebar
                 user={currentUser}
                 isCollapsed={isSidebarCollapsed}
@@ -77,7 +78,7 @@ const AppLayout: React.FC<{
                     allUsers={allUsers}
                     onLogout={handleLogout}
                 />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 pb-20 lg:pb-0">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 dark:bg-slate-900 pb-20 lg:pb-0">
                     <Outlet /> {/* Child routes will render here */}
                 </main>
                 <MobileBottomNav />
@@ -117,6 +118,9 @@ export default function App() {
     const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
     const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
     const navigate = useNavigate();
+
+    // Initialize theme hook at app level to apply dark class to <html>
+    useTheme();
 
     const handleNavigate = (path: string) => {
         navigate(path);
@@ -256,8 +260,8 @@ export default function App() {
 
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="text-xl font-semibold">Loading...</div>
+            <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-slate-900">
+                <div className="text-xl font-semibold text-gray-800 dark:text-slate-100">Loading...</div>
             </div>
         );
     }

@@ -145,22 +145,22 @@ const LeaveBalanceWidget: React.FC<{ user: UserProfile }> = ({ user }) => {
         fetchData();
     }, [user.id]);
 
-    if (loading) return <div className="animate-pulse h-32 bg-gray-100 rounded-xl"></div>;
+    if (loading) return <div className="animate-pulse h-32 bg-gray-100 dark:bg-slate-800 rounded-xl"></div>;
 
     return (
         <Card className="p-4">
             <div className="flex justify-between items-center mb-3">
-                <h3 className="font-bold text-gray-800 text-sm">Sisa Cuti</h3>
+                <h3 className="font-bold text-gray-800 dark:text-slate-100 text-sm">Sisa Cuti</h3>
             </div>
 
             <div className="space-y-3">
                 {balances.map((item, idx) => (
                     <div key={idx}>
                         <div className="flex justify-between text-xs mb-1">
-                            <span className="text-gray-600">{item.name}</span>
-                            <span className="font-bold text-gray-900">{item.remaining} / {item.quota}</span>
+                            <span className="text-gray-600 dark:text-slate-400">{item.name}</span>
+                            <span className="font-bold text-gray-900 dark:text-slate-100">{item.remaining} / {item.quota}</span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-1.5">
                             <div
                                 className={`h-1.5 rounded-full ${idx === 0 ? 'bg-blue-600' : 'bg-emerald-500'}`}
                                 style={{ width: `${(item.remaining / item.quota) * 100}%` }}
@@ -169,13 +169,13 @@ const LeaveBalanceWidget: React.FC<{ user: UserProfile }> = ({ user }) => {
                     </div>
                 ))}
 
-                <div className="pt-2 border-t border-gray-100">
+                <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
                     <div className="flex justify-between text-xs">
-                        <span className="text-gray-600 flex items-center gap-1">
+                        <span className="text-gray-600 dark:text-slate-400 flex items-center gap-1">
                             <span className="material-symbols-outlined text-red-500 text-[14px]">thermometer</span>
                             Izin Sakit (YTD)
                         </span>
-                        <span className="font-bold text-gray-900">{sickDays} Hari</span>
+                        <span className="font-bold text-gray-900 dark:text-slate-100">{sickDays} Hari</span>
                     </div>
                 </div>
             </div>
@@ -202,18 +202,18 @@ const RecentActivityWidget: React.FC<{ user: UserProfile }> = ({ user }) => {
         fetchRecent();
     }, [user.id]);
 
-    if (loading) return <div className="animate-pulse h-40 bg-gray-100 rounded-xl"></div>;
+    if (loading) return <div className="animate-pulse h-40 bg-gray-100 dark:bg-slate-800 rounded-xl"></div>;
 
     return (
         <Card className="p-4">
-            <h3 className="font-bold text-gray-800 text-sm mb-3">Aktivitas Terkini</h3>
+            <h3 className="font-bold text-gray-800 dark:text-slate-100 text-sm mb-3">Aktivitas Terkini</h3>
 
             <div className="space-y-3">
                 {requests.map((req) => {
-                    let statusColor = 'bg-gray-100 text-gray-400';
+                    let statusColor = 'bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-slate-500';
                     let icon = 'schedule';
-                    if (req.status === RequestStatus.APPROVED) { statusColor = 'bg-green-100 text-green-600'; icon = 'check'; }
-                    if (req.status === RequestStatus.REJECTED) { statusColor = 'bg-red-100 text-red-600'; icon = 'close'; }
+                    if (req.status === RequestStatus.APPROVED) { statusColor = 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'; icon = 'check'; }
+                    if (req.status === RequestStatus.REJECTED) { statusColor = 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'; icon = 'close'; }
 
                     return (
                         <div key={req.id} className="flex items-start gap-3">
@@ -221,23 +221,23 @@ const RecentActivityWidget: React.FC<{ user: UserProfile }> = ({ user }) => {
                                 <span className="material-symbols-outlined text-[14px] font-bold">{icon}</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-gray-800 truncate">{req.request_type}</p>
+                                <p className="text-xs font-bold text-gray-800 dark:text-slate-100 truncate">{req.request_type}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                     <Badge variant={req.status === RequestStatus.APPROVED ? 'success' : req.status === RequestStatus.REJECTED ? 'danger' : 'warning'} className="text-[9px] px-1.5 py-0.5">
                                         {req.status.toUpperCase()}
                                     </Badge>
-                                    <span className="text-[10px] text-gray-400">{formatDate(new Date(req.created_at))}</span>
+                                    <span className="text-[10px] text-gray-400 dark:text-slate-500">{formatDate(new Date(req.created_at))}</span>
                                 </div>
                             </div>
                         </div>
                     )
                 })}
-                {requests.length === 0 && <p className="text-xs text-gray-500">Belum ada aktivitas.</p>}
+                {requests.length === 0 && <p className="text-xs text-gray-500 dark:text-slate-400">Belum ada aktivitas.</p>}
             </div>
 
             <button
                 onClick={() => navigate('/riwayat')}
-                className="w-full mt-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                className="w-full mt-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
                 Lihat Semua Riwayat
             </button>
@@ -449,7 +449,7 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
 
                             {/* Category Selection - Compact Horizontal */}
                             <Card className="p-4">
-                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <h3 className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                                     <span className="material-symbols-outlined text-sm">category</span> Kategori
                                 </h3>
                                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -462,19 +462,19 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                                                 onClick={() => handleCategorySelect(cat.id)}
                                                 className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200
                                                     ${isSelected
-                                                        ? `border-blue-600 bg-blue-50`
-                                                        : 'border-transparent bg-gray-50 hover:bg-gray-100'
+                                                        ? `border-blue-600 bg-blue-50 dark:bg-blue-900/30`
+                                                        : 'border-transparent bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600'
                                                     }
                                                 `}
                                             >
                                                 <div className={`p-1.5 rounded-lg ${cat.bgLight} ${cat.textColor}`}>
                                                     <Icon className="w-4 h-4" />
                                                 </div>
-                                                <span className={`text-xs font-bold whitespace-nowrap ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                                                <span className={`text-xs font-bold whitespace-nowrap ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-600 dark:text-slate-300'}`}>
                                                     {cat.label}
                                                 </span>
                                                 {isSelected && (
-                                                    <CheckCircleIcon className="w-4 h-4 text-blue-600" />
+                                                    <CheckCircleIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                                 )}
                                             </button>
                                         );
@@ -485,11 +485,11 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                             {/* Form Card */}
                             <Card className="p-4 lg:p-6">
                                 <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-lg font-bold text-gray-900">
+                                    <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                                         Detail {selectedCategoryData?.label}
                                     </h2>
                                     {selectedCategory === RequestType.CUTI && (
-                                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-medium">Draft</span>
+                                        <span className="text-[10px] bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md font-medium">Draft</span>
                                     )}
                                 </div>
 
@@ -497,24 +497,24 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-700 mb-1.5">Tanggal Mulai</label>
+                                            <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5">Tanggal Mulai</label>
                                             <input
                                                 type="date"
                                                 value={startDate}
                                                 onChange={(e) => setStartDate(e.target.value)}
-                                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
+                                                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
                                                 required
                                             />
                                         </div>
                                         {selectedCategory !== RequestType.LEMBUR && selectedCategory !== RequestType.SUBSTITUSI && (
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-700 mb-1.5">Tanggal Selesai</label>
+                                                <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5">Tanggal Selesai</label>
                                                 <input
                                                     type="date"
                                                     value={endDate}
                                                     onChange={(e) => setEndDate(e.target.value)}
                                                     min={startDate}
-                                                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
+                                                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
                                                     required
                                                 />
                                             </div>
@@ -523,33 +523,33 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                                         {selectedCategory === RequestType.LEMBUR && (
                                             <>
                                                 <div>
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Jam Mulai</label>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5">Jam Mulai</label>
                                                     <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm" required />
+                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-sm" required />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Jam Selesai</label>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5">Jam Selesai</label>
                                                     <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm" required />
+                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-sm" required />
                                                 </div>
                                             </>
                                         )}
                                     </div>
 
                                     {selectedCategory === RequestType.SUBSTITUSI && (
-                                        <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 grid sm:grid-cols-2 gap-3">
+                                        <div className="p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 grid sm:grid-cols-2 gap-3">
                                             <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Shift Saat Ini</label>
-                                                <div className="font-semibold text-gray-800 flex items-center gap-2 h-8 text-sm">
+                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase mb-1">Shift Saat Ini</label>
+                                                <div className="font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-2 h-8 text-sm">
                                                     {isLoadingShift ? <Spinner className="w-4 h-4 text-blue-600" /> : (currentShiftCode || 'Tidak ada jadwal')}
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tukar Menjadi</label>
+                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase mb-1">Tukar Menjadi</label>
                                                 <select
                                                     value={newShiftCode}
                                                     onChange={(e) => setNewShiftCode(e.target.value)}
-                                                    className="w-full h-8 bg-white border border-gray-200 rounded-lg px-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    className="w-full h-8 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-lg px-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                                     required
                                                 >
                                                     <option value="">Pilih Shift Baru</option>
@@ -560,26 +560,26 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                                     )}
 
                                     {selectedCategory === RequestType.CUTI && (
-                                        <div className="space-y-3 pt-3 border-t border-gray-100">
-                                            <h3 className="text-xs font-bold text-gray-700">Delegasi / Pengganti (Opsional)</h3>
+                                        <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-slate-700">
+                                            <h3 className="text-xs font-bold text-gray-700 dark:text-slate-300">Delegasi / Pengganti (Opsional)</h3>
                                             <div className="grid sm:grid-cols-2 gap-3">
                                                 <div>
-                                                    <label className="block text-[10px] text-gray-500 mb-1">Pengganti Shift Pagi</label>
+                                                    <label className="block text-[10px] text-gray-500 dark:text-slate-400 mb-1">Pengganti Shift Pagi</label>
                                                     <select
                                                         value={substituteDay}
                                                         onChange={(e) => setSubstituteDay(e.target.value)}
-                                                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:bg-white focus:border-blue-400"
+                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-lg text-sm outline-none focus:bg-white dark:focus:bg-slate-700 focus:border-blue-400"
                                                     >
                                                         <option value="">-- Tidak Ada --</option>
                                                         {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] text-gray-500 mb-1">Pengganti Shift Malam</label>
+                                                    <label className="block text-[10px] text-gray-500 dark:text-slate-400 mb-1">Pengganti Shift Malam</label>
                                                     <select
                                                         value={substituteNight}
                                                         onChange={(e) => setSubstituteNight(e.target.value)}
-                                                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:bg-white focus:border-blue-400"
+                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-slate-100 rounded-lg text-sm outline-none focus:bg-white dark:focus:bg-slate-700 focus:border-blue-400"
                                                     >
                                                         <option value="">-- Tidak Ada --</option>
                                                         {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
@@ -590,7 +590,7 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                                     )}
 
                                     {selectedCategory === RequestType.CUTI && (
-                                        <div className="p-3 bg-blue-50 rounded-lg flex gap-2 text-xs text-blue-800">
+                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex gap-2 text-xs text-blue-800 dark:text-blue-300">
                                             <span className="material-symbols-outlined text-[16px]">info</span>
                                             <p>
                                                 Anda mengajukan cuti selama <span className="font-bold">
@@ -601,16 +601,16 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                                     )}
 
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-1.5 flex justify-between">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5 flex justify-between">
                                             <span>{selectedCategory === RequestType.SUBSTITUSI ? 'Keterangan Tukar Shift' : 'Alasan Pengajuan'}</span>
-                                            <span className="text-[10px] text-gray-400">Max 500</span>
+                                            <span className="text-[10px] text-gray-400 dark:text-slate-500">Max 500</span>
                                         </label>
                                         <textarea
                                             value={reason}
                                             onChange={(e) => setReason(e.target.value)}
                                             rows={3}
                                             placeholder={selectedCategory === RequestType.SUBSTITUSI ? 'Jelaskan kenapa perlu tukar shift...' : "Deskripsikan alasan pengajuan Anda..."}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none text-sm"
+                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none text-sm"
                                             maxLength={500}
                                             required={selectedCategory !== RequestType.CUTI}
                                         />
@@ -618,13 +618,13 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
 
                                     {/* Attachments Area */}
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5">
                                             Lampiran
-                                            {(selectedCategory === RequestType.SAKIT || selectedCategory === RequestType.IZIN) ? <span className="text-red-500 ml-1">* Wajib</span> : <span className="text-gray-400 ml-1">(Opsional)</span>}
+                                            {(selectedCategory === RequestType.SAKIT || selectedCategory === RequestType.IZIN) ? <span className="text-red-500 ml-1">* Wajib</span> : <span className="text-gray-400 dark:text-slate-500 ml-1">(Opsional)</span>}
                                         </label>
                                         <div className="flex gap-3">
                                             <div
-                                                className="flex-1 border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors group flex flex-col items-center justify-center gap-1"
+                                                className="flex-1 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group flex flex-col items-center justify-center gap-1"
                                                 onClick={() => fileInputRef.current?.click()}
                                             >
                                                 <input
@@ -635,16 +635,16 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                                                     accept="image/*,application/pdf"
                                                 />
                                                 <UploadIcon className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform" />
-                                                <span className="text-xs text-gray-600 font-medium">Upload</span>
+                                                <span className="text-xs text-gray-600 dark:text-slate-300 font-medium">Upload</span>
                                             </div>
 
                                             <button
                                                 type="button"
                                                 onClick={() => setIsCameraOpen(true)}
-                                                className="flex-1 border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50 transition-colors group flex flex-col items-center justify-center gap-1"
+                                                className="flex-1 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group flex flex-col items-center justify-center gap-1"
                                             >
                                                 <CameraIcon className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform" />
-                                                <span className="text-xs text-gray-600 font-medium">Foto</span>
+                                                <span className="text-xs text-gray-600 dark:text-slate-300 font-medium">Foto</span>
                                             </button>
                                         </div>
                                         {attachment && (

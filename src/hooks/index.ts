@@ -15,3 +15,4 @@ export {
 } from './useConfig';
 export { usePWA } from './usePWA';
 export { useOfflineQueue } from './useOfflineQueue';
+export { useTheme } from './useTheme';

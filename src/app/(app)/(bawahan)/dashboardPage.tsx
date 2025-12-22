@@ -335,12 +335,12 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
             {/* Page Header - More Compact */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-xl font-bold text-text-main">Hai, {user.full_name.split(' ')[0]}!</h1>
-                    <p className="text-sm text-text-secondary">Ringkasan kehadiran Anda.</p>
+                    <h1 className="text-xl font-bold text-text-main dark:text-text-main-dark">Hai, {user.full_name.split(' ')[0]}!</h1>
+                    <p className="text-sm text-text-secondary dark:text-text-secondary-dark">Ringkasan kehadiran Anda.</p>
                 </div>
             </div>
 
-            {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+            {error && <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</div>}
 
             {/* Bento Grid Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -407,13 +407,13 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                 <div className="col-span-1 lg:col-span-1 xl:col-span-2 grid grid-cols-2 gap-3">
                     <Card variant="stat" className="p-3 flex flex-col justify-center">
                         <div className="flex items-center gap-2 mb-1.5">
-                            <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-md">
+                            <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-md">
                                 <CheckCircleIcon className="text-[18px]" />
                             </div>
-                            <span className="text-xs font-medium text-text-secondary">Kehadiran</span>
+                            <span className="text-xs font-medium text-text-secondary dark:text-text-secondary-dark">Kehadiran</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.presence.toFixed(0) : '0'}%</span>
+                            <span className="text-xl font-bold text-text-main dark:text-text-main-dark">{kpiSnapshot ? kpiSnapshot.presence.toFixed(0) : '0'}%</span>
                         </div>
                         <ProgressBar value={kpiSnapshot?.presence || 0} color="bg-emerald-500" className="mt-1.5" />
                     </Card>
@@ -422,61 +422,61 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
 
                     <Card variant="stat" className="p-3 flex flex-col justify-center">
                         <div className="flex items-center gap-2 mb-1.5">
-                            <div className="p-1.5 bg-orange-50 text-orange-600 rounded-md">
+                            <div className="p-1.5 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-md">
                                 <TimeIcon className="text-[18px]" />
                             </div>
-                            <span className="text-xs font-medium text-text-secondary">Jam Kerja</span>
+                            <span className="text-xs font-medium text-text-secondary dark:text-text-secondary-dark">Jam Kerja</span>
                         </div>
-                        <span className="text-xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.workedHours.toFixed(1) : '0'}j</span>
-                        <p className="text-[10px] text-text-secondary mt-0.5">Bulan ini</p>
+                        <span className="text-xl font-bold text-text-main dark:text-text-main-dark">{kpiSnapshot ? kpiSnapshot.workedHours.toFixed(1) : '0'}j</span>
+                        <p className="text-[10px] text-text-secondary dark:text-text-secondary-dark mt-0.5">Bulan ini</p>
                     </Card>
 
                     <Card variant="stat" className="p-3 flex flex-col justify-center">
                         <div className="flex items-center gap-2 mb-1.5">
-                            <div className="p-1.5 bg-purple-50 text-purple-600 rounded-md">
+                            <div className="p-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-md">
                                 <ClockIcon className="text-[18px]" />
                             </div>
-                            <span className="text-xs font-medium text-text-secondary">Lembur</span>
+                            <span className="text-xs font-medium text-text-secondary dark:text-text-secondary-dark">Lembur</span>
                         </div>
-                        <span className="text-xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.overtimeHours.toFixed(1) : '0'}j</span>
-                        <p className="text-[10px] text-text-secondary mt-0.5">Disetujui</p>
+                        <span className="text-xl font-bold text-text-main dark:text-text-main-dark">{kpiSnapshot ? kpiSnapshot.overtimeHours.toFixed(1) : '0'}j</span>
+                        <p className="text-[10px] text-text-secondary dark:text-text-secondary-dark mt-0.5">Disetujui</p>
                     </Card>
                 </div>
 
                 {/* Recent Activity List */}
                 <div className="col-span-1 lg:col-span-2 xl:col-span-2 space-y-3">
-                    <h3 className="font-bold text-text-main text-sm">Aktivitas Terkini</h3>
+                    <h3 className="font-bold text-text-main dark:text-text-main-dark text-sm">Aktivitas Terkini</h3>
                     <div className="space-y-2">
                         {recentAttendance.map((item) => (
                             <Card key={item.dateKey} className="flex items-center justify-between p-3">
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-full ${item.statusVariant === 'success' ? 'bg-green-100 text-green-600' :
-                                        item.statusVariant === 'warning' ? 'bg-yellow-100 text-yellow-600' :
-                                            item.statusVariant === 'danger' ? 'bg-red-100 text-red-600' :
-                                                'bg-gray-100 text-gray-600'
+                                    <div className={`p-2 rounded-full ${item.statusVariant === 'success' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
+                                        item.statusVariant === 'warning' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
+                                            item.statusVariant === 'danger' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+                                                'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400'
                                         }`}>
                                         <CalendarIcon className="text-[16px]" />
                                     </div>
                                     <div>
-                                        <p className="font-bold text-text-main text-xs">
+                                        <p className="font-bold text-text-main dark:text-text-main-dark text-xs">
                                             {new Date(item.dateKey).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', weekday: 'short' })}
                                         </p>
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             <Badge variant={item.statusVariant} className="text-[9px] px-1.5 py-0">{item.status}</Badge>
-                                            <span className="text-[10px] text-text-secondary">• {item.shift}</span>
+                                            <span className="text-[10px] text-text-secondary dark:text-text-secondary-dark">• {item.shift}</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-xs font-bold text-text-main">
+                                    <p className="text-xs font-bold text-text-main dark:text-text-main-dark">
                                         {item.clockIn ? formatTime(new Date(item.clockIn), { second: undefined }) : '-'}
                                     </p>
-                                    <p className="text-[10px] text-text-secondary">Masuk</p>
+                                    <p className="text-[10px] text-text-secondary dark:text-text-secondary-dark">Masuk</p>
                                 </div>
                             </Card>
                         ))}
                         {recentAttendance.length === 0 && (
-                            <div className="text-center py-6 text-xs text-text-secondary bg-surface-light rounded-xl border border-dashed border-gray-200">
+                            <div className="text-center py-6 text-xs text-text-secondary dark:text-text-secondary-dark bg-surface-light dark:bg-surface-dark rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
                                 Belum ada aktivitas terkini
                             </div>
                         )}
@@ -486,20 +486,20 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                 {/* Recent Requests Section */}
                 <div className="col-span-1 lg:col-span-1 xl:col-span-2 space-y-3">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-text-main text-sm">Permintaan Terkini</h3>
-                        <button className="text-xs font-semibold text-primary hover:underline">Lihat Semua</button>
+                        <h3 className="font-bold text-text-main dark:text-text-main-dark text-sm">Permintaan Terkini</h3>
+                        <button className="text-xs font-semibold text-primary dark:text-primary-dark hover:underline">Lihat Semua</button>
                     </div>
                     <div className="space-y-2">
                         {recentRequests.slice(0, 3).map((req) => (
                             <Card key={req.id} className="p-3">
                                 <div className="flex justify-between items-start mb-1.5">
                                     <div className="flex items-center gap-2">
-                                        <div className="p-1 bg-blue-50 text-blue-600 rounded">
+                                        <div className="p-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded">
                                             {req.request_type === 'LEAVE' ? <BriefcaseIcon className="text-[14px]" /> :
                                                 req.request_type === 'OVERTIME' ? <ClockIcon className="text-[14px]" /> :
                                                     <DocumentAddIcon className="text-[14px]" />}
                                         </div>
-                                        <span className="text-xs font-bold text-text-main capitalize">{req.request_type.replace('_', ' ').toLowerCase()}</span>
+                                        <span className="text-xs font-bold text-text-main dark:text-text-main-dark capitalize">{req.request_type.replace('_', ' ').toLowerCase()}</span>
                                     </div>
                                     {getRequestStatusBadge(req.status)}
                                 </div>
@@ -524,18 +524,18 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                                     } catch (e) { }
 
                                     return (
-                                        <p className="text-[10px] text-text-secondary line-clamp-1 mb-1">
+                                        <p className="text-[10px] text-text-secondary dark:text-text-secondary-dark line-clamp-1 mb-1">
                                             {displayReason}
                                         </p>
                                     );
                                 })()}
-                                <p className="text-[10px] text-text-secondary font-medium">
+                                <p className="text-[10px] text-text-secondary dark:text-text-secondary-dark font-medium">
                                     {new Date(req.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                 </p>
                             </Card>
                         ))}
                         {recentRequests.length === 0 && (
-                            <div className="text-center py-6 text-xs text-text-secondary bg-surface-light rounded-xl border border-dashed border-gray-200">
+                            <div className="text-center py-6 text-xs text-text-secondary dark:text-text-secondary-dark bg-surface-light dark:bg-surface-dark rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
                                 Belum ada permintaan terkini
                             </div>
                         )}

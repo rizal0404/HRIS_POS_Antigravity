@@ -9,7 +9,7 @@ import QuotaCuti from '../../../components/laporan/QuotaCuti';
 import MonitoringPresensi from '../../../components/laporan/MonitoringPresensi';
 
 interface LaporanSayaPageProps {
-  user: UserProfile;
+    user: UserProfile;
 }
 
 type Tab = 'presensi' | 'rekap_lembur' | 'monitoring_lembur' | 'quota_cuti' | 'monitoring_presensi';
@@ -44,11 +44,11 @@ const LaporanSayaPage: React.FC<LaporanSayaPageProps> = ({ user }) => {
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex-shrink-0 bg-blue-700 text-white p-3">
+            <div className="flex-shrink-0 bg-blue-700 dark:bg-blue-900 text-white p-3">
                 <h2 className="text-xl font-bold">Laporan Saya</h2>
             </div>
 
-            <div className="flex-shrink-0 border-b border-gray-200 bg-white">
+            <div className="flex-shrink-0 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                 <nav className="-mb-px flex space-x-6 px-6 overflow-x-auto" aria-label="Tabs">
                     {tabConfig.map((tab) => (
                         <button
@@ -56,8 +56,8 @@ const LaporanSayaPage: React.FC<LaporanSayaPageProps> = ({ user }) => {
                             onClick={() => setActiveTab(tab.id)}
                             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
                                 ${activeTab === tab.id
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-slate-600'
                                 }`}
                         >
                             {tab.label}
@@ -66,7 +66,7 @@ const LaporanSayaPage: React.FC<LaporanSayaPageProps> = ({ user }) => {
                 </nav>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-100">
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-100 dark:bg-slate-900">
                 {renderContent()}
             </div>
         </div>

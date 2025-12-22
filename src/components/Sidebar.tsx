@@ -119,11 +119,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className={`w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group relative overflow-hidden ${isActive
                     ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30'
-                    : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-slate-700 hover:text-blue-700 dark:hover:text-blue-400'
                     } ${isCollapsed ? 'justify-center' : ''}`}
                 title={isCollapsed ? link.label : ''}
             >
-                <span className={`${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'} flex items-center justify-center transition-colors relative z-10`}>
+                <span className={`${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400'} flex items-center justify-center transition-colors relative z-10`}>
                     <Icon className="text-[24px]" />
                     {/* Note: Icon component now renders material-symbols-outlined which should use font-size, 
                  but if we want to force size, we can add class. The text-[24px] might be redundant if we set .material-symbols-outlined size in CSS */}
@@ -134,10 +134,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     };
 
     const sidebarContent = (
-        <div className="flex flex-col h-full bg-white shadow-xl shadow-slate-200/50 z-10 relative">
+        <div className="flex flex-col h-full bg-white dark:bg-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 z-10 relative">
             <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="lg:hidden absolute top-3 right-3 text-slate-400 hover:text-slate-600 z-50 p-1"
+                className="lg:hidden absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 z-50 p-1"
                 aria-label="Close menu"
             >
                 <XIcon className="text-2xl" />
@@ -147,8 +147,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <span className="material-symbols-outlined fill">hexagon</span>
                 </div>
                 <div className={`${isCollapsed ? 'hidden' : 'block'}`}>
-                    <h1 className="text-slate-800 text-lg font-bold leading-tight tracking-tight">HRIS Portal</h1>
-                    <p className="text-blue-600 text-xs font-bold tracking-wide uppercase">Employee Workspace</p>
+                    <h1 className="text-slate-800 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight">HRIS Portal</h1>
+                    <p className="text-blue-600 dark:text-blue-400 text-xs font-bold tracking-wide uppercase">Employee Workspace</p>
                 </div>
             </div>
             <nav className={`flex-1 px-4 py-6 overflow-y-auto overflow-x-hidden space-y-1`}>
@@ -159,7 +159,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 ) : user.role === UserRole.ADMIN ? (
                     <div className="space-y-4">
                         <div>
-                            <h3 className={`px-4 pb-2 text-xs font-bold text-text-secondary uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
+                            <h3 className={`px-4 pb-2 text-xs font-bold text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider ${isCollapsed ? 'text-center' : ''}`}>
                                 <span className={isCollapsed ? 'hidden' : 'inline'}>Menu Admin</span>
                             </h3>
                             <div className="space-y-1">
@@ -217,27 +217,27 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                 )}
             </nav>
-            <div className={`p-4 border-t border-slate-100 space-y-1`}>
+            <div className={`p-4 border-t border-slate-100 dark:border-slate-700 space-y-1`}>
                 {/* Support Link Mock */}
                 <button
-                    className={`w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-slate-500 hover:bg-blue-50 hover:text-blue-700 group ${isCollapsed ? 'justify-center' : ''}`}
+                    className={`w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-slate-500 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-slate-700 hover:text-blue-700 dark:hover:text-blue-400 group ${isCollapsed ? 'justify-center' : ''}`}
                 >
-                    <span className="material-symbols-outlined text-[24px] group-hover:text-blue-600 transition-colors">help</span>
+                    <span className="material-symbols-outlined text-[24px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">help</span>
                     <span className={`ml-3 transition-all duration-300 whitespace-nowrap overflow-hidden ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>Support</span>
                 </button>
 
                 <button
                     onClick={onLogout}
-                    className={`w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-slate-500 hover:bg-red-50 hover:text-red-600 group ${isCollapsed ? 'justify-center' : ''}`}
+                    className={`w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 group ${isCollapsed ? 'justify-center' : ''}`}
                     title={isCollapsed ? 'Logout' : ''}
                 >
-                    <LogoutIcon className="text-[24px] group-hover:text-red-600 transition-colors" />
+                    <LogoutIcon className="text-[24px] group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" />
                     <span className={`ml-3 transition-all duration-300 whitespace-nowrap overflow-hidden ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>Log Out</span>
                 </button>
 
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="hidden lg:flex items-center justify-center w-full p-2 mt-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="hidden lg:flex items-center justify-center w-full p-2 mt-2 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
                     aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 >
                     <ChevronDoubleLeftIcon className={`text-[20px] transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
@@ -250,7 +250,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <>
             {/* Mobile Overlay */}
             <div
-                className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-30 transition-opacity lg:hidden ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-30 transition-opacity lg:hidden ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 onClick={() => setIsMobileMenuOpen(false)}
                 aria-hidden="true"
             ></div>

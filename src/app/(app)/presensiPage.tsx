@@ -209,15 +209,15 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
         <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
             {/* Header */}
             <header className="flex items-center justify-between mb-2">
-                <h1 className="text-2xl font-bold text-gray-900">Absensi</h1>
-                <div className="flex items-center gap-2 bg-white rounded-xl shadow-sm border border-gray-100 p-1">
-                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Absensi</h1>
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-1">
+                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-600 dark:text-slate-300">
                         <ChevronLeftIcon className="w-5 h-5" />
                     </button>
-                    <span className="text-sm font-semibold min-w-[100px] text-center">
+                    <span className="text-sm font-semibold min-w-[100px] text-center text-gray-900 dark:text-slate-100">
                         {currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
                     </span>
-                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600">
+                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-600 dark:text-slate-300">
                         <ChevronRightIcon className="w-5 h-5" />
                     </button>
                 </div>
@@ -229,11 +229,11 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
                     <Spinner />
                 </div>
             ) : error ? (
-                <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 text-center">
+                <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-800 text-center">
                     {error}
                 </div>
             ) : attendanceData.length === 0 ? (
-                <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                <div className="text-center py-12 text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 rounded-2xl border border-dashed border-gray-200 dark:border-slate-700">
                     Belum ada data absensi bulan ini.
                 </div>
             ) : (
@@ -254,7 +254,7 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
                             <Card key={att.id} className="p-5 flex flex-col gap-4">
                                 {/* Header: Date & Badge */}
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-gray-800 font-bold">
+                                    <div className="flex items-center gap-2 text-gray-800 dark:text-slate-100 font-bold">
                                         <CalendarIcon className="w-5 h-5 opacity-60" />
                                         <span>
                                             {dateObj.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
@@ -266,36 +266,36 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
                                 {/* Times */}
                                 <div className="flex items-center justify-between px-2">
                                     <div className="flex flex-col">
-                                        <span className="text-xs text-gray-500 mb-1">Masuk</span>
-                                        <span className="text-2xl font-bold text-gray-900">
+                                        <span className="text-xs text-gray-500 dark:text-slate-400 mb-1">Masuk</span>
+                                        <span className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                                             {formatTime(dateObj, { second: undefined })}
                                         </span>
                                     </div>
 
-                                    <div className="flex items-center text-gray-400">
-                                        <div className="h-[2px] w-8 bg-gray-200" />
+                                    <div className="flex items-center text-gray-400 dark:text-slate-500">
+                                        <div className="h-[2px] w-8 bg-gray-200 dark:bg-slate-600" />
                                         <ChevronRightIcon className="w-5 h-5 -ml-1" />
                                     </div>
 
                                     <div className="flex flex-col text-right">
-                                        <span className="text-xs text-gray-500 mb-1">Pulang</span>
-                                        <span className="text-2xl font-bold text-gray-900">
+                                        <span className="text-xs text-gray-500 dark:text-slate-400 mb-1">Pulang</span>
+                                        <span className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                                             {att.clock_out ? formatTime(new Date(att.clock_out), { second: undefined }) : '—'}
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Divider */}
-                                <div className="h-px bg-gray-100" />
+                                <div className="h-px bg-gray-100 dark:bg-slate-700" />
 
                                 {/* Details: Duration & Location */}
                                 <div className="space-y-3">
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
                                         <ClockIcon className="w-4 h-4 opacity-70" />
                                         <span>{formatDuration(duration)}</span>
                                     </div>
                                     {att.lokasi_kerja && (
-                                        <div className="flex items-start gap-2 text-sm text-gray-600">
+                                        <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-slate-300">
                                             <LocationIcon className="w-4 h-4 opacity-70 mt-0.5 flex-shrink-0" />
                                             <span className="line-clamp-2 leading-relaxed">
                                                 {att.lokasi_kerja}
@@ -308,7 +308,7 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
                                 {isEligibleForCorrection && (
                                     <button
                                         onClick={() => handleOpenKoreksiModal(att)}
-                                        className="mt-2 w-full py-2.5 rounded-xl bg-yellow-50 text-yellow-700 font-semibold text-sm hover:bg-yellow-100 transition-colors flex items-center justify-center gap-2"
+                                        className="mt-2 w-full py-2.5 rounded-xl bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 font-semibold text-sm hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors flex items-center justify-center gap-2"
                                     >
                                         <PencilIcon className="w-4 h-4" />
                                         Ajukan Koreksi

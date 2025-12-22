@@ -1,7 +1,32 @@
 @import "tailwindcss";
 
+/* CSS Custom Properties for Theme */
+:root {
+  --color-background: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-text-main: #111318;
+  --color-text-secondary: #616f89;
+  --color-border: #f0f2f4;
+  --color-primary: #135bec;
+  --color-primary-hover: #1d4ed8;
+}
+
+.dark {
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-elevated: #334155;
+  --color-text-main: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-border: #334155;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+}
+
 body {
-  background-color: #f1f5f9;
+  background-color: var(--color-background);
+  color: var(--color-text-main);
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
   /* bg-slate-100 */
 }
 

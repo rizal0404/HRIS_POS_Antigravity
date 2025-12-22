@@ -47,10 +47,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
     }, []);
 
     return (
-        <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden font-sans max-w-md mx-auto bg-gradient-to-b from-blue-50 via-slate-50 to-white transition-colors duration-200">
+        <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden font-sans max-w-md mx-auto bg-gradient-to-b from-blue-50 via-slate-50 to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 transition-colors duration-200">
             {/* Header / Logo Area */}
             <div className="flex flex-col items-center justify-center pt-16 pb-6 px-4">
-                <div className="w-20 h-20 rounded-2xl bg-[#308ce8]/10 flex items-center justify-center mb-6 overflow-hidden">
+                <div className="w-20 h-20 rounded-2xl bg-[#308ce8]/10 dark:bg-blue-500/20 flex items-center justify-center mb-6 overflow-hidden">
                     <img
                         src={logoUrl}
                         alt="HRIS logo"
@@ -58,11 +58,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
                     />
                 </div>
                 {/* Headline Text */}
-                <h1 className="text-[#111418] tracking-tight text-[32px] font-bold leading-tight text-center">
+                <h1 className="text-[#111418] dark:text-slate-100 tracking-tight text-[32px] font-bold leading-tight text-center">
                     Selamat Datang
                 </h1>
                 {/* Body Text */}
-                <p className="text-[#637588] text-base font-normal leading-normal pt-2 text-center max-w-[280px]">
+                <p className="text-[#637588] dark:text-slate-400 text-base font-normal leading-normal pt-2 text-center max-w-[280px]">
                     Masuk ke akun karyawan untuk mengelola jadwal dan laporan Anda
                 </p>
             </div>
@@ -71,13 +71,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
             <form onSubmit={handleSubmit} className="flex flex-col px-6 gap-5 w-full">
                 {/* Info Message */}
                 {infoMessage && (
-                    <div className="bg-blue-50 border border-blue-200 text-[#111418] rounded-xl px-4 py-3 flex justify-between items-start">
+                    <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-[#111418] dark:text-slate-100 rounded-xl px-4 py-3 flex justify-between items-start">
                         <div className="pr-4 text-sm">{infoMessage}</div>
                         {onClearInfo && (
                             <button
                                 type="button"
                                 onClick={onClearInfo}
-                                className="text-sm font-semibold text-[#308ce8] hover:text-blue-600"
+                                className="text-sm font-semibold text-[#308ce8] dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300"
                             >
                                 Tutup
                             </button>
@@ -87,14 +87,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
 
                 {/* Error Message */}
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                    <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl px-4 py-3 text-sm">
                         {error}
                     </div>
                 )}
 
                 {/* Email Field */}
                 <label className="flex flex-col w-full">
-                    <p className="text-[#111418] text-sm font-medium leading-normal pb-2">
+                    <p className="text-[#111418] dark:text-slate-100 text-sm font-medium leading-normal pb-2">
                         Email atau ID Karyawan
                     </p>
                     <div className="relative">
@@ -102,12 +102,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
                             type="text"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#111418] focus:outline-none focus:ring-2 focus:ring-[#308ce8] border border-[#dce0e5] bg-white focus:border-[#308ce8] h-14 placeholder:text-[#9eaebc] p-[15px] pr-12 text-base font-normal leading-normal transition-all"
+                            className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#111418] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#308ce8] border border-[#dce0e5] dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-[#308ce8] h-14 placeholder:text-[#9eaebc] dark:placeholder:text-slate-500 p-[15px] pr-12 text-base font-normal leading-normal transition-all"
                             placeholder="nama@perusahaan.com"
                             required
                             autoComplete="email"
                         />
-                        <div className="absolute right-4 top-0 bottom-0 flex items-center justify-center pointer-events-none text-[#637588]">
+                        <div className="absolute right-4 top-0 bottom-0 flex items-center justify-center pointer-events-none text-[#637588] dark:text-slate-500">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                             </svg>
@@ -117,7 +117,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
 
                 {/* Password Field */}
                 <label className="flex flex-col w-full">
-                    <p className="text-[#111418] text-sm font-medium leading-normal pb-2">
+                    <p className="text-[#111418] dark:text-slate-100 text-sm font-medium leading-normal pb-2">
                         Kata Sandi
                     </p>
                     <div className="relative">
@@ -125,7 +125,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
                             type={showPassword ? "text" : "password"}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#111418] focus:outline-none focus:ring-2 focus:ring-[#308ce8] border border-[#dce0e5] bg-white focus:border-[#308ce8] h-14 placeholder:text-[#9eaebc] p-[15px] pr-12 text-base font-normal leading-normal transition-all"
+                            className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#111418] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#308ce8] border border-[#dce0e5] dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-[#308ce8] h-14 placeholder:text-[#9eaebc] dark:placeholder:text-slate-500 p-[15px] pr-12 text-base font-normal leading-normal transition-all"
                             placeholder="••••••••"
                             required
                             autoComplete="current-password"
@@ -133,7 +133,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-0 bottom-0 flex items-center justify-center text-[#637588] hover:text-[#308ce8] transition-colors"
+                            className="absolute right-4 top-0 bottom-0 flex items-center justify-center text-[#637588] dark:text-slate-500 hover:text-[#308ce8] dark:hover:text-blue-400 transition-colors"
                         >
                             {showPassword ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
@@ -154,7 +154,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
                     <button
                         type="button"
                         onClick={onShowResetPassword}
-                        className="text-sm font-medium text-[#308ce8] hover:text-blue-600 transition-colors"
+                        className="text-sm font-medium text-[#308ce8] dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
                     >
                         Lupa Kata Sandi?
                     </button>
@@ -166,9 +166,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        className="h-5 w-5 rounded border-[#dce0e5] text-[#308ce8] focus:ring-[#308ce8] cursor-pointer"
+                        className="h-5 w-5 rounded border-[#dce0e5] dark:border-slate-600 text-[#308ce8] focus:ring-[#308ce8] cursor-pointer bg-white dark:bg-slate-800"
                     />
-                    <span className="text-sm text-[#111418] font-medium">Tetap masuk</span>
+                    <span className="text-sm text-[#111418] dark:text-slate-100 font-medium">Tetap masuk</span>
                 </label>
 
                 {/* Login Button */}
@@ -183,18 +183,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
 
                 {/* Biometric Login Divider */}
                 <div className="relative py-4 flex items-center">
-                    <div className="flex-grow border-t border-[#dce0e5]"></div>
-                    <span className="flex-shrink-0 mx-4 text-xs font-medium text-[#637588]">ATAU MASUK DENGAN</span>
-                    <div className="flex-grow border-t border-[#dce0e5]"></div>
+                    <div className="flex-grow border-t border-[#dce0e5] dark:border-slate-600"></div>
+                    <span className="flex-shrink-0 mx-4 text-xs font-medium text-[#637588] dark:text-slate-500">ATAU MASUK DENGAN</span>
+                    <div className="flex-grow border-t border-[#dce0e5] dark:border-slate-600"></div>
                 </div>
 
                 {/* Biometric Button */}
                 <div className="flex justify-center pb-6">
                     <button
                         type="button"
-                        className="flex items-center justify-center w-14 h-14 rounded-full bg-white border border-[#dce0e5] shadow-sm hover:bg-gray-50 transition-colors group"
+                        className="flex items-center justify-center w-14 h-14 rounded-full bg-white dark:bg-slate-800 border border-[#dce0e5] dark:border-slate-600 shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7 text-[#111418] group-hover:text-[#308ce8] transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7 text-[#111418] dark:text-slate-100 group-hover:text-[#308ce8] dark:group-hover:text-blue-400 transition-colors">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
                         </svg>
                     </button>
@@ -203,13 +203,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
 
             {/* Footer / Version Info */}
             <div className="mt-auto pb-8 text-center">
-                <p className="text-xs text-[#637588]">
+                <p className="text-xs text-[#637588] dark:text-slate-500">
                     HRIS Mobile v2.4.0
                 </p>
                 <div className="mt-2 flex justify-center gap-4">
-                    <a href="#" className="text-xs text-[#637588] hover:text-[#308ce8] transition-colors">Pusat Bantuan</a>
-                    <span className="text-xs text-[#dce0e5]">•</span>
-                    <a href="#" className="text-xs text-[#637588] hover:text-[#308ce8] transition-colors">Kebijakan Privasi</a>
+                    <a href="#" className="text-xs text-[#637588] dark:text-slate-500 hover:text-[#308ce8] dark:hover:text-blue-400 transition-colors">Pusat Bantuan</a>
+                    <span className="text-xs text-[#dce0e5] dark:text-slate-700">•</span>
+                    <a href="#" className="text-xs text-[#637588] dark:text-slate-500 hover:text-[#308ce8] dark:hover:text-blue-400 transition-colors">Kebijakan Privasi</a>
                 </div>
             </div>
 

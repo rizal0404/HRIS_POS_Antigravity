@@ -31,15 +31,15 @@ const DigitalClock = ({ time }: { time: Date }) => {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-800 font-bold text-3xl shadow-sm min-w-[3.5rem] text-center">
+      <div className="bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-800 dark:text-slate-100 font-bold text-3xl shadow-sm min-w-[3.5rem] text-center">
         {time.getHours().toString().padStart(2, '0')}
       </div>
-      <span className="text-2xl font-bold text-slate-600">:</span>
-      <div className="bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-800 font-bold text-3xl shadow-sm min-w-[3.5rem] text-center">
+      <span className="text-2xl font-bold text-slate-600 dark:text-slate-400">:</span>
+      <div className="bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-800 dark:text-slate-100 font-bold text-3xl shadow-sm min-w-[3.5rem] text-center">
         {time.getMinutes().toString().padStart(2, '0')}
       </div>
-      <span className="text-2xl font-bold text-slate-600">:</span>
-      <div className="bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-500 font-bold text-2xl shadow-sm min-w-[3rem] text-center">
+      <span className="text-2xl font-bold text-slate-600 dark:text-slate-400">:</span>
+      <div className="bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm px-3 py-2 rounded-lg text-slate-500 dark:text-slate-300 font-bold text-2xl shadow-sm min-w-[3rem] text-center">
         {time.getSeconds().toString().padStart(2, '0')}
       </div>
     </div>
@@ -47,16 +47,16 @@ const DigitalClock = ({ time }: { time: Date }) => {
 };
 
 const StatCard = ({ icon: Icon, label, value, subtext, color = "blue" }: any) => (
-  <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between h-full hover:shadow-md transition-shadow">
+  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col justify-between h-full hover:shadow-md transition-shadow">
     <div className="flex items-start justify-between mb-2">
-      <div className={`p-2 rounded-lg bg-${color}-50 text-${color}-600`}>
+      <div className={`p-2 rounded-lg bg-${color}-50 dark:bg-${color}-900/30 text-${color}-600 dark:text-${color}-400`}>
         <Icon className="text-[20px]" />
       </div>
-      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+      <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</span>
     </div>
     <div>
-      <div className="text-lg font-bold text-slate-800">{value}</div>
-      <div className="text-xs text-slate-500 font-medium">{subtext}</div>
+      <div className="text-lg font-bold text-slate-800 dark:text-slate-100">{value}</div>
+      <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">{subtext}</div>
     </div>
   </div>
 );
@@ -311,22 +311,22 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                   <span className="text-white text-2xl font-bold">{user.full_name.charAt(0).toUpperCase()}</span>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+                  <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
                     Absensi Karyawan
                   </h1>
-                  <p className="text-slate-500 text-sm mt-0.5 flex items-center gap-2">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5 flex items-center gap-2">
                     <span className="font-medium">{user.full_name}</span>
-                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-300 dark:text-slate-600">•</span>
                     <span>{user.position || 'Staff'}</span>
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${status === AttendanceStatus.CLOCKED_IN
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                   : status === AttendanceStatus.CLOCKED_OUT
-                    ? 'bg-slate-100 text-slate-600 border border-slate-200'
-                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'
+                    : 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
                   }`}>
                   <span className={`w-2 h-2 rounded-full ${status === AttendanceStatus.CLOCKED_IN ? 'bg-emerald-500 animate-pulse' :
                     status === AttendanceStatus.CLOCKED_OUT ? 'bg-slate-400' : 'bg-amber-500'
@@ -335,10 +335,10 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                     status === AttendanceStatus.CLOCKED_OUT ? 'Sudah Pulang' : 'Belum Absen'}
                 </div>
                 <div className="text-right hidden md:block">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                     {currentTime.toLocaleDateString('id-ID', { weekday: 'long' })}
                   </p>
-                  <p className="text-lg font-bold text-slate-800">
+                  <p className="text-lg font-bold text-slate-800 dark:text-slate-100">
                     {currentTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 </div>
@@ -466,12 +466,12 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
             </Card>
 
             {/* Activity History */}
-            <Card className="p-0 overflow-hidden border border-slate-100 shadow-lg">
-              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 className="font-bold text-slate-800">Riwayat Aktivitas</h3>
+            <Card className="p-0 overflow-hidden border border-slate-100 dark:border-slate-700 shadow-lg">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                <h3 className="font-bold text-slate-800 dark:text-slate-100">Riwayat Aktivitas</h3>
                 <button
                   onClick={() => navigate('/presensi')}
-                  className="text-blue-600 text-sm font-semibold hover:underline"
+                  className="text-blue-600 dark:text-blue-400 text-sm font-semibold hover:underline"
                 >
                   Lihat Semua
                 </button>
@@ -479,28 +479,28 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
               <div className="p-0">
                 <div className="relative">
                   {/* Vertical Line */}
-                  <div className="absolute top-0 bottom-0 left-8 w-px bg-slate-200"></div>
+                  <div className="absolute top-0 bottom-0 left-8 w-px bg-slate-200 dark:bg-slate-700"></div>
 
                   {/* Timeline Items */}
                   <ul className="py-2">
                     {recentActivities.length > 0 ? recentActivities.map((act, idx) => (
-                      <li key={idx} className="relative pl-16 pr-6 py-4 hover:bg-slate-50 transition-colors group cursor-default">
-                        <div className={`absolute left-[29px] top-6 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10 ${act.title.includes('In') ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                      <li key={idx} className="relative pl-16 pr-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group cursor-default">
+                        <div className={`absolute left-[29px] top-6 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-800 shadow-sm z-10 ${act.title.includes('In') ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="text-xs text-slate-400 font-semibold mb-0.5">{act.date}</p>
-                            <p className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{act.title}</p>
-                            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                            <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mb-0.5">{act.date}</p>
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{act.title}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
                               <span className="material-symbols-outlined text-[14px]">location_on</span>
                               {act.location}
                             </p>
 
                           </div>
-                          <div className="bg-slate-100 px-2 py-1 rounded-md text-xs font-bold text-slate-600 group-hover:bg-white group-hover:shadow-sm transition-all">{act.time}</div>
+                          <div className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md text-xs font-bold text-slate-600 dark:text-slate-300 group-hover:bg-white dark:group-hover:bg-slate-600 group-hover:shadow-sm transition-all">{act.time}</div>
                         </div>
                       </li>
                     )) : (
-                      <li className="p-6 text-center text-slate-400 text-sm">Belum ada aktivitas baru.</li>
+                      <li className="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Belum ada aktivitas baru.</li>
                     )}
                   </ul>
                 </div>
