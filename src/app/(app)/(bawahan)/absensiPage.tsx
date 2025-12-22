@@ -313,19 +313,44 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
           {/* Left Column (Main) */}
           <div className="lg:col-span-8 space-y-6">
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 animate-fade-in">
-              <div>
-                <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
-                  Halo, {user.full_name.split(' ')[0]}! <span className="animate-bounce-custom inline-block">👋</span>
-                </h1>
-                <p className="text-slate-500 mt-2 text-lg">Siap untuk bekerja hari ini? Jangan lupa clock-in.</p>
+            {/* Professional Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                  <span className="text-white text-2xl font-bold">{user.full_name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+                    Absensi Karyawan
+                  </h1>
+                  <p className="text-slate-500 text-sm mt-0.5 flex items-center gap-2">
+                    <span className="font-medium">{user.full_name}</span>
+                    <span className="text-slate-300">•</span>
+                    <span>{user.position || 'Staff'}</span>
+                  </p>
+                </div>
               </div>
-              <div className="text-right hidden md:block">
-                <p className="text-xs font-bold text-slate-400 tracking-wider uppercase">HARI INI</p>
-                <p className="text-xl font-bold text-slate-700">
-                  {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
+              <div className="flex items-center gap-4">
+                <div className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${status === AttendanceStatus.CLOCKED_IN
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : status === AttendanceStatus.CLOCKED_OUT
+                      ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                  <span className={`w-2 h-2 rounded-full ${status === AttendanceStatus.CLOCKED_IN ? 'bg-emerald-500 animate-pulse' :
+                      status === AttendanceStatus.CLOCKED_OUT ? 'bg-slate-400' : 'bg-amber-500'
+                    }`}></span>
+                  {status === AttendanceStatus.CLOCKED_IN ? 'Sedang Bekerja' :
+                    status === AttendanceStatus.CLOCKED_OUT ? 'Sudah Pulang' : 'Belum Absen'}
+                </div>
+                <div className="text-right hidden md:block">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    {currentTime.toLocaleDateString('id-ID', { weekday: 'long' })}
+                  </p>
+                  <p className="text-lg font-bold text-slate-800">
+                    {currentTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
               </div>
             </div>
 
