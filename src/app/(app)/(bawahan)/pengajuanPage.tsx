@@ -23,6 +23,7 @@ import { supabase } from '../../../services/supabase';
 import { useNavigate } from 'react-router-dom';
 import CameraCapture from '@/components/ui/CameraCapture';
 import { useToast } from '@/components/ui/Toast';
+import ReviewAjuanModal from '@/components/modals/ReviewAjuanModal';
 
 interface PengajuanPageProps {
     user: UserProfile;
@@ -274,6 +275,7 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
     const [currentShiftCode, setCurrentShiftCode] = useState('');
     const [newShiftCode, setNewShiftCode] = useState('');
     const [isLoadingShift, setIsLoadingShift] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
 
     useEffect(() => {
         // Fetch users for sub select and shifts for swap
@@ -337,16 +339,20 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
         setIsCameraOpen(false);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleOpenReview = (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
 
         // Validation
         if ((selectedCategory === RequestType.SAKIT || selectedCategory === RequestType.IZIN) && !attachment) {
             showToast('error', 'Wajib melampirkan bukti/surat keterangan (foto/dokumen).');
-            setIsLoading(false);
             return;
         }
+
+        setShowReviewModal(true);
+    };
+
+    const handleSubmit = async () => {
+        setIsLoading(true);
 
         try {
             let attachmentUrl = undefined;
@@ -413,6 +419,7 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
             showToast('success', 'Pengajuan berhasil dikirim ke atasan!');
             setReason('');
             setAttachment(null);
+            setShowReviewModal(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
 
         } catch (err: any) {
@@ -486,7 +493,7 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                                     )}
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-4">
+                                <form onSubmit={handleOpenReview} className="space-y-4">
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
@@ -698,6 +705,24 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
                 </div>
             </div>
             {isCameraOpen && <CameraCapture onCapture={handleCapture} onClose={() => setIsCameraOpen(false)} />}
+            <ReviewAjuanModal
+                isOpen={showReviewModal}
+                onClose={() => setShowReviewModal(false)}
+                onConfirm={handleSubmit}
+                isSubmitting={isLoading}
+                requestType={selectedCategory}
+                startDate={startDate}
+                endDate={endDate}
+                reason={reason}
+                attachment={attachment}
+                startTime={startTime}
+                endTime={endTime}
+                currentShiftCode={currentShiftCode}
+                newShiftCode={newShiftCode}
+                substituteDay={substituteDay}
+                substituteNight={substituteNight}
+                allUsers={allUsers}
+            />
         </div>
     );
 };

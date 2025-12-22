@@ -86,7 +86,7 @@ const CameraCapture: React.FC<{ onCapture: (file: File) => void; onClose: () => 
     };
 
     return (
-        <div className="fixed inset-0 bg-black z-[60] flex flex-col justify-center items-center p-2">
+        <div className="fixed inset-0 bg-black z-[70] flex flex-col justify-center items-center p-2">
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain max-h-[85%]" />
             <canvas ref={canvasRef} className="hidden" />
             {error && <div className="absolute top-4 bg-red-500 text-white p-3 rounded-md">{error}</div>}
@@ -191,7 +191,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
         (correctionType === 'wrong_time' && !!newClockOut);
 
     return (
-        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-md z-50 flex justify-center items-center p-4">
+        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-md z-[60] flex justify-center items-center p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl transform transition-all">
                 <div className="flex justify-between items-center p-4 border-b">
                     <h3 className="text-xl font-semibold text-gray-800">Pembetulan Presensi</h3>
@@ -316,7 +316,7 @@ const KoreksiAbsensiModal: React.FC<KoreksiAbsensiModalProps> = ({ isOpen, onClo
             </div>
             {isCameraOpen && <CameraCapture onCapture={handleCapture} onClose={() => setIsCameraOpen(false)} />}
             {showReview && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black bg-opacity-60 z-[80] flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg">
                         <div className="flex justify-between items-center p-4 border-b">
                             <h4 className="text-lg font-semibold text-gray-800">Kirim Pembetulan ke Atasan?</h4>
