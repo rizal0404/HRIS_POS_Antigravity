@@ -20,7 +20,6 @@ import ProgressBar from '../../../components/ui/ProgressBar'; // Reusable compon
 import Spinner from '@/components/ui/Spinner';
 import { findNearestWorkplace } from '../../../lib/location';
 import { useNavigate } from 'react-router-dom';
-import { usePageVisibility } from '../../../hooks/usePageVisibility';
 
 
 // --- Helper Components ---
@@ -95,27 +94,14 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const [weeklyHours, setWeeklyHours] = useState<number>(0);
   const [targetHours, setTargetHours] = useState<number>(40);
 
-  // Page Visibility - pause timers when page is hidden (prevents mobile glitches)
-  const { isVisible, wasHidden } = usePageVisibility();
 
-  // Visibility-aware clock timer - only runs when page is visible
+
+
+  // Start clock
   useEffect(() => {
-    if (!isVisible) return; // Don't run timer when page is hidden
-
-    // Immediately sync time when becoming visible again
-    setCurrentTime(new Date());
-
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  }, [isVisible]);
-
-  // Refresh data when page becomes visible again (after screen lock/dim)
-  useEffect(() => {
-    if (wasHidden && isVisible) {
-      // Refresh attendance status when returning from background
-      checkAttendanceStatus();
-    }
-  }, [wasHidden, isVisible]);
+  }, []);
 
   // Fetch Position once on mount for the map center
   useEffect(() => {

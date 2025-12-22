@@ -12,7 +12,6 @@ import L from 'leaflet';
 import { buildAttendanceWindow } from '../../lib/attendanceRules';
 import { offlineQueue } from '../../lib/offlineQueue';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
-import { usePageVisibility } from '../../hooks/usePageVisibility';
 
 // Fix for default marker icon in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -66,22 +65,11 @@ type ValidationResult = {
 
 
 // Component to adjust map view dynamically
-const ChangeView: React.FC<{ userPos: [number, number] | null; workplacePos: [number, number] | null; shouldRefresh?: boolean }> = ({
+const ChangeView: React.FC<{ userPos: [number, number] | null; workplacePos: [number, number] | null }> = ({
   userPos,
   workplacePos,
-  shouldRefresh,
 }) => {
   const map = useMap();
-
-  // Invalidate map size when visibility changes (fixes mobile glitches)
-  useEffect(() => {
-    if (shouldRefresh) {
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 100);
-    }
-  }, [shouldRefresh, map]);
-
   useEffect(() => {
     if (userPos && workplacePos) {
       const bounds = L.latLngBounds([userPos, workplacePos]);
@@ -310,12 +298,10 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     collectSample(0);
   }, []);
 
-  // Page Visibility - handle mobile browser background/foreground transitions
-  const { isVisible, wasHidden } = usePageVisibility();
-
   useEffect(() => {
     if (isOpen) {
       fetchLocation();
+      const timerId = setInterval(() => setCurrentTime(new Date()), 1000);
 
       // Fetch user's assigned workplace from database
       if (user.workplace_id) {
@@ -323,26 +309,10 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           .then(wp => setAssignedWorkplace(wp))
           .catch(err => console.warn('Failed to fetch assigned workplace:', err));
       }
+
+      return () => clearInterval(timerId);
     }
   }, [isOpen, fetchLocation, user.workplace_id]);
-
-  // Visibility-aware timer - pauses when page is hidden to prevent glitches
-  useEffect(() => {
-    if (!isOpen || !isVisible) return;
-
-    // Immediately sync time when becoming visible
-    setCurrentTime(new Date());
-
-    const timerId = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timerId);
-  }, [isOpen, isVisible]);
-
-  // Refresh location when page becomes visible again (after screen lock)
-  useEffect(() => {
-    if (isOpen && wasHidden && isVisible) {
-      fetchLocation();
-    }
-  }, [isOpen, wasHidden, isVisible, fetchLocation]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -778,7 +748,6 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
               <ChangeView
                 userPos={position ? [position.coords.latitude, position.coords.longitude] : null}
                 workplacePos={selectedWorkplaceDetails ? [selectedWorkplaceDetails.lat, selectedWorkplaceDetails.lon] : null}
-                shouldRefresh={wasHidden}
               />
               <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
               {position && (
