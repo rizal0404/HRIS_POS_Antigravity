@@ -1,17 +1,20 @@
-
 @import "tailwindcss";
 
 body {
-    background-color: #f1f5f9; /* bg-slate-100 */
+  background-color: #f1f5f9;
+  /* bg-slate-100 */
 }
 
 @media print {
   body * {
     visibility: hidden;
   }
-  #print-area, #print-area * {
+
+  #print-area,
+  #print-area * {
     visibility: visible;
   }
+
   #print-area {
     position: absolute;
     left: 0;
@@ -20,8 +23,15 @@ body {
     margin: 0;
     padding: 0;
   }
+
   @page {
     size: A4 portrait;
     margin: 15mm;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

@@ -12,6 +12,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import PasswordResetModal from './components/PasswordResetModal';
 import InstallPWABanner from './components/InstallPWABanner';
 import { ToastProvider } from './components/ui/Toast';
+import MobileBottomNav from './components/MobileBottomNav';
 
 // Import pages
 import AbsensiPage from './app/(app)/(bawahan)/absensiPage';
@@ -76,9 +77,10 @@ const AppLayout: React.FC<{
                     allUsers={allUsers}
                     onLogout={handleLogout}
                 />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 pb-20 lg:pb-0">
                     <Outlet /> {/* Child routes will render here */}
                 </main>
+                <MobileBottomNav />
             </div>
         </div>
     );

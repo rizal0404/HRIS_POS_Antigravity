@@ -51,3 +51,5 @@ export const RefreshIcon = ({ className }: IconProps) => <MaterialIcon name="ref
 export const LockClosedIcon = ({ className }: IconProps) => <MaterialIcon name="lock" className={className} />;
 export const InformationCircleIcon = ({ className }: IconProps) => <MaterialIcon name="info" className={className} />;
 export const ExclamationCircleIcon = ({ className }: IconProps) => <MaterialIcon name="error" className={className} />;
+export const UserIcon = ({ className }: IconProps) => <MaterialIcon name="person" className={className} />;
+export const QrCodeIcon = ({ className }: IconProps) => <MaterialIcon name="qr_code_scanner" className={className} />;
