@@ -90,9 +90,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   // Simple activity history state
   const [recentActivities, setRecentActivities] = useState<{ title: string, date: string, time: string, status: string, location: string }[]>([]);
   const [currentWorkplace, setCurrentWorkplace] = useState<string>('Mencari...');
-  // Weekly hours tracking
-  const [weeklyHours, setWeeklyHours] = useState<number>(0);
-  const [targetHours, setTargetHours] = useState<number>(40);
+  // Monthly hours tracking
+  const [monthlyHours, setMonthlyHours] = useState<number>(0);
+  const [targetHours, setTargetHours] = useState<number>(173);
 
 
 
@@ -124,15 +124,11 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
       const startDate = formatDateKey(new Date(today.getFullYear(), today.getMonth(), 1));
       const endDate = formatDateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
-      // Calculate week boundaries (Monday to Sunday)
-      const dayOfWeek = today.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() + mondayOffset);
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
+      // Calculate month boundaries
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      monthStart.setHours(0, 0, 0, 0);
+      const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      monthEnd.setHours(23, 59, 59, 999);
 
       const [attendance, approvedLeaves, scheduleData, historyData, overtimeConfig] = await Promise.all([
         apiService.getActiveAttendance(user.id),
@@ -142,30 +138,25 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
         apiService.getOvertimeConfiguration(),
       ]);
 
-      // Set target hours from overtime config
-      if (overtimeConfig) {
-        // Use weekly target (40 hours is typical, or calculate from monthly)
-        const monthlyMax = user.default_shift
-          ? overtimeConfig.max_hours_per_month_shift
-          : overtimeConfig.max_hours_per_month_non_shift;
-        // Approximate weekly target = monthly / 4
-        setTargetHours(monthlyMax ? Math.round(monthlyMax / 4) : 40);
+      // Set target hours from overtime config (hourly_wage_divider = standard monthly hours)
+      if (overtimeConfig && overtimeConfig.hourly_wage_divider) {
+        setTargetHours(overtimeConfig.hourly_wage_divider);
       }
 
-      // Calculate weekly worked hours
-      let weekHours = 0;
+      // Calculate monthly worked hours
+      let monthHours = 0;
       historyData.attendance.forEach(att => {
         if (att.clock_in && att.clock_out) {
           const clockIn = new Date(att.clock_in);
           const clockOut = new Date(att.clock_out);
-          // Check if within this week
-          if (clockIn >= weekStart && clockIn <= weekEnd) {
+          // Check if within this month
+          if (clockIn >= monthStart && clockIn <= monthEnd) {
             const workedMs = clockOut.getTime() - clockIn.getTime();
-            weekHours += workedMs / (1000 * 60 * 60);
+            monthHours += workedMs / (1000 * 60 * 60);
           }
         }
       });
-      setWeeklyHours(weekHours);
+      setMonthlyHours(monthHours);
 
       // Process Real History Data
       const allEvents: { title: string, date: string, time: string, status: string, location: string, timestamp: number }[] = [];
@@ -457,9 +448,9 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
             {/* Total Hours Widget */}
             <Card className="p-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none shadow-xl shadow-blue-500/20">
               <div className="mb-6">
-                <h3 className="text-blue-100 font-semibold text-sm uppercase tracking-wider mb-1">Total Jam Kerja Minggu Ini</h3>
+                <h3 className="text-blue-100 font-semibold text-sm uppercase tracking-wider mb-1">Total Jam Kerja Bulan Ini</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold">{weeklyHours.toFixed(1)}</span>
+                  <span className="text-5xl font-bold">{monthlyHours.toFixed(1)}</span>
                   <span className="text-xl font-medium text-blue-200">Jam</span>
                 </div>
               </div>
@@ -469,7 +460,7 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
                   <span className="text-xs font-semibold inline-block text-blue-100">Target: {targetHours} Jam</span>
                 </div>
                 <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-800/50">
-                  <div style={{ width: `${Math.min((weeklyHours / targetHours) * 100, 100)}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-white rounded-full"></div>
+                  <div style={{ width: `${Math.min((monthlyHours / targetHours) * 100, 100)}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-white rounded-full"></div>
                 </div>
               </div>
             </Card>

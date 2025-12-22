@@ -11,6 +11,7 @@ import { logInfo, logError, logWarn } from './lib/logger';
 import ErrorBoundary from './components/ErrorBoundary';
 import PasswordResetModal from './components/PasswordResetModal';
 import InstallPWABanner from './components/InstallPWABanner';
+import { ToastProvider } from './components/ui/Toast';
 
 // Import pages
 import AbsensiPage from './app/(app)/(bawahan)/absensiPage';
@@ -264,74 +265,76 @@ export default function App() {
     }
 
     return (
-        <ErrorBoundary>
-            {showPasswordResetModal && (
-                <PasswordResetModal
-                    email={session?.user?.email}
-                    onClose={() => setShowPasswordResetModal(false)}
-                    onSuccess={() => setShowPasswordResetModal(false)}
-                />
-            )}
-            <InstallPWABanner />
-            <Routes>
-                {currentUser ? (
-                    <Route path="/" element={<AppLayout currentUser={currentUser} allUsers={allUsers} notifications={notifications} handleLogout={handleLogout} />}>
-                        {/* Default route after login, adjusted by role */}
-                        <Route
-                            index
-                            element={
-                                <Navigate
-                                    to={roleLandingPath}
-                                    replace
-                                />
-                            }
-                        />
-
-                        {/* Bawahan Routes */}
-                        <Route path="beranda" element={<DashboardBawahanPage user={currentUser} />} />
-                        <Route path="absensi" element={<AbsensiPage user={currentUser} />} />
-                        <Route path="pengajuan" element={<PengajuanPage user={currentUser} />} />
-                        <Route path="riwayat" element={<RiwayatPage user={currentUser} />} />
-                        <Route path="laporan" element={<LaporanSayaPage user={currentUser} />} />
-                        <Route path="jadwal-shift" element={<JadwalShiftPage user={currentUser} />} />
-                        <Route path="profil" element={<ProfilSayaPage user={currentUser} />} />
-
-                        {/* Atasan Routes */}
-                        <Route path="dashboard" element={requireManager(<AtasanDashboardPage user={currentUser} onNavigate={handleNavigate} />)} />
-                        <Route path="persetujuan" element={requireManager(<PersetujuanTimPage user={currentUser} />)} />
-                        <Route path="tim" element={requireManager(<TimSayaPage user={currentUser} />)} />
-                        <Route path="laporan-tim" element={requireManager(<LaporanTimPage user={currentUser} />)} />
-                        <Route path="simulasi-cuti-lembur" element={requireManager(<SimulasiCutiLemburPage user={currentUser} />)} />
-
-                        {/* Superadmin Routes */}
-                        <Route path="superadmin/dashboard" element={requireSuperadmin(<SuperadminDashboardPage user={currentUser} allUsers={allUsers} />)} />
-                        <Route path="superadmin/pegawai" element={requireSuperadmin(<KonfigurasiPegawaiPage user={currentUser} />)} />
-                        <Route path="superadmin/sistem" element={requireSuperadmin(<KonfigurasiSistemPage user={currentUser} />)} />
-                        <Route path="superadmin/laporan-semua" element={requireSuperadmin(<SemuaLaporanPage user={currentUser} />)} />
-
-                        {/* Admin Routes */}
-                        <Route path="admin/laporan-semua" element={requirePrivileged(<SemuaLaporanPage user={currentUser} />)} />
-                        <Route path="admin/jadwal-shift" element={requirePrivileged(<JadwalAdminPage user={currentUser} />)} />
-
-                        {/* General Routes */}
-                        <Route path="presensi" element={<PresensiPage user={currentUser} />} />
-                        <Route path="kpi" element={<KpiPage user={currentUser} />} />
-
-                        {/* Redirect any other authenticated path to role-specific landing */}
-                        <Route
-                            path="*"
-                            element={
-                                <Navigate
-                                    to={roleLandingPath}
-                                    replace
-                                />
-                            }
-                        />
-                    </Route>
-                ) : (
-                    <Route path="*" element={<AuthRoutes blockedMessage={blockedMessage} clearBlockedMessage={() => setBlockedMessage(null)} />} />
+        <ToastProvider>
+            <ErrorBoundary>
+                {showPasswordResetModal && (
+                    <PasswordResetModal
+                        email={session?.user?.email}
+                        onClose={() => setShowPasswordResetModal(false)}
+                        onSuccess={() => setShowPasswordResetModal(false)}
+                    />
                 )}
-            </Routes>
-        </ErrorBoundary>
+                <InstallPWABanner />
+                <Routes>
+                    {currentUser ? (
+                        <Route path="/" element={<AppLayout currentUser={currentUser} allUsers={allUsers} notifications={notifications} handleLogout={handleLogout} />}>
+                            {/* Default route after login, adjusted by role */}
+                            <Route
+                                index
+                                element={
+                                    <Navigate
+                                        to={roleLandingPath}
+                                        replace
+                                    />
+                                }
+                            />
+
+                            {/* Bawahan Routes */}
+                            <Route path="beranda" element={<DashboardBawahanPage user={currentUser} />} />
+                            <Route path="absensi" element={<AbsensiPage user={currentUser} />} />
+                            <Route path="pengajuan" element={<PengajuanPage user={currentUser} />} />
+                            <Route path="riwayat" element={<RiwayatPage user={currentUser} />} />
+                            <Route path="laporan" element={<LaporanSayaPage user={currentUser} />} />
+                            <Route path="jadwal-shift" element={<JadwalShiftPage user={currentUser} />} />
+                            <Route path="profil" element={<ProfilSayaPage user={currentUser} />} />
+
+                            {/* Atasan Routes */}
+                            <Route path="dashboard" element={requireManager(<AtasanDashboardPage user={currentUser} onNavigate={handleNavigate} />)} />
+                            <Route path="persetujuan" element={requireManager(<PersetujuanTimPage user={currentUser} />)} />
+                            <Route path="tim" element={requireManager(<TimSayaPage user={currentUser} />)} />
+                            <Route path="laporan-tim" element={requireManager(<LaporanTimPage user={currentUser} />)} />
+                            <Route path="simulasi-cuti-lembur" element={requireManager(<SimulasiCutiLemburPage user={currentUser} />)} />
+
+                            {/* Superadmin Routes */}
+                            <Route path="superadmin/dashboard" element={requireSuperadmin(<SuperadminDashboardPage user={currentUser} allUsers={allUsers} />)} />
+                            <Route path="superadmin/pegawai" element={requireSuperadmin(<KonfigurasiPegawaiPage user={currentUser} />)} />
+                            <Route path="superadmin/sistem" element={requireSuperadmin(<KonfigurasiSistemPage user={currentUser} />)} />
+                            <Route path="superadmin/laporan-semua" element={requireSuperadmin(<SemuaLaporanPage user={currentUser} />)} />
+
+                            {/* Admin Routes */}
+                            <Route path="admin/laporan-semua" element={requirePrivileged(<SemuaLaporanPage user={currentUser} />)} />
+                            <Route path="admin/jadwal-shift" element={requirePrivileged(<JadwalAdminPage user={currentUser} />)} />
+
+                            {/* General Routes */}
+                            <Route path="presensi" element={<PresensiPage user={currentUser} />} />
+                            <Route path="kpi" element={<KpiPage user={currentUser} />} />
+
+                            {/* Redirect any other authenticated path to role-specific landing */}
+                            <Route
+                                path="*"
+                                element={
+                                    <Navigate
+                                        to={roleLandingPath}
+                                        replace
+                                    />
+                                }
+                            />
+                        </Route>
+                    ) : (
+                        <Route path="*" element={<AuthRoutes blockedMessage={blockedMessage} clearBlockedMessage={() => setBlockedMessage(null)} />} />
+                    )}
+                </Routes>
+            </ErrorBoundary>
+        </ToastProvider>
     );
 }

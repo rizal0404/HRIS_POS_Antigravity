@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, JadwalKerjaTim, Shift, Holiday } from '../../types';
 import { apiService } from '../../services/apiService';
 import { getAllSubordinates } from '../../lib/utils';
@@ -25,6 +25,23 @@ const COLOR_MAP: Record<string, string> = {
     'bg-gray-800': '#1f2937',
 };
 
+// Indonesian day names mapping
+const DAY_NAMES_ID: Record<string, string> = {
+    'Sun': 'Ming',
+    'Mon': 'Sen',
+    'Tue': 'Sel',
+    'Wed': 'Rab',
+    'Thu': 'Kam',
+    'Fri': 'Jum',
+    'Sat': 'Sab',
+};
+
+// Indonesian month names
+const MONTH_NAMES_ID = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
 const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [loading, setLoading] = useState(true);
@@ -33,6 +50,10 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
     const [allShifts, setAllShifts] = useState<Shift[]>([]);
     const [holidays, setHolidays] = useState<Holiday[]>([]);
     const [usersToDisplay, setUsersToDisplay] = useState<UserProfile[]>([]);
+
+    // Ref for scrollable container
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const todayColumnRef = useRef<HTMLDivElement>(null);
 
     // Modal state
     const [isEditModalOpen, setEditModalOpen] = useState(false);
@@ -95,6 +116,23 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
         fetchData(currentDate);
     }, [fetchData, currentDate]);
 
+    // Auto-scroll to today's column when data is loaded
+    useEffect(() => {
+        if (!loading && todayColumnRef.current && scrollContainerRef.current) {
+            const container = scrollContainerRef.current;
+            const todayColumn = todayColumnRef.current;
+
+            // Calculate scroll position to show today column next to employee column
+            // The employee column is 256px (w-64), so we scroll to position today column right after it
+            const scrollLeft = todayColumn.offsetLeft - 16; // 16px for some padding
+
+            container.scrollTo({
+                left: scrollLeft,
+                behavior: 'smooth'
+            });
+        }
+    }, [loading, currentDate]);
+
     const monthDays = useMemo(() => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
@@ -105,9 +143,10 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
 
         for (let i = 1; i <= daysInMonth; i++) {
             const date = new Date(year, month, i);
+            const dayNameEn = date.toLocaleDateString('en-US', { weekday: 'short' });
             days.push({
                 date: i,
-                dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
+                dayName: DAY_NAMES_ID[dayNameEn] || dayNameEn,
                 fullDate: `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`,
                 isToday: date.getTime() === today.getTime()
             });
@@ -135,18 +174,21 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
         }
     };
 
+    // Format month in Indonesian
+    const formattedMonth = `${MONTH_NAMES_ID[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans">
             {/* Header Section */}
             <header className="flex h-20 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-8 shrink-0 z-10">
                 <div className="flex items-center gap-6">
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Shift Schedule</h2>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Jadwal Shift</h2>
                     <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                         <button onClick={handlePrevMonth} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all shadow-sm text-slate-600 dark:text-slate-300">
                             <span className="material-symbols-outlined text-xl">chevron_left</span>
                         </button>
                         <span className="px-4 text-sm font-bold text-slate-700 dark:text-slate-200 min-w-[140px] text-center">
-                            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            {formattedMonth}
                         </span>
                         <button onClick={handleNextMonth} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all shadow-sm text-slate-600 dark:text-slate-300">
                             <span className="material-symbols-outlined text-xl">chevron_right</span>
@@ -157,52 +199,32 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
                     {mode === 'team' && (
                         <button className="flex h-10 items-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-white shadow-lg shadow-orange-500/30 hover:bg-orange-600 transition-all">
                             <span className="material-symbols-outlined text-[20px]">add</span>
-                            <span>Assign Shift</span>
+                            <span>Atur Shift</span>
                         </button>
                     )}
                 </div>
             </header>
 
             {/* Main Content Area */}
-            <div className="flex-1 overflow-auto p-6 scrollbar-hide">
+            <div className="flex-1 overflow-hidden p-6">
                 {loading ? (
                     <div className="flex h-full items-center justify-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-500 border-t-transparent shadow-lg"></div>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm min-w-max">
-                        {/* Table Header Row */}
-                        <div className="flex border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 bg-slate-50 dark:bg-slate-900/50 backdrop-blur-md">
-                            <div className="w-64 shrink-0 p-5 font-bold text-slate-500 dark:text-slate-400 text-sm uppercase tracking-wider">
-                                Employee
-                            </div>
-                            <div className="flex flex-1">
-                                {monthDays.map(day => (
-                                    <div
-                                        key={day.fullDate}
-                                        className={`min-w-[100px] flex-1 flex flex-col items-center justify-center py-4 border-r border-slate-200 dark:border-slate-800 last:border-r-0 ${day.isToday ? 'bg-orange-500/5' : ''}`}
-                                    >
-                                        <span className={`text-[11px] uppercase font-black mb-1 tracking-tighter ${day.isToday ? 'text-orange-600' : 'text-slate-400'}`}>
-                                            {day.dayName}
-                                        </span>
-                                        <span className={`text-base font-black ${day.isToday ? 'text-orange-600' : 'text-slate-900 dark:text-white'}`}>
-                                            {String(day.date).padStart(2, '0')}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Employee Rows */}
-                        <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                            {usersToDisplay.map(employee => {
-                                const schedule = teamScheduleData[employee.id] || [];
-                                const scheduleMap = new Map<string, JadwalKerjaTim>(schedule.map(s => [s.date, s]));
-
-                                return (
-                                    <div key={employee.id} className="flex hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
-                                        {/* Employee Info */}
-                                        <div className="sticky left-0 z-10 w-64 shrink-0 p-5 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex items-center gap-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm h-full flex flex-col">
+                        {/* Table Container with frozen column */}
+                        <div className="flex-1 overflow-hidden flex">
+                            {/* Frozen Employee Column */}
+                            <div className="w-64 shrink-0 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-20">
+                                {/* Header */}
+                                <div className="p-5 font-bold text-slate-500 dark:text-slate-400 text-sm uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 h-[72px] flex items-center">
+                                    Karyawan
+                                </div>
+                                {/* Employee List */}
+                                <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
+                                    {usersToDisplay.map(employee => (
+                                        <div key={employee.id} className="p-5 flex items-center gap-4 h-24 bg-white dark:bg-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                                             <div className="relative">
                                                 <div className="size-11 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 font-bold border-2 border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                                                     {employee.avatar_url ? (
@@ -222,51 +244,81 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
                                                 </p>
                                             </div>
                                         </div>
+                                    ))}
+                                </div>
+                            </div>
 
-                                        {/* Schedule Cells */}
-                                        <div className="flex flex-1">
-                                            {monthDays.map(day => {
-                                                const daySchedule = scheduleMap.get(day.fullDate);
-                                                const shiftDetail = allShifts.find(s => s.code === daySchedule?.shift);
-                                                const rawColor = shiftDetail?.color || '';
-                                                const hexColor = rawColor.startsWith('#') ? rawColor : (COLOR_MAP[rawColor] || '#f97316');
-
-                                                return (
-                                                    <div
-                                                        key={`${employee.id}-${day.fullDate}`}
-                                                        className={`min-w-[100px] flex-1 border-r border-slate-100 dark:border-slate-800 p-2 flex items-center justify-center h-24 last:border-r-0 ${day.isToday ? 'bg-orange-500/5' : ''}`}
-                                                        onClick={() => handleCellClick(employee, day.fullDate, daySchedule?.shift || 'OFF')}
-                                                    >
-                                                        {daySchedule ? (
-                                                            <div
-                                                                className="w-full h-full rounded-xl flex flex-col justify-center items-center p-2 text-center shadow-sm border-2 transition-transform active:scale-95 group-hover:shadow-md cursor-pointer"
-                                                                style={{
-                                                                    backgroundColor: `${hexColor}20`,
-                                                                    borderColor: `${hexColor}40`,
-                                                                }}
-                                                            >
-                                                                <span
-                                                                    className="text-[10px] font-black uppercase tracking-widest truncate w-full mb-1"
-                                                                    style={{ color: hexColor }}
-                                                                >
-                                                                    {shiftDetail?.name || daySchedule.shift}
-                                                                </span>
-                                                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-white/30 dark:bg-black/10 px-1.5 py-0.5 rounded-md">
-                                                                    {daySchedule.start_time?.slice(0, 5) || '??'} - {daySchedule.end_time?.slice(0, 5) || '??'}
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className={`p-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 size-full flex items-center justify-center transition-all ${canEdit ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 cursor-pointer opacity-0 group-hover:opacity-100' : 'opacity-10 grayscale'}`}>
-                                                                <span className="material-symbols-outlined text-slate-300">add</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
+                            {/* Scrollable Schedule Area */}
+                            <div ref={scrollContainerRef} className="flex-1 overflow-auto scrollbar-hide">
+                                {/* Header Row */}
+                                <div className="flex sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800">
+                                    {monthDays.map((day, index) => (
+                                        <div
+                                            key={day.fullDate}
+                                            ref={day.isToday ? todayColumnRef : undefined}
+                                            className={`min-w-[100px] w-[100px] flex flex-col items-center justify-center py-4 border-r border-slate-200 dark:border-slate-800 last:border-r-0 h-[72px] ${day.isToday ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-slate-50 dark:bg-slate-800'}`}
+                                        >
+                                            <span className={`text-[11px] uppercase font-black mb-1 tracking-tighter ${day.isToday ? 'text-orange-600' : 'text-slate-400'}`}>
+                                                {day.dayName}
+                                            </span>
+                                            <span className={`text-base font-black ${day.isToday ? 'text-orange-600' : 'text-slate-900 dark:text-white'}`}>
+                                                {String(day.date).padStart(2, '0')}
+                                            </span>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    ))}
+                                </div>
+
+                                {/* Schedule Rows */}
+                                <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                                    {usersToDisplay.map(employee => {
+                                        const schedule = teamScheduleData[employee.id] || [];
+                                        const scheduleMap = new Map<string, JadwalKerjaTim>(schedule.map(s => [s.date, s]));
+
+                                        return (
+                                            <div key={employee.id} className="flex hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
+                                                {monthDays.map(day => {
+                                                    const daySchedule = scheduleMap.get(day.fullDate);
+                                                    const shiftDetail = allShifts.find(s => s.code === daySchedule?.shift);
+                                                    const rawColor = shiftDetail?.color || '';
+                                                    const hexColor = rawColor.startsWith('#') ? rawColor : (COLOR_MAP[rawColor] || '#f97316');
+
+                                                    return (
+                                                        <div
+                                                            key={`${employee.id}-${day.fullDate}`}
+                                                            className={`min-w-[100px] w-[100px] border-r border-slate-100 dark:border-slate-800 p-2 flex items-center justify-center h-24 last:border-r-0 ${day.isToday ? 'bg-orange-500/5' : ''}`}
+                                                            onClick={() => handleCellClick(employee, day.fullDate, daySchedule?.shift || 'OFF')}
+                                                        >
+                                                            {daySchedule ? (
+                                                                <div
+                                                                    className="w-full h-full rounded-xl flex flex-col justify-center items-center p-2 text-center shadow-sm border-2 transition-transform active:scale-95 group-hover:shadow-md cursor-pointer"
+                                                                    style={{
+                                                                        backgroundColor: `${hexColor}20`,
+                                                                        borderColor: `${hexColor}40`,
+                                                                    }}
+                                                                >
+                                                                    <span
+                                                                        className="text-[10px] font-black uppercase tracking-widest truncate w-full mb-1"
+                                                                        style={{ color: hexColor }}
+                                                                    >
+                                                                        {shiftDetail?.name || daySchedule.shift}
+                                                                    </span>
+                                                                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-white/30 dark:bg-black/10 px-1.5 py-0.5 rounded-md">
+                                                                        {daySchedule.start_time?.slice(0, 5) || '??'} - {daySchedule.end_time?.slice(0, 5) || '??'}
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className={`p-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 size-full flex items-center justify-center transition-all ${canEdit ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 cursor-pointer opacity-0 group-hover:opacity-100' : 'opacity-10 grayscale'}`}>
+                                                                    <span className="material-symbols-outlined text-slate-300">add</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
