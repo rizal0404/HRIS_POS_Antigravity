@@ -20,6 +20,7 @@ import ProgressBar from '../../../components/ui/ProgressBar'; // Reusable compon
 import Spinner from '@/components/ui/Spinner';
 import { findNearestWorkplace } from '../../../lib/location';
 import { useNavigate } from 'react-router-dom';
+import { usePageVisibility } from '../../../hooks/usePageVisibility';
 
 
 // --- Helper Components ---
@@ -94,14 +95,27 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
   const [weeklyHours, setWeeklyHours] = useState<number>(0);
   const [targetHours, setTargetHours] = useState<number>(40);
 
+  // Page Visibility - pause timers when page is hidden (prevents mobile glitches)
+  const { isVisible, wasHidden } = usePageVisibility();
 
-
-
-  // Start clock
+  // Visibility-aware clock timer - only runs when page is visible
   useEffect(() => {
+    if (!isVisible) return; // Don't run timer when page is hidden
+
+    // Immediately sync time when becoming visible again
+    setCurrentTime(new Date());
+
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isVisible]);
+
+  // Refresh data when page becomes visible again (after screen lock/dim)
+  useEffect(() => {
+    if (wasHidden && isVisible) {
+      // Refresh attendance status when returning from background
+      checkAttendanceStatus();
+    }
+  }, [wasHidden, isVisible]);
 
   // Fetch Position once on mount for the map center
   useEffect(() => {
@@ -332,13 +346,13 @@ const AbsensiPage: React.FC<AbsensiPageProps> = ({ user }) => {
               </div>
               <div className="flex items-center gap-4">
                 <div className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${status === AttendanceStatus.CLOCKED_IN
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : status === AttendanceStatus.CLOCKED_OUT
-                      ? 'bg-slate-100 text-slate-600 border border-slate-200'
-                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : status === AttendanceStatus.CLOCKED_OUT
+                    ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
                   }`}>
                   <span className={`w-2 h-2 rounded-full ${status === AttendanceStatus.CLOCKED_IN ? 'bg-emerald-500 animate-pulse' :
-                      status === AttendanceStatus.CLOCKED_OUT ? 'bg-slate-400' : 'bg-amber-500'
+                    status === AttendanceStatus.CLOCKED_OUT ? 'bg-slate-400' : 'bg-amber-500'
                     }`}></span>
                   {status === AttendanceStatus.CLOCKED_IN ? 'Sedang Bekerja' :
                     status === AttendanceStatus.CLOCKED_OUT ? 'Sudah Pulang' : 'Belum Absen'}

@@ -12,6 +12,7 @@ import L from 'leaflet';
 import { buildAttendanceWindow } from '../../lib/attendanceRules';
 import { offlineQueue } from '../../lib/offlineQueue';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
+import { usePageVisibility } from '../../hooks/usePageVisibility';
 
 // Fix for default marker icon in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -65,11 +66,22 @@ type ValidationResult = {
 
 
 // Component to adjust map view dynamically
-const ChangeView: React.FC<{ userPos: [number, number] | null; workplacePos: [number, number] | null }> = ({
+const ChangeView: React.FC<{ userPos: [number, number] | null; workplacePos: [number, number] | null; shouldRefresh?: boolean }> = ({
   userPos,
   workplacePos,
+  shouldRefresh,
 }) => {
   const map = useMap();
+
+  // Invalidate map size when visibility changes (fixes mobile glitches)
+  useEffect(() => {
+    if (shouldRefresh) {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+    }
+  }, [shouldRefresh, map]);
+
   useEffect(() => {
     if (userPos && workplacePos) {
       const bounds = L.latLngBounds([userPos, workplacePos]);
@@ -298,10 +310,12 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
     collectSample(0);
   }, []);
 
+  // Page Visibility - handle mobile browser background/foreground transitions
+  const { isVisible, wasHidden } = usePageVisibility();
+
   useEffect(() => {
     if (isOpen) {
       fetchLocation();
-      const timerId = setInterval(() => setCurrentTime(new Date()), 1000);
 
       // Fetch user's assigned workplace from database
       if (user.workplace_id) {
@@ -309,10 +323,26 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           .then(wp => setAssignedWorkplace(wp))
           .catch(err => console.warn('Failed to fetch assigned workplace:', err));
       }
-
-      return () => clearInterval(timerId);
     }
   }, [isOpen, fetchLocation, user.workplace_id]);
+
+  // Visibility-aware timer - pauses when page is hidden to prevent glitches
+  useEffect(() => {
+    if (!isOpen || !isVisible) return;
+
+    // Immediately sync time when becoming visible
+    setCurrentTime(new Date());
+
+    const timerId = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timerId);
+  }, [isOpen, isVisible]);
+
+  // Refresh location when page becomes visible again (after screen lock)
+  useEffect(() => {
+    if (isOpen && wasHidden && isVisible) {
+      fetchLocation();
+    }
+  }, [isOpen, wasHidden, isVisible, fetchLocation]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -748,6 +778,7 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
               <ChangeView
                 userPos={position ? [position.coords.latitude, position.coords.longitude] : null}
                 workplacePos={selectedWorkplaceDetails ? [selectedWorkplaceDetails.lat, selectedWorkplaceDetails.lon] : null}
+                shouldRefresh={wasHidden}
               />
               <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
               {position && (
@@ -798,8 +829,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             {/* Accuracy indicator */}
             {!isFetchingLocation && position && (
               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${position.coords.accuracy <= 50 ? 'bg-green-100 text-green-700' :
-                  position.coords.accuracy <= 200 ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
+                position.coords.accuracy <= 200 ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'
                 }`}>
                 ±{position.coords.accuracy.toFixed(0)}m
               </span>
@@ -817,25 +848,25 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
         {/* === COMBINED WARNINGS (Collapsible) === */}
         {hasWarnings && (
           <details className={`rounded-xl border overflow-hidden ${warningSeverity === 'blocked' ? 'bg-red-50 border-red-200' :
-              warningSeverity === 'warning' ? 'bg-orange-50 border-orange-200' :
-                warningSeverity === 'notes' ? 'bg-amber-50 border-amber-200' :
-                  'bg-blue-50 border-blue-200'
+            warningSeverity === 'warning' ? 'bg-orange-50 border-orange-200' :
+              warningSeverity === 'notes' ? 'bg-amber-50 border-amber-200' :
+                'bg-blue-50 border-blue-200'
             }`}>
             <summary className="flex items-center justify-between p-2 cursor-pointer list-none">
               <div className="flex items-center gap-2">
                 <span className={`material-symbols-outlined text-[18px] ${warningSeverity === 'blocked' ? 'text-red-600' :
-                    warningSeverity === 'warning' ? 'text-orange-600' :
-                      warningSeverity === 'notes' ? 'text-amber-600' :
-                        'text-blue-600'
+                  warningSeverity === 'warning' ? 'text-orange-600' :
+                    warningSeverity === 'notes' ? 'text-amber-600' :
+                      'text-blue-600'
                   }`}>
                   {warningSeverity === 'blocked' ? 'block' :
                     warningSeverity === 'warning' ? 'warning' :
                       warningSeverity === 'notes' ? 'edit_note' : 'info'}
                 </span>
                 <span className={`text-sm font-semibold ${warningSeverity === 'blocked' ? 'text-red-800' :
-                    warningSeverity === 'warning' ? 'text-orange-800' :
-                      warningSeverity === 'notes' ? 'text-amber-800' :
-                        'text-blue-800'
+                  warningSeverity === 'warning' ? 'text-orange-800' :
+                    warningSeverity === 'notes' ? 'text-amber-800' :
+                      'text-blue-800'
                   }`}>
                   {warningSeverity === 'blocked' ? 'Tidak dapat melanjutkan' :
                     warningSeverity === 'warning' ? 'Di luar lokasi tetap' :
@@ -882,8 +913,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             type="button"
             onClick={() => setWorkLocation('Bekerja di Pabrik')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${workLocation === 'Bekerja di Pabrik'
-                ? 'bg-slate-800 text-white shadow-md'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              ? 'bg-slate-800 text-white shadow-md'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
           >
             <span className="material-symbols-outlined text-[18px]">business</span>
@@ -893,8 +924,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             type="button"
             onClick={() => setWorkLocation('Lainnya')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${workLocation === 'Lainnya'
-                ? 'bg-slate-800 text-white shadow-md'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              ? 'bg-slate-800 text-white shadow-md'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
           >
             <span className="material-symbols-outlined text-[18px]">place</span>
@@ -947,8 +978,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               className={`w-full text-sm rounded-xl border px-3 py-2 ${validation.notesRequired && notes.trim().length < 5
-                  ? 'border-amber-400 focus:ring-amber-400'
-                  : 'border-slate-300 focus:ring-blue-400'
+                ? 'border-amber-400 focus:ring-amber-400'
+                : 'border-slate-300 focus:ring-blue-400'
                 } focus:outline-none focus:ring-2`}
               placeholder={validation.notesRequired ? 'Wajib (min 5 karakter)' : 'Opsional'}
             />
@@ -961,8 +992,8 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           onClick={handleSubmit}
           disabled={isActionDisabled}
           className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-lg font-bold shadow-lg transition-all ${actionType === 'in'
-              ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300'
-              : 'bg-red-500 text-white hover:bg-red-600 disabled:bg-slate-300'
+            ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300'
+            : 'bg-red-500 text-white hover:bg-red-600 disabled:bg-slate-300'
             } disabled:cursor-not-allowed disabled:shadow-none`}
         >
           {isSubmitting ? (
