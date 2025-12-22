@@ -266,20 +266,40 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
             ? "Tanggal"
             : "Periode";
 
+    const getBadgeProps = (status: RequestStatus) => {
+        switch (status) {
+            case RequestStatus.APPROVED:
+                return { variant: 'success' as const, label: 'Disetujui' };
+            case RequestStatus.REJECTED:
+                return { variant: 'danger' as const, label: 'Ditolak' };
+            case RequestStatus.PENDING:
+                return { variant: 'warning' as const, label: 'Menunggu' };
+            case RequestStatus.CANCELLED:
+                return { variant: 'secondary' as const, label: 'Dibatalkan' };
+            default:
+                return { variant: 'primary' as const, label: status };
+        }
+    };
+
     return (
         <>
             <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-md z-50 flex justify-center items-center p-4">
                 <div className="bg-white rounded-lg shadow-xl w-full max-w-lg transform transition-all">
                     <div className="flex justify-between items-center p-4 border-b">
                         <h3 className="text-xl font-semibold text-gray-800">Detail Pengajuan {request.request_type}</h3>
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                            <XIcon className="h-6 w-6" />
-                        </button>
+                        <div className="flex items-center gap-3">
+                            {(() => {
+                                const { variant, label } = getBadgeProps(request.status);
+                                return <Badge variant={variant}>{label}</Badge>;
+                            })()}
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                                <XIcon className="h-6 w-6" />
+                            </button>
+                        </div>
                     </div>
                     <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
                         <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
                             <h4 className="text-lg font-bold text-gray-900">{request.request_type}</h4>
-                            <Badge status={request.status} />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -304,11 +324,7 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                             </div>
                         </div>
                     </div>
-                    <div className="p-4 bg-gray-50 flex justify-end">
-                        <button type="button" onClick={onClose} className="px-6 py-2 bg-gray-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-gray-700 focus:outline-none">
-                            Kembali
-                        </button>
-                    </div>
+                    {/* Footer removed as requested */}
                 </div>
             </div>
             <AttachmentViewerModal
