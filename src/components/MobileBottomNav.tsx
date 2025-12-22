@@ -5,7 +5,7 @@ import {
     HomeIcon,
     CollectionIcon,
     DocumentAddIcon,
-    UserIcon,
+    DocumentReportIcon,
     QrCodeIcon
 } from './icons';
 
@@ -18,7 +18,7 @@ const MobileBottomNav: React.FC = () => {
         { key: 'riwayat', label: 'Riwayat', icon: CollectionIcon, path: '/riwayat' },
         { key: 'absensi', label: 'Absensi', icon: QrCodeIcon, path: '/absensi', isCenter: true },
         { key: 'pengajuan', label: 'Pengajuan', icon: DocumentAddIcon, path: '/pengajuan' },
-        { key: 'profil', label: 'Profil', icon: UserIcon, path: '/profil' },
+        { key: 'laporan', label: 'Laporan', icon: DocumentReportIcon, path: '/laporan' },
     ];
 
     return (

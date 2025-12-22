@@ -331,155 +331,152 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
     };
 
     return (
-        <div className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
-            {/* Page Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-4 lg:p-6 space-y-4 max-w-7xl mx-auto">
+            {/* Page Header - More Compact */}
+            <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-text-main">Selamat datang kembali, {user.full_name.split(' ')[0]}!</h1>
-                    <p className="text-text-secondary mt-1">Berikut ringkasan kehadiran harian Anda.</p>
+                    <h1 className="text-xl font-bold text-text-main">Hai, {user.full_name.split(' ')[0]}!</h1>
+                    <p className="text-sm text-text-secondary">Ringkasan kehadiran Anda.</p>
                 </div>
-                <button
-                    onClick={fetchDashboard}
-                    disabled={loading}
-                    className="inline-flex items-center gap-2 rounded-xl bg-surface-light border border-[#f0f2f4] text-text-main px-4 py-2 text-sm font-semibold shadow-sm hover:bg-background-light transition-all disabled:opacity-50"
-                >
-                    {loading ? <Spinner /> : <RefreshIcon className="text-[18px]" />}
-                    <span>Segarkan</span>
-                </button>
             </div>
 
-            {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>}
+            {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
             {/* Bento Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
 
                 {/* Hero Attendance Card (Span 2 cols on lg) */}
-                <Card variant="hero" className="col-span-1 lg:col-span-2 relative overflow-hidden p-6 flex flex-col justify-between min-h-[240px]">
+                <Card variant="hero" className="col-span-1 lg:col-span-2 relative overflow-hidden p-5 flex flex-col justify-between min-h-[200px]">
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
-                            <p className="opacity-90 font-medium">Semoga harimu menyenangkan!</p>
-                            <h2 className="text-3xl font-bold mt-1">{formatTime(new Date(), { hour: '2-digit', minute: '2-digit' })}</h2>
-                            <p className="text-sm opacity-80 mt-1">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            <p className="text-xs opacity-80 font-medium">Diberi kesempatan bekerja, manfaatkanlah dengan baik!</p>
+                            <h2 className="text-2xl font-bold mt-0.5">{formatTime(new Date(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</h2>
+                            <p className="text-xs opacity-70 mt-0.5">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
-                        <div className="bg-white/20 backdrop-blur-md rounded-lg p-2">
-                            <span className="material-symbols-outlined text-[32px]">{statusMeta(todaySummary.status).variant === 'success' ? 'sunny' : 'cloud'}</span>
-                        </div>
+                        <button
+                            onClick={fetchDashboard}
+                            disabled={loading}
+                            className="bg-white/20 backdrop-blur-md rounded-lg p-2 hover:bg-white/30 transition-colors disabled:opacity-50"
+                            title="Segarkan"
+                        >
+                            {loading ? <Spinner className="text-white w-5 h-5" /> : <RefreshIcon className="text-[20px]" />}
+                        </button>
                     </div>
 
-                    <div className="relative z-10 grid grid-cols-3 gap-4 mt-6">
+                    <div className="relative z-10 grid grid-cols-3 gap-3 mt-4">
                         <div
                             onClick={() => handleOpenModal('in')}
-                            className="bg-white/10 backdrop-blur-sm rounded-xl p-3 cursor-pointer hover:bg-white/20 transition-colors"
+                            className="bg-white/10 backdrop-blur-sm rounded-lg p-2.5 cursor-pointer hover:bg-white/20 transition-colors"
                         >
-                            <div className="flex items-center gap-2 opacity-80 mb-1">
-                                <span className="material-symbols-outlined text-[16px]">login</span>
-                                <span className="text-xs font-medium">Masuk</span>
+                            <div className="flex items-center gap-1.5 opacity-80 mb-0.5">
+                                <span className="material-symbols-outlined text-[14px]">login</span>
+                                <span className="text-[10px] font-medium">Masuk</span>
                             </div>
-                            <p className="text-lg font-bold">{todaySummary.clockIn ? formatTime(new Date(todaySummary.clockIn), { second: undefined }) : '--:--'}</p>
+                            <p className="text-base font-bold">{todaySummary.clockIn ? formatTime(new Date(todaySummary.clockIn), { second: undefined }) : '--:--'}</p>
                         </div>
                         <div
                             onClick={() => handleOpenModal('out')}
-                            className="bg-white/10 backdrop-blur-sm rounded-xl p-3 cursor-pointer hover:bg-white/20 transition-colors"
+                            className="bg-white/10 backdrop-blur-sm rounded-lg p-2.5 cursor-pointer hover:bg-white/20 transition-colors"
                         >
-                            <div className="flex items-center gap-2 opacity-80 mb-1">
-                                <span className="material-symbols-outlined text-[16px]">logout</span>
-                                <span className="text-xs font-medium">Pulang</span>
+                            <div className="flex items-center gap-1.5 opacity-80 mb-0.5">
+                                <span className="material-symbols-outlined text-[14px]">logout</span>
+                                <span className="text-[10px] font-medium">Pulang</span>
                             </div>
-                            <p className="text-lg font-bold">
+                            <p className="text-base font-bold">
                                 {todaySummary.clockOut
                                     ? formatTime(new Date(todaySummary.clockOut), { second: undefined })
-                                    : todaySummary.clockIn ? '--:--' : '--:--'
+                                    : '--:--'
                                 }
                             </p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
-                            <div className="flex items-center gap-2 opacity-80 mb-1">
-                                <span className="material-symbols-outlined text-[16px]">timer</span>
-                                <span className="text-xs font-medium">Durasi</span>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2.5">
+                            <div className="flex items-center gap-1.5 opacity-80 mb-0.5">
+                                <span className="material-symbols-outlined text-[14px]">timer</span>
+                                <span className="text-[10px] font-medium">Durasi</span>
                             </div>
-                            <p className="text-lg font-bold">{formatDuration(todaySummary.durationMinutes)}</p>
+                            <p className="text-base font-bold">{formatDuration(todaySummary.durationMinutes)}</p>
                         </div>
                     </div>
 
                     {/* Decorative Shapes */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-xl"></div>
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-xl"></div>
                 </Card>
 
                 {/* KPI Stats Grid (Span 1 or 2 cols depending on layout) */}
-                <div className="col-span-1 lg:col-span-1 xl:col-span-2 grid grid-cols-2 gap-4">
-                    <Card variant="stat" className="p-4 flex flex-col justify-center">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                                <CheckCircleIcon className="text-[20px]" />
+                <div className="col-span-1 lg:col-span-1 xl:col-span-2 grid grid-cols-2 gap-3">
+                    <Card variant="stat" className="p-3 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-md">
+                                <CheckCircleIcon className="text-[18px]" />
                             </div>
-                            <span className="text-sm font-medium text-text-secondary">Kehadiran</span>
+                            <span className="text-xs font-medium text-text-secondary">Kehadiran</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.presence.toFixed(0) : '0'}%</span>
+                            <span className="text-xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.presence.toFixed(0) : '0'}%</span>
                         </div>
-                        <ProgressBar value={kpiSnapshot?.presence || 0} color="bg-emerald-500" className="mt-2" />
+                        <ProgressBar value={kpiSnapshot?.presence || 0} color="bg-emerald-500" className="mt-1.5" />
                     </Card>
 
                     <SkorDisiplinCard user={user} />
 
-                    <Card variant="stat" className="p-4 flex flex-col justify-center">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
-                                <TimeIcon className="text-[20px]" />
+                    <Card variant="stat" className="p-3 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="p-1.5 bg-orange-50 text-orange-600 rounded-md">
+                                <TimeIcon className="text-[18px]" />
                             </div>
-                            <span className="text-sm font-medium text-text-secondary">Jam Kerja</span>
+                            <span className="text-xs font-medium text-text-secondary">Jam Kerja</span>
                         </div>
-                        <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.workedHours.toFixed(1) : '0'}j</span>
-                        <p className="text-xs text-text-secondary mt-1">Bulan ini</p>
+                        <span className="text-xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.workedHours.toFixed(1) : '0'}j</span>
+                        <p className="text-[10px] text-text-secondary mt-0.5">Bulan ini</p>
                     </Card>
 
-                    <Card variant="stat" className="p-4 flex flex-col justify-center">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-                                <ClockIcon className="text-[20px]" />
+                    <Card variant="stat" className="p-3 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="p-1.5 bg-purple-50 text-purple-600 rounded-md">
+                                <ClockIcon className="text-[18px]" />
                             </div>
-                            <span className="text-sm font-medium text-text-secondary">Lembur</span>
+                            <span className="text-xs font-medium text-text-secondary">Lembur</span>
                         </div>
-                        <span className="text-2xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.overtimeHours.toFixed(1) : '0'}j</span>
-                        <p className="text-xs text-text-secondary mt-1">Disetujui</p>
+                        <span className="text-xl font-bold text-text-main">{kpiSnapshot ? kpiSnapshot.overtimeHours.toFixed(1) : '0'}j</span>
+                        <p className="text-[10px] text-text-secondary mt-0.5">Disetujui</p>
                     </Card>
                 </div>
 
                 {/* Recent Activity List */}
-                <div className="col-span-1 lg:col-span-2 xl:col-span-2 space-y-4">
-                    <h3 className="font-bold text-text-main text-lg">Aktivitas Terkini</h3>
-                    <div className="space-y-3">
+                <div className="col-span-1 lg:col-span-2 xl:col-span-2 space-y-3">
+                    <h3 className="font-bold text-text-main text-sm">Aktivitas Terkini</h3>
+                    <div className="space-y-2">
                         {recentAttendance.map((item) => (
-                            <Card key={item.dateKey} className="flex items-center justify-between p-4">
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-3 rounded-full ${item.statusVariant === 'success' ? 'bg-green-100 text-green-600' :
+                            <Card key={item.dateKey} className="flex items-center justify-between p-3">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-full ${item.statusVariant === 'success' ? 'bg-green-100 text-green-600' :
                                         item.statusVariant === 'warning' ? 'bg-yellow-100 text-yellow-600' :
                                             item.statusVariant === 'danger' ? 'bg-red-100 text-red-600' :
                                                 'bg-gray-100 text-gray-600'
                                         }`}>
-                                        <CalendarIcon className="text-[20px]" />
+                                        <CalendarIcon className="text-[16px]" />
                                     </div>
                                     <div>
-                                        <p className="font-bold text-text-main text-sm">
+                                        <p className="font-bold text-text-main text-xs">
                                             {new Date(item.dateKey).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', weekday: 'short' })}
                                         </p>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <Badge variant={item.statusVariant}>{item.status}</Badge>
-                                            <span className="text-xs text-text-secondary">• Shift: {item.shift}</span>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <Badge variant={item.statusVariant} className="text-[9px] px-1.5 py-0">{item.status}</Badge>
+                                            <span className="text-[10px] text-text-secondary">• {item.shift}</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm font-bold text-text-main">
+                                    <p className="text-xs font-bold text-text-main">
                                         {item.clockIn ? formatTime(new Date(item.clockIn), { second: undefined }) : '-'}
                                     </p>
-                                    <p className="text-xs text-text-secondary">Masuk</p>
+                                    <p className="text-[10px] text-text-secondary">Masuk</p>
                                 </div>
                             </Card>
                         ))}
                         {recentAttendance.length === 0 && (
-                            <div className="text-center py-8 text-text-secondary bg-surface-light rounded-2xl border border-dashed border-gray-200">
+                            <div className="text-center py-6 text-xs text-text-secondary bg-surface-light rounded-xl border border-dashed border-gray-200">
                                 Belum ada aktivitas terkini
                             </div>
                         )}
@@ -487,67 +484,58 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
                 </div>
 
                 {/* Recent Requests Section */}
-                <div className="col-span-1 lg:col-span-1 xl:col-span-2 space-y-4">
+                <div className="col-span-1 lg:col-span-1 xl:col-span-2 space-y-3">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-text-main text-lg">Permintaan Terkini</h3>
-                        <button className="text-sm font-semibold text-primary hover:underline">Lihat Semua</button>
+                        <h3 className="font-bold text-text-main text-sm">Permintaan Terkini</h3>
+                        <button className="text-xs font-semibold text-primary hover:underline">Lihat Semua</button>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         {recentRequests.slice(0, 3).map((req) => (
-                            <Card key={req.id} className="p-4">
-                                <div className="flex justify-between items-start mb-2">
+                            <Card key={req.id} className="p-3">
+                                <div className="flex justify-between items-start mb-1.5">
                                     <div className="flex items-center gap-2">
-                                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-md">
-                                            {req.request_type === 'LEAVE' ? <BriefcaseIcon className="text-[16px]" /> :
-                                                req.request_type === 'OVERTIME' ? <ClockIcon className="text-[16px]" /> :
-                                                    <DocumentAddIcon className="text-[16px]" />}
+                                        <div className="p-1 bg-blue-50 text-blue-600 rounded">
+                                            {req.request_type === 'LEAVE' ? <BriefcaseIcon className="text-[14px]" /> :
+                                                req.request_type === 'OVERTIME' ? <ClockIcon className="text-[14px]" /> :
+                                                    <DocumentAddIcon className="text-[14px]" />}
                                         </div>
-                                        <span className="text-sm font-bold text-text-main capitalize">{req.request_type.replace('_', ' ').toLowerCase()}</span>
+                                        <span className="text-xs font-bold text-text-main capitalize">{req.request_type.replace('_', ' ').toLowerCase()}</span>
                                     </div>
                                     {getRequestStatusBadge(req.status)}
                                 </div>
                                 {(() => {
                                     let displayReason = req.reason || 'Tidak ada keterangan.';
-                                    let extraInfo = '';
 
                                     try {
                                         if (req.request_type === 'Koreksi Absensi' && req.reason?.startsWith('{')) {
                                             const parsed = JSON.parse(req.reason) as any;
-                                            // Map correction types to readable text
                                             const typeMap: Record<string, string> = {
                                                 'missed_in': 'Lupa Clock In',
                                                 'missed_out': 'Lupa Clock Out',
                                                 'missed_both': 'Lupa Clock In & Out',
                                                 'wrong_time': 'Kesalahan Waktu',
-                                                'out': 'Pembetulan Pulang', // fallback
-                                                'in': 'Pembetulan Masuk'   // fallback
+                                                'out': 'Pembetulan Pulang',
+                                                'in': 'Pembetulan Masuk'
                                             };
                                             const typeKey = String(parsed.type || '');
                                             const correctionType = typeMap[typeKey] || typeKey;
                                             displayReason = `${correctionType}: ${parsed.reason}`;
-
-                                            // Optional: Format new times if available
-                                            if (parsed.new_clock_in_iso || parsed.intended_iso) {
-                                                // extraInfo can be added here if needed
-                                            }
                                         }
-                                    } catch (e) {
-                                        // Fallback to raw string if parse fails
-                                    }
+                                    } catch (e) { }
 
                                     return (
-                                        <p className="text-xs text-text-secondary line-clamp-2 mb-2">
+                                        <p className="text-[10px] text-text-secondary line-clamp-1 mb-1">
                                             {displayReason}
                                         </p>
                                     );
                                 })()}
-                                <p className="text-xs text-text-secondary font-medium">
+                                <p className="text-[10px] text-text-secondary font-medium">
                                     {new Date(req.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                 </p>
                             </Card>
                         ))}
                         {recentRequests.length === 0 && (
-                            <div className="text-center py-8 text-text-secondary bg-surface-light rounded-2xl border border-dashed border-gray-200">
+                            <div className="text-center py-6 text-xs text-text-secondary bg-surface-light rounded-xl border border-dashed border-gray-200">
                                 Belum ada permintaan terkini
                             </div>
                         )}
