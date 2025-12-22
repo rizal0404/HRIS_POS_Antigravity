@@ -12,6 +12,7 @@ import L from 'leaflet';
 import { buildAttendanceWindow } from '../../lib/attendanceRules';
 import { offlineQueue } from '../../lib/offlineQueue';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
+import { useToast } from '../ui/Toast';
 
 // Fix for default marker icon in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -124,6 +125,9 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
 
   // Offline queue status
   const { isOnline, pendingCount, isSyncing, syncNow } = useOfflineQueue();
+
+  // Toast notifications
+  const { showToast } = useToast();
 
   // User's assigned workplace from database
   const [assignedWorkplace, setAssignedWorkplace] = useState<Workplace | null>(null);
@@ -597,7 +601,9 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
             activeAttendance: todayAttendance,
             attendanceFlags: validation.flags,
           });
-          onSuccess(`${actionType === 'in' ? 'Clock In' : 'Clock Out'} berhasil!`, attendanceRecord);
+          const successMsg = `${actionType === 'in' ? 'Clock In' : 'Clock Out'} berhasil!`;
+          showToast('success', successMsg);
+          onSuccess(successMsg, attendanceRecord);
         } catch (networkError) {
           // If network fails, queue locally
           console.log('[ClockInOutModal] Network failed, queuing offline...');
@@ -622,10 +628,9 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
               attendance_id: todayAttendance?.id,
             },
           });
-          onSuccess(
-            `${actionType === 'in' ? 'Clock In' : 'Clock Out'} disimpan offline. Akan otomatis disinkronkan saat online.`,
-            null
-          );
+          const offlineMsg = `${actionType === 'in' ? 'Clock In' : 'Clock Out'} disimpan offline. Akan otomatis disinkronkan saat online.`;
+          showToast('info', offlineMsg);
+          onSuccess(offlineMsg, null);
         }
       } else {
         // workLocation === 'Lainnya'
@@ -646,10 +651,13 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
           alasan: notes,
           todayAttendanceId: todayAttendance?.id,
         });
-        onSuccess(`Ajuan clock-${actionType} dari lokasi 'Lainnya' telah dikirim ke atasan untuk persetujuan.`, null);
+        const approvalMsg = `Ajuan clock-${actionType} dari lokasi 'Lainnya' telah dikirim ke atasan untuk persetujuan.`;
+        showToast('success', approvalMsg);
+        onSuccess(approvalMsg, null);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan.';
+      showToast('error', errorMessage);
       onError(errorMessage);
     } finally {
       setIsSubmitting(false);
