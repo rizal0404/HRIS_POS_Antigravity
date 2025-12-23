@@ -11,6 +11,9 @@ import { apiService } from '../../../services/apiService';
 import { disciplineService } from '../../../services/discipline';
 import { getAllSubordinates, formatDateKey } from '../../../lib/utils';
 import Spinner from '../../../components/ui/Spinner';
+import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import { RefreshIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 import { KPI_DEFAULT_CONFIG, computeKpiScore } from '@/components/kpi/KpiCalculator';
 import { DisciplineScore } from '../../../types/discipline';
 
@@ -20,14 +23,14 @@ interface LaporanTimPageProps {
 
 type Tab = 'presensi' | 'rekap_lembur' | 'monitoring_lembur' | 'quota_cuti' | 'monitoring_presensi' | 'kpi' | 'disiplin';
 
-const tabConfig: { id: Tab; label: string }[] = [
-    { id: 'monitoring_presensi', label: 'Monitoring Presensi & Lembur' },
-    { id: 'presensi', label: 'Presensi Bawahan' },
-    { id: 'rekap_lembur', label: 'Rekap Data Lembur' },
-    { id: 'monitoring_lembur', label: 'Monitoring Quota Lembur' },
-    { id: 'quota_cuti', label: 'Quota Cuti Bawahan' },
-    { id: 'kpi', label: 'Laporan KPI' },
-    { id: 'disiplin', label: 'Skor Disiplin' },
+const tabConfig: { id: Tab; label: string; icon: string }[] = [
+    { id: 'monitoring_presensi', label: 'Monitoring', icon: 'monitoring' },
+    { id: 'presensi', label: 'Presensi', icon: 'schedule' },
+    { id: 'rekap_lembur', label: 'Rekap Lembur', icon: 'timer' },
+    { id: 'monitoring_lembur', label: 'Quota Lembur', icon: 'hourglass_top' },
+    { id: 'quota_cuti', label: 'Quota Cuti', icon: 'event_available' },
+    { id: 'kpi', label: 'KPI', icon: 'insights' },
+    { id: 'disiplin', label: 'Disiplin', icon: 'verified_user' },
 ];
 
 type KpiRow = {
@@ -181,143 +184,144 @@ const LaporanKpi: React.FC<{ user: UserProfile }> = ({ user }) => {
 
     const formatPercent = (value: number) => `${value.toFixed(1)}%`;
     const toneClass = (value: number, goal: number) => {
-        if (!Number.isFinite(value)) return 'bg-slate-100 text-slate-700';
-        if (value >= goal + 5) return 'bg-emerald-50 text-emerald-700';
-        if (value >= goal) return 'bg-emerald-100 text-emerald-800';
-        if (value >= goal - 10) return 'bg-amber-50 text-amber-700';
-        return 'bg-rose-50 text-rose-700';
+        if (!Number.isFinite(value)) return 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300';
+        if (value >= goal + 5) return 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+        if (value >= goal) return 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300';
+        if (value >= goal - 10) return 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+        return 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400';
     };
 
     return (
         <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Laporan KPI Kehadiran & Disiplin</h3>
-                    <p className="text-sm text-gray-500">Periode bulan ini (MTD)</p>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan KPI Kehadiran & Disiplin</h3>
+                    <p className="text-sm text-slate-500">Periode bulan ini (MTD)</p>
                 </div>
                 <button
                     type="button"
                     onClick={fetchKpi}
                     disabled={loading}
-                    className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60 transition-colors"
                 >
-                    Segarkan data
+                    <RefreshIcon className="w-4 h-4" />
+                    Segarkan
                 </button>
             </div>
 
-            {error && <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div>}
+            {error && <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-400">{error}</div>}
 
             {loading ? (
-                <div className="flex items-center justify-center py-10 text-gray-600">
+                <div className="flex items-center justify-center py-12">
                     <Spinner />
-                    <span className="ml-2 text-sm">Menghitung KPI bawahan...</span>
+                    <span className="ml-2 text-sm text-slate-500">Menghitung KPI bawahan...</span>
                 </div>
             ) : rows.length === 0 ? (
-                <div className="rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-gray-500">
-                    Belum ada bawahan atau data KPI untuk periode ini.
-                </div>
+                <Card className="p-8 text-center">
+                    <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">trending_up</span>
+                    <p className="text-slate-500 dark:text-slate-400">Belum ada data KPI untuk periode ini.</p>
+                </Card>
             ) : (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="rounded-lg border bg-slate-50 p-4">
-                            <p className="text-xs text-gray-500">Rata-rata Kehadiran</p>
-                            <p className="text-2xl font-semibold text-gray-900">{summary.avgPresence.toFixed(1)}%</p>
-                        </div>
-                        <div className="rounded-lg border bg-slate-50 p-4">
-                            <p className="text-xs text-gray-500">Rata-rata Disiplin</p>
-                            <p className="text-2xl font-semibold text-gray-900">{summary.avgDiscipline.toFixed(1)}%</p>
-                        </div>
-                        <div className="rounded-lg border bg-slate-50 p-4">
-                            <p className="text-xs text-gray-500">Jumlah Bawahan</p>
-                            <p className="text-2xl font-semibold text-gray-900">{rows.length}</p>
-                        </div>
+                        <Card className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Rata-rata Kehadiran</p>
+                                    <span className="text-2xl font-black text-slate-900 dark:text-white">{summary.avgPresence.toFixed(1)}%</span>
+                                </div>
+                                <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-xl">
+                                    <span className="material-symbols-outlined text-green-500 text-[20px]">check_circle</span>
+                                </div>
+                            </div>
+                        </Card>
+                        <Card className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Rata-rata Disiplin</p>
+                                    <span className="text-2xl font-black text-slate-900 dark:text-white">{summary.avgDiscipline.toFixed(1)}%</span>
+                                </div>
+                                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+                                    <span className="material-symbols-outlined text-blue-500 text-[20px]">verified_user</span>
+                                </div>
+                            </div>
+                        </Card>
+                        <Card className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Jumlah Bawahan</p>
+                                    <span className="text-2xl font-black text-slate-900 dark:text-white">{rows.length}</span>
+                                </div>
+                                <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-xl">
+                                    <span className="material-symbols-outlined text-slate-500 text-[20px]">group</span>
+                                </div>
+                            </div>
+                        </Card>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-700">
-                        <span className="font-semibold text-gray-900">Target KPI:</span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-                            Kehadiran ≥ {target.presence}%
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-                            Disiplin ≥ {target.discipline}%
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-                            Skor akhir ≥ {target.final}%
-                        </span>
-                        <span className="text-[11px] text-gray-500">Warna hijau = memenuhi target, kuning = mendekati, merah = perlu perhatian.</span>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">Target:</span>
+                        <Badge variant="success">Kehadiran ≥ {target.presence}%</Badge>
+                        <Badge variant="success">Disiplin ≥ {target.discipline}%</Badge>
+                        <Badge variant="success">Skor ≥ {target.final}%</Badge>
                     </div>
 
-                    <div className="overflow-x-auto rounded-lg border bg-white">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        #
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        Pegawai
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        Kehadiran
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        Disiplin
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        Skor Akhir
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        Jam Kerja (aktual)
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        Alpa/TA
-                                    </th>
-                                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        Cuti/Izin
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 bg-white">
-                                {rows.map((item, idx) => (
-                                    <tr key={item.profile.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm text-gray-600">#{idx + 1}</td>
-                                        <td className="px-4 py-3">
-                                            <p className="text-sm font-semibold text-gray-900">{item.profile.full_name}</p>
-                                            <p className="text-xs text-gray-500">{item.profile.position || '-'}</p>
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
-                                            <span className={`inline-flex rounded-full px-2 py-1 ${toneClass(item.presence, target.presence)}`}>
-                                                {formatPercent(item.presence)}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
-                                            <span className={`inline-flex rounded-full px-2 py-1 ${toneClass(item.discipline, target.discipline)}`}>
-                                                {formatPercent(item.discipline)}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
-                                            <span className={`inline-flex rounded-full px-2 py-1 ${toneClass(item.final, target.final)}`}>
-                                                {formatPercent(item.final)}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-sm text-gray-700">{item.workedHours.toFixed(1)} jam</td>
-                                        <td className="px-4 py-3 text-right text-sm text-gray-700">{item.unauthDays}</td>
-                                        <td className="px-4 py-3 text-right text-sm text-gray-700">{item.plannedLeaveDays}</td>
+                    <Card className="overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+                                    <tr>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">#</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Pegawai</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-right">Kehadiran</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-right">Disiplin</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-right">Skor</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-right">Jam Kerja</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-right">Alpa</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="rounded-lg border border-dashed border-gray-300 bg-slate-50 p-4 text-sm text-gray-700">
-                        <p className="font-semibold text-gray-900">Keterangan perhitungan KPI</p>
-                        <ul className="mt-2 list-disc space-y-1 pl-5">
-                            <li>Kehadiran: jam kerja aktual dibanding jam rencana periode (JSP - jam cuti resmi), dibatasi plafon 100%. Contoh: JR 160 jam, jam aktual 150 jam ⇒ 150/160 = 93,8%.</li>
-                            <li>Disiplin: penalti proporsional atas alpa/tidak hadir tanpa izin dibanding toleransi, nilai turun hingga batas minimum. Contoh: toleransi 2 hari, alpa 1 hari ⇒ penalti 15%, disiplin 85%.</li>
-                            <li>Skor akhir: bobot default kehadiran 30%, produktivitas 50% (jika ada target/output), disiplin 20%. Contoh: 94% kehadiran, 0% produktivitas, 85% disiplin ⇒ skor akhir 0.3*94 + 0.5*0 + 0.2*85 = 54,7%.</li>
-                            <li>Periode MTD: data dihitung sejak awal bulan sampai hari berjalan, termasuk data lembur/pembetulan terbaru. Contoh: 1–15 setiap bulan.</li>
-                        </ul>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                                    {rows.map((item, idx) => (
+                                        <tr key={item.profile.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="px-4 py-3 text-slate-500">#{idx + 1}</td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                                                        <span className="text-blue-600 dark:text-blue-400 font-bold text-xs">{item.profile.full_name.charAt(0)}</span>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-900 dark:text-white text-xs">{item.profile.full_name}</p>
+                                                        <p className="text-[10px] text-slate-400">{item.profile.position || '-'}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <span className={`inline-flex rounded-lg px-2 py-1 text-xs font-bold ${toneClass(item.presence, target.presence)}`}>
+                                                    {formatPercent(item.presence)}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <span className={`inline-flex rounded-lg px-2 py-1 text-xs font-bold ${toneClass(item.discipline, target.discipline)}`}>
+                                                    {formatPercent(item.discipline)}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <span className={`inline-flex rounded-lg px-2 py-1 text-xs font-bold ${toneClass(item.final, target.final)}`}>
+                                                    {formatPercent(item.final)}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">{item.workedHours.toFixed(1)} jam</td>
+                                            <td className="px-4 py-3 text-right">
+                                                <span className={item.unauthDays > 0 ? 'text-red-500 font-semibold' : 'text-slate-600 dark:text-slate-400'}>
+                                                    {item.unauthDays}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
                 </>
             )}
         </div>
@@ -342,7 +346,7 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
             setRows(data);
         } catch (err) {
             console.error('Failed to load discipline scores', err);
-            setError('Gagal memuat skor disiplin. Pastikan SQL migration sudah dijalankan.');
+            setError('Gagal memuat skor disiplin.');
         } finally {
             setLoading(false);
         }
@@ -362,9 +366,9 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
     }, [rows]);
 
     const scoreClass = (score: number) => {
-        if (score >= 90) return 'bg-emerald-50 text-emerald-700';
-        if (score >= 70) return 'bg-amber-50 text-amber-700';
-        return 'bg-rose-50 text-rose-700';
+        if (score >= 90) return 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+        if (score >= 70) return 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+        return 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400';
     };
 
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -373,14 +377,14 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
         <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Laporan Skor Disiplin Bawahan</h3>
-                    <p className="text-sm text-gray-500">Periode: {months[month - 1]} {year}</p>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Skor Disiplin Bawahan</h3>
+                    <p className="text-sm text-slate-500">Periode: {months[month - 1]} {year}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <select
                         value={month}
                         onChange={(e) => setMonth(Number(e.target.value))}
-                        className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
                     >
                         {months.map((m, idx) => (
                             <option key={idx} value={idx + 1}>{m}</option>
@@ -389,7 +393,7 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
                     <select
                         value={year}
                         onChange={(e) => setYear(Number(e.target.value))}
-                        className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
                     >
                         {[2024, 2025, 2026].map((y) => (
                             <option key={y} value={y}>{y}</option>
@@ -398,98 +402,116 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
                     <button
                         onClick={fetchData}
                         disabled={loading}
-                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60 transition-colors"
                     >
-                        Segarkan
+                        <RefreshIcon className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            {error && <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div>}
+            {error && <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-400">{error}</div>}
 
             {loading ? (
-                <div className="flex items-center justify-center py-10 text-gray-600">
+                <div className="flex items-center justify-center py-12">
                     <Spinner />
-                    <span className="ml-2 text-sm">Memuat skor disiplin...</span>
+                    <span className="ml-2 text-sm text-slate-500">Memuat skor disiplin...</span>
                 </div>
             ) : rows.length === 0 ? (
-                <div className="rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-gray-500">
-                    Belum ada data skor disiplin. Pastikan SQL migration sudah dijalankan dan data sudah dihitung.
-                </div>
+                <Card className="p-8 text-center">
+                    <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">verified_user</span>
+                    <p className="text-slate-500 dark:text-slate-400">Belum ada data skor disiplin.</p>
+                </Card>
             ) : (
                 <>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="rounded-lg border bg-slate-50 p-4">
-                            <p className="text-xs text-gray-500">Rata-rata Skor</p>
-                            <p className={`text-2xl font-bold ${summary.avgScore >= 90 ? 'text-emerald-600' : summary.avgScore >= 70 ? 'text-amber-600' : 'text-rose-600'}`}>
-                                {summary.avgScore.toFixed(1)}
-                            </p>
-                        </div>
-                        <div className="rounded-lg border bg-slate-50 p-4">
-                            <p className="text-xs text-gray-500">Total Terlambat</p>
-                            <p className="text-2xl font-semibold text-gray-900">{summary.totalLate}x</p>
-                        </div>
-                        <div className="rounded-lg border bg-slate-50 p-4">
-                            <p className="text-xs text-gray-500">Total Pulang Cepat</p>
-                            <p className="text-2xl font-semibold text-gray-900">{summary.totalEarly}x</p>
-                        </div>
-                        <div className="rounded-lg border bg-slate-50 p-4">
-                            <p className="text-xs text-gray-500">Total Lokasi Salah</p>
-                            <p className="text-2xl font-semibold text-gray-900">{summary.totalWrongLoc}x</p>
-                        </div>
+                        <Card className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Rata-rata Skor</p>
+                                    <span className={`text-2xl font-black ${summary.avgScore >= 90 ? 'text-emerald-600' : summary.avgScore >= 70 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                        {summary.avgScore.toFixed(1)}
+                                    </span>
+                                </div>
+                                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+                                    <span className="material-symbols-outlined text-blue-500 text-[20px]">analytics</span>
+                                </div>
+                            </div>
+                        </Card>
+                        <Card className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Total Terlambat</p>
+                                    <span className="text-2xl font-black text-orange-600">{summary.totalLate}x</span>
+                                </div>
+                                <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-xl">
+                                    <span className="material-symbols-outlined text-orange-500 text-[20px]">schedule</span>
+                                </div>
+                            </div>
+                        </Card>
+                        <Card className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Pulang Cepat</p>
+                                    <span className="text-2xl font-black text-red-600">{summary.totalEarly}x</span>
+                                </div>
+                                <div className="p-2 bg-red-50 dark:bg-red-900/30 rounded-xl">
+                                    <span className="material-symbols-outlined text-red-500 text-[20px]">logout</span>
+                                </div>
+                            </div>
+                        </Card>
+                        <Card className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Lokasi Salah</p>
+                                    <span className="text-2xl font-black text-purple-600">{summary.totalWrongLoc}x</span>
+                                </div>
+                                <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-xl">
+                                    <span className="material-symbols-outlined text-purple-500 text-[20px]">wrong_location</span>
+                                </div>
+                            </div>
+                        </Card>
                     </div>
 
-                    <div className="overflow-x-auto rounded-lg border bg-white">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">#</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">Pegawai</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Skor</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Terlambat</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Pulang Cepat</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Lokasi Salah</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-gray-500">Koreksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {rows.map((item, idx) => (
-                                    <tr key={item.id || idx} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm text-gray-600">#{idx + 1}</td>
-                                        <td className="px-4 py-3 text-sm font-semibold text-gray-900">{item.profile_name || '-'}</td>
-                                        <td className="px-4 py-3 text-right">
-                                            <span className={`inline-flex rounded-full px-2 py-1 text-sm font-bold ${scoreClass(item.final_score || 0)}`}>
-                                                {item.final_score}
-                                            </span>
-                                        </td>
-                                        <td className={`px-4 py-3 text-right text-sm ${(item.late_count || 0) > 0 ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                                            {item.late_count || 0}x
-                                        </td>
-                                        <td className={`px-4 py-3 text-right text-sm ${(item.early_leave_count || 0) > 0 ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                                            {item.early_leave_count || 0}x
-                                        </td>
-                                        <td className={`px-4 py-3 text-right text-sm ${(item.wrong_location_count || 0) > 0 ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                                            {item.wrong_location_count || 0}x
-                                        </td>
-                                        <td className={`px-4 py-3 text-right text-sm ${(item.correction_count || 0) > 0 ? 'text-orange-500 font-medium' : 'text-gray-700'}`}>
-                                            {item.correction_count || 0}x
-                                        </td>
+                    <Card className="overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+                                    <tr>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">#</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Pegawai</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-center">Skor</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-center">Terlambat</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-center">Pulang Cepat</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-center">Lokasi Salah</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="rounded-lg border border-dashed border-gray-300 bg-slate-50 p-4 text-sm text-gray-700">
-                        <p className="font-semibold text-gray-900">Keterangan Penghitungan Skor Disiplin</p>
-                        <ul className="mt-2 list-disc space-y-1 pl-5">
-                            <li>Skor dasar: 100 poin</li>
-                            <li>Terlambat: -2 poin per kejadian</li>
-                            <li>Pulang cepat: -2 poin per kejadian</li>
-                            <li>Lokasi salah: -5 poin per kejadian</li>
-                            <li>Koreksi absensi: -1 poin per kejadian</li>
-                        </ul>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                                    {rows.map((item, idx) => (
+                                        <tr key={item.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="px-4 py-3 text-slate-500">#{idx + 1}</td>
+                                            <td className="px-4 py-3">
+                                                <p className="font-bold text-slate-900 dark:text-white text-xs">{item.profile_name || '-'}</p>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`inline-flex rounded-lg px-3 py-1 text-sm font-bold ${scoreClass(item.final_score || 0)}`}>
+                                                    {item.final_score}
+                                                </span>
+                                            </td>
+                                            <td className={`px-4 py-3 text-center text-sm ${(item.late_count || 0) > 0 ? 'text-red-500 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                {item.late_count || 0}x
+                                            </td>
+                                            <td className={`px-4 py-3 text-center text-sm ${(item.early_leave_count || 0) > 0 ? 'text-red-500 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                {item.early_leave_count || 0}x
+                                            </td>
+                                            <td className={`px-4 py-3 text-center text-sm ${(item.wrong_location_count || 0) > 0 ? 'text-red-500 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                {item.wrong_location_count || 0}x
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
                 </>
             )}
         </div>
@@ -497,7 +519,7 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
 };
 
 const LaporanTimPage: React.FC<LaporanTimPageProps> = ({ user }) => {
-    const [activeTab, setActiveTab] = useState<Tab>('presensi');
+    const [activeTab, setActiveTab] = useState<Tab>('monitoring_presensi');
 
     const renderContent = () => {
         switch (activeTab) {
@@ -521,31 +543,40 @@ const LaporanTimPage: React.FC<LaporanTimPageProps> = ({ user }) => {
     };
 
     return (
-        <div className="flex flex-col h-full">
-            <div className="flex-shrink-0 bg-red-700 text-white p-3">
-                <h2 className="text-xl font-bold">Laporan Tim</h2>
-            </div>
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans">
+            {/* Header Section */}
+            <header className="flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 lg:px-8 shrink-0">
+                <div>
+                    <h2 className="text-lg font-black text-slate-900 dark:text-white">Laporan Tim</h2>
+                    <p className="text-xs text-slate-500">Analisis dan monitoring performa tim Anda</p>
+                </div>
+            </header>
 
-            <div className="flex-shrink-0 border-b border-gray-200 bg-white">
-                <nav className="-mb-px flex space-x-6 px-6 overflow-x-auto" aria-label="Tabs">
+            {/* Tab Navigation */}
+            <div className="flex-shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 lg:px-8">
+                <nav className="flex space-x-1 overflow-x-auto py-2 scrollbar-thin" aria-label="Tabs">
                     {tabConfig.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                            className={`flex items-center gap-2 whitespace-nowrap px-4 py-2.5 rounded-lg text-sm font-medium transition-all
                                 ${activeTab === tab.id
-                                    ? 'border-red-500 text-red-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300'
                                 }`}
                         >
-                            {tab.label}
+                            <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
+                            <span className="hidden sm:inline">{tab.label}</span>
                         </button>
                     ))}
                 </nav>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-100">
-                {renderContent()}
+            {/* Main Content */}
+            <div className="flex-1 overflow-auto p-4 lg:p-6">
+                <div className="max-w-7xl mx-auto">
+                    {renderContent()}
+                </div>
             </div>
         </div>
     );

@@ -123,8 +123,8 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
             const todayColumn = todayColumnRef.current;
 
             // Calculate scroll position to show today column next to employee column
-            // The employee column is 256px (w-64), so we scroll to position today column right after it
-            const scrollLeft = todayColumn.offsetLeft - 16; // 16px for some padding
+            // The employee column is 176px (w-44), so we scroll to position today column right after it
+            const scrollLeft = todayColumn.offsetLeft - 8; // 8px for some padding
 
             container.scrollTo({
                 left: scrollLeft,
@@ -216,30 +216,30 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
                         {/* Table Container with frozen column */}
                         <div className="flex-1 overflow-hidden flex">
                             {/* Frozen Employee Column */}
-                            <div className="w-64 shrink-0 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-20">
+                            <div className="w-44 shrink-0 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-20">
                                 {/* Header */}
-                                <div className="p-5 font-bold text-slate-500 dark:text-slate-400 text-sm uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 h-[72px] flex items-center">
+                                <div className="px-3 py-4 font-bold text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 h-[72px] flex items-center">
                                     Karyawan
                                 </div>
                                 {/* Employee List */}
                                 <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
                                     {usersToDisplay.map(employee => (
-                                        <div key={employee.id} className="p-5 flex items-center gap-4 h-24 bg-white dark:bg-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
-                                            <div className="relative">
-                                                <div className="size-11 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 font-bold border-2 border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                                        <div key={employee.id} className="px-2 py-3 flex items-center gap-2 h-24 bg-white dark:bg-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                                            <div className="relative flex-shrink-0">
+                                                <div className="size-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold border-2 border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                                                     {employee.avatar_url ? (
                                                         <img src={employee.avatar_url} alt={employee.full_name} className="size-full object-cover" />
                                                     ) : (
                                                         employee.full_name.charAt(0).toUpperCase()
                                                     )}
                                                 </div>
-                                                <div className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white dark:border-slate-900 bg-green-500"></div>
+                                                <div className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-green-500"></div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-black text-slate-900 dark:text-white truncate leading-none mb-1 capitalize">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[11px] font-bold text-slate-900 dark:text-white truncate leading-tight mb-0.5 capitalize">
                                                     {employee.full_name}
                                                 </p>
-                                                <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 truncate uppercase tracking-tight">
+                                                <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 truncate uppercase tracking-tight">
                                                     {employee.position || 'Staff'}
                                                 </p>
                                             </div>
