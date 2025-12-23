@@ -63,8 +63,8 @@ serve(async () => {
         continue;
       }
 
-      const text = buildMessage(job.event, requestRow, targetProfile);
-      await sendTelegram(chatId, text);
+      const { text, replyMarkup } = buildMessage(job.event, requestRow, targetProfile);
+      await sendTelegram(chatId, text, replyMarkup);
       await markProcessed(job.id, attempt, null);
       await log(job, "sent", null);
     } catch (err: any) {
@@ -101,15 +101,15 @@ function skipByPref(ev: string, p: { new_request: boolean; request_approved: boo
   );
 }
 
-function buildMessage(ev: string, req: any, targetProfile: any) {
-  const statusText = ev === "created" ? "diajukan" : ev === "approved" ? "disetujui" : ev === "rejected" ? "ditolak" : ev;
+function buildMessage(ev: string, req: any, targetProfile: any): { text: string; replyMarkup?: any } {
+  const statusText = ev === "created" ? "diajukan" : ev === "approved" ? "disetujui" : ev === "rejected" ? "ditolak" : ev === "revised" ? "perlu revisi" : ev;
   const typeLabel = req.request_type || "Permohonan";
   const isOvertime = String(typeLabel).toLowerCase().includes("lembur");
   const periodText = req.start_date === req.end_date ? req.start_date : `${req.start_date} s.d. ${req.end_date}`;
   const timeText = req.start_time || req.end_time ? `Waktu: ${req.start_time || "-"} - ${req.end_time || "-"}` : null;
   const requesterName = req.profiles?.full_name || "Pemohon";
   const isForApprover = targetProfile?.id && req.approver_id && String(targetProfile.id) === String(req.approver_id);
-  const header = isOvertime ? "?? SPL / Lembur" : "?? Notifikasi Pengajuan";
+  const header = isOvertime ? "📋 SPL / Lembur" : "📋 Notifikasi Pengajuan";
 
   const lines = [
     `${header}: ${subjectMap[ev] || "Perubahan"}`,
@@ -122,22 +122,45 @@ function buildMessage(ev: string, req: any, targetProfile: any) {
     `ID: #${req.id}`,
   ].filter(Boolean);
 
-  return lines.join("\n");
+  const text = lines.join("\n");
+
+  // Create inline keyboard for approver on new requests
+  let replyMarkup: any = undefined;
+  if (isForApprover && ev === "created") {
+    replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: "✅ Setuju", callback_data: `approve_${req.id}` },
+          { text: "📝 Revisi", callback_data: `revise_${req.id}` },
+          { text: "❌ Tolak", callback_data: `reject_${req.id}` },
+        ],
+      ],
+    };
+  }
+
+  return { text, replyMarkup };
 }
 
-async function sendTelegram(chatId: string, text: string) {
+async function sendTelegram(chatId: string, text: string, replyMarkup?: any) {
   const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN missing");
+
+  const body: any = {
+    chat_id: chatId,
+    text,
+  };
+
+  // Add inline keyboard if provided
+  if (replyMarkup) {
+    body.reply_markup = replyMarkup;
+  }
 
   const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!resp.ok) throw new Error(`telegram error ${resp.status}`);

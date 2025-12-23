@@ -357,12 +357,13 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
     }, [fetchData]);
 
     const summary = useMemo(() => {
-        if (rows.length === 0) return { avgScore: 0, totalLate: 0, totalEarly: 0, totalWrongLoc: 0 };
+        if (rows.length === 0) return { avgScore: 0, totalLate: 0, totalEarly: 0, totalWrongLoc: 0, totalCorrection: 0 };
         const totalScore = rows.reduce((sum, r) => sum + (r.final_score || 0), 0);
         const totalLate = rows.reduce((sum, r) => sum + (r.late_count || 0), 0);
         const totalEarly = rows.reduce((sum, r) => sum + (r.early_leave_count || 0), 0);
         const totalWrongLoc = rows.reduce((sum, r) => sum + (r.wrong_location_count || 0), 0);
-        return { avgScore: totalScore / rows.length, totalLate, totalEarly, totalWrongLoc };
+        const totalCorrection = rows.reduce((sum, r) => sum + (r.correction_count || 0), 0);
+        return { avgScore: totalScore / rows.length, totalLate, totalEarly, totalWrongLoc, totalCorrection };
     }, [rows]);
 
     const scoreClass = (score: number) => {
@@ -423,7 +424,7 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
                 </Card>
             ) : (
                 <>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         <Card className="p-4">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -440,7 +441,7 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
                         <Card className="p-4">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="text-xs text-slate-500 font-medium">Total Terlambat</p>
+                                    <p className="text-xs text-slate-500 font-medium">Terlambat</p>
                                     <span className="text-2xl font-black text-orange-600">{summary.totalLate}x</span>
                                 </div>
                                 <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-xl">
@@ -470,6 +471,17 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
                                 </div>
                             </div>
                         </Card>
+                        <Card className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Koreksi Absen</p>
+                                    <span className="text-2xl font-black text-amber-600">{summary.totalCorrection}x</span>
+                                </div>
+                                <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-xl">
+                                    <span className="material-symbols-outlined text-amber-500 text-[20px]">edit_note</span>
+                                </div>
+                            </div>
+                        </Card>
                     </div>
 
                     <Card className="overflow-hidden">
@@ -483,6 +495,7 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
                                         <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-center">Terlambat</th>
                                         <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-center">Pulang Cepat</th>
                                         <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-center">Lokasi Salah</th>
+                                        <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] text-center">Koreksi Absen</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -505,6 +518,9 @@ const LaporanDisiplin: React.FC<{ user: UserProfile }> = ({ user }) => {
                                             </td>
                                             <td className={`px-4 py-3 text-center text-sm ${(item.wrong_location_count || 0) > 0 ? 'text-red-500 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
                                                 {item.wrong_location_count || 0}x
+                                            </td>
+                                            <td className={`px-4 py-3 text-center text-sm ${(item.correction_count || 0) > 0 ? 'text-amber-500 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                {item.correction_count || 0}x
                                             </td>
                                         </tr>
                                     ))}
