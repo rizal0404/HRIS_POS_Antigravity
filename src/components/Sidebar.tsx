@@ -52,6 +52,7 @@ const privateServiceLinks: NavLinkItem[] = [
 const managerLinks: NavLinkItem[] = [
     { key: 'dashboard', label: 'Dashboard Tim', icon: HomeIcon, path: '/dashboard' },
     { key: 'persetujuan', label: 'Persetujuan Tim', icon: CheckCircleIcon, path: '/persetujuan' },
+    { key: 'presensi_tim', label: 'Presensi', icon: ClockIcon, path: '/presensi-tim' },
     { key: 'tim', label: 'Tim Saya', icon: UsersIcon, path: '/tim' },
     { key: 'laporan_tim', label: 'Laporan Tim', icon: DocumentReportIcon, path: '/laporan-tim' },
     { key: 'simulasi_cuti_lembur', label: 'Simulasi Cuti & Lembur', icon: CalculatorIcon, path: '/simulasi-cuti-lembur' },

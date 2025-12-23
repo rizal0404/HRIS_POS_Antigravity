@@ -175,23 +175,23 @@ const Header: React.FC<HeaderProps> = ({ user, pageTitle, onMenuClick, notificat
                     </button>
 
                     {isProfileMenuOpen && (
-                        <div className="absolute top-full right-0 mt-3 w-56 bg-surface-light dark:bg-slate-800 rounded-2xl shadow-xl border border-[#f0f2f4] dark:border-slate-700 z-50 py-2 overflow-hidden" role="menu">
-                            <div className="px-4 py-3 border-b border-[#f0f2f4] dark:border-slate-700 md:hidden">
-                                <p className="text-sm font-bold text-text-main dark:text-text-main-dark">{user.full_name}</p>
-                                <p className="text-xs text-text-secondary dark:text-text-secondary-dark capitalize">{user.position}</p>
+                        <div className="absolute top-full right-0 mt-3 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 z-50 py-2 overflow-hidden backdrop-blur-none" role="menu">
+                            <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 md:hidden">
+                                <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{user.full_name}</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400 capitalize">{user.position}</p>
                             </div>
                             <button
                                 onClick={() => {
                                     navigate('/profil');
                                     setIsProfileMenuOpen(false);
                                 }}
-                                className="w-full text-left flex items-center px-4 py-3 text-sm font-medium text-text-main dark:text-text-main-dark hover:bg-background-light dark:hover:bg-slate-700 transition-colors"
+                                className="w-full text-left flex items-center px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                                 role="menuitem"
                             >
-                                <AcademicCapIcon className="text-[20px] mr-3 text-text-secondary dark:text-text-secondary-dark" />
+                                <AcademicCapIcon className="text-[20px] mr-3 text-gray-500 dark:text-slate-400" />
                                 Profil Saya
                             </button>
-                            <div className="border-t border-[#f0f2f4] dark:border-slate-700 my-1"></div>
+                            <div className="border-t border-gray-200 dark:border-slate-700 my-1"></div>
                             <button
                                 onClick={() => {
                                     onLogout();
