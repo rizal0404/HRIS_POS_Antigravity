@@ -52,3 +52,15 @@ export interface DisciplineCalculationResult {
     sick_leave_count: number;
     final_score: number;
 }
+
+// Database configuration type
+export interface DisciplineConfigurationDB {
+    id: string;
+    late_penalty: number;
+    early_leave_penalty: number;
+    wrong_location_penalty: number;
+    correction_penalty: number;
+    base_score: number;
+    updated_at?: string;
+    updated_by?: string;
+}

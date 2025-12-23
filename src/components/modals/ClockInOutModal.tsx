@@ -217,13 +217,13 @@ export const ClockInModal: React.FC<ClockInModalProps> = ({
 
       // 2. Check for "perfect" integer accuracy values
       if (Number.isInteger(accuracy) && accuracy > 0) {
-        reasons.push('Akurasi GPS bulat sempurna');
+        reasons.push('‼️');
         confidence += 15;
       }
 
       // 3. Check for "perfect" integer altitude
       if (altitude !== null && Number.isInteger(altitude)) {
-        reasons.push('Ketinggian bulat sempurna');
+        reasons.push('‼️');
         confidence += 10;
       }
 

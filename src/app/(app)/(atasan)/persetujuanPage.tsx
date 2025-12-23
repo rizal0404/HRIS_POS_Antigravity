@@ -235,6 +235,16 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
                     const newClockInISO: string | null = reasonParsed.new_clock_in_iso || (reasonParsed.type === 'in' && reasonParsed.intended_iso) || null;
                     const newClockOutISO: string | null = reasonParsed.new_clock_out_iso || (reasonParsed.type === 'out' && reasonParsed.intended_iso) || null;
 
+                    // Extract notes from request reason
+                    let extractedNotes: string | undefined = undefined;
+                    if (reasonParsed.reason) {
+                        // Remove prefix if present (e.g., "Absen dari lokasi 'Lainnya': ")
+                        extractedNotes = reasonParsed.reason.replace(/^Absen dari lokasi 'Lainnya': /, '');
+                    }
+
+                    // Check if this is a remote location correction
+                    const isRemoteLocation = reasonParsed.reason?.includes("lokasi 'Lainnya'") || false;
+
                     const scheduleForWorkDate = workDate ? (await apiService.getTeamSchedules([requestToUpdate.profile_id], workDate, workDate))[0] : undefined;
 
                     let targetAttendance: Attendance | null = null;
@@ -248,6 +258,8 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
                             work_date: workDate,
                             status: AttendanceStatus.IN_PROGRESS,
                             source: 'CORRECTED',
+                            lokasi_kerja: isRemoteLocation ? 'Lainnya' : undefined,
+                            catatan: extractedNotes,
                         });
                     }
                     if (!targetAttendance) throw new Error('Data presensi tidak ditemukan.');
@@ -256,6 +268,14 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
                     const clockOutFinal = newClockOutISO || targetAttendance.clock_out;
                     const outcome = clockInFinal && clockOutFinal ? computeAttendanceOutcome({ clockInISO: clockInFinal, clockOutISO: clockOutFinal, schedule: scheduleForWorkDate }) : null;
 
+                    // Merge existing flags with new correction flags
+                    const existingFlags: string[] = targetAttendance.attendance_flags || [];
+                    const newFlags: string[] = ['approved_correction'];
+                    if (isRemoteLocation) {
+                        newFlags.push('remote_location');
+                    }
+                    const mergedFlags = [...new Set([...existingFlags, ...newFlags])];
+
                     const updateData: Partial<Attendance> = {
                         work_date: workDate,
                         status: outcome?.status || targetAttendance.status,
@@ -263,6 +283,12 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
                         late_minutes: outcome?.lateMinutes ?? targetAttendance.late_minutes,
                         early_leave_minutes: outcome?.earlyLeaveMinutes ?? targetAttendance.early_leave_minutes,
                         source: 'CORRECTED',
+                        // Add notes from request
+                        catatan: extractedNotes || targetAttendance.catatan,
+                        // Set location type if remote
+                        lokasi_kerja: isRemoteLocation ? 'Lainnya' : targetAttendance.lokasi_kerja,
+                        // Add flags
+                        attendance_flags: mergedFlags.length > 0 ? mergedFlags : undefined,
                     };
                     if (newClockInISO) updateData.clock_in = newClockInISO;
                     if (newClockOutISO) updateData.clock_out = newClockOutISO;

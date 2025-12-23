@@ -9,6 +9,7 @@ import ManajemenHariLibur from '../../../components/konfigurasi/ManajemenHariLib
 import PengaturanUmum from '../../../components/konfigurasi/PengaturanUmum';
 import ManajemenUpahLembur from '../../../components/konfigurasi/ManajemenUpahLembur';
 import ManajemenLokasiKerja from '../../../components/konfigurasi/ManajemenLokasiKerja';
+import ManajemenSkorDisiplin from '../../../components/konfigurasi/ManajemenSkorDisiplin';
 
 interface KonfigurasiSistemPageProps {
     user: UserProfile;
@@ -35,6 +36,10 @@ const KonfigurasiSistemPage: React.FC<KonfigurasiSistemPageProps> = ({ user }) =
 
             <div>
                 <ManajemenUpahLembur />
+            </div>
+
+            <div>
+                <ManajemenSkorDisiplin />
             </div>
 
             <div>

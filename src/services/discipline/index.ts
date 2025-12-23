@@ -220,6 +220,72 @@ export const disciplineService = {
         const promises = profileIds.map(id => this.refreshDisciplineScore(id, month, year));
         await Promise.all(promises);
     },
+
+    // ===== DISCIPLINE CONFIGURATION =====
+
+    /**
+     * Get discipline configuration
+     */
+    async getDisciplineConfiguration(): Promise<import('../../types/discipline').DisciplineConfigurationDB | null> {
+        const { data, error } = await supabase
+            .from('discipline_configuration')
+            .select('*')
+            .limit(1)
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching discipline configuration:', error);
+            return null;
+        }
+        return data;
+    },
+
+    /**
+     * Update discipline configuration
+     */
+    async updateDisciplineConfiguration(
+        config: Partial<Omit<import('../../types/discipline').DisciplineConfigurationDB, 'id' | 'updated_at'>>,
+        updatedBy?: string
+    ): Promise<import('../../types/discipline').DisciplineConfigurationDB | null> {
+        // First get the existing config to get its ID
+        const existing = await this.getDisciplineConfiguration();
+
+        if (!existing) {
+            // If no config exists, insert a new one
+            const { data, error } = await supabase
+                .from('discipline_configuration')
+                .insert({
+                    ...config,
+                    updated_by: updatedBy,
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error creating discipline configuration:', error);
+                throw error;
+            }
+            return data;
+        }
+
+        // Update existing config
+        const { data, error } = await supabase
+            .from('discipline_configuration')
+            .update({
+                ...config,
+                updated_at: new Date().toISOString(),
+                updated_by: updatedBy,
+            })
+            .eq('id', existing.id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating discipline configuration:', error);
+            throw error;
+        }
+        return data;
+    },
 };
 
 // Export individual functions for granular imports
@@ -236,4 +302,7 @@ export const {
     calculateDisciplineScore,
     refreshDisciplineScore,
     batchRefreshDisciplineScores,
+    getDisciplineConfiguration,
+    updateDisciplineConfiguration,
 } = disciplineService;
+

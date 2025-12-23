@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { UserProfile, DisciplineScore } from '../../types';
+import { UserProfile, DisciplineScore, DisciplineConfigurationDB, DEFAULT_DISCIPLINE_CONFIG } from '../../types';
 import { disciplineService } from '@/services/discipline';
 import Card from '@/components/ui/Card';
 import ProgressBar from '@/components/ui/ProgressBar';
@@ -15,6 +15,7 @@ interface SkorDisiplinCardProps {
 
 const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
     const [score, setScore] = useState<DisciplineScore | null>(null);
+    const [config, setConfig] = useState<DisciplineConfigurationDB | null>(null);
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -22,11 +23,18 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
         setLoading(true);
         try {
             const now = new Date();
-            let data = await disciplineService.getDisciplineScore(user.id, now.getMonth() + 1, now.getFullYear());
-            if (!data) {
-                data = await disciplineService.refreshDisciplineScore(user.id, now.getMonth() + 1, now.getFullYear());
+            // Load both score and configuration
+            const [scoreData, configData] = await Promise.all([
+                disciplineService.getDisciplineScore(user.id, now.getMonth() + 1, now.getFullYear()),
+                disciplineService.getDisciplineConfiguration(),
+            ]);
+
+            let finalScore = scoreData;
+            if (!finalScore) {
+                finalScore = await disciplineService.refreshDisciplineScore(user.id, now.getMonth() + 1, now.getFullYear());
             }
-            setScore(data);
+            setScore(finalScore);
+            setConfig(configData);
         } catch (error) {
             console.error("Failed to load discipline score:", error);
         } finally {
@@ -38,9 +46,16 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
         loadScore();
     }, [user.id]);
 
+    // Use config values or defaults
+    const latePenalty = config?.late_penalty ?? DEFAULT_DISCIPLINE_CONFIG.late_penalty;
+    const earlyLeavePenalty = config?.early_leave_penalty ?? DEFAULT_DISCIPLINE_CONFIG.early_leave_penalty;
+    const wrongLocationPenalty = config?.wrong_location_penalty ?? DEFAULT_DISCIPLINE_CONFIG.wrong_location_penalty;
+    const correctionPenalty = config?.correction_penalty ?? DEFAULT_DISCIPLINE_CONFIG.correction_penalty;
+    const baseScoreConfig = config?.base_score ?? DEFAULT_DISCIPLINE_CONFIG.base_score;
+
     // Default values when loading or no data
     const finalScore = score?.final_score ?? 0;
-    const baseScore = score?.base_score ?? 100;
+    const baseScore = score?.base_score ?? baseScoreConfig;
 
     // Color coding based on score
     let colorClass = 'text-emerald-600';
@@ -125,7 +140,7 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
                                     <span className={`text-sm font-bold ${score.late_count > 0 ? 'text-red-600' : 'text-text-main'}`}>
                                         {score.late_count}x
                                     </span>
-                                    <span className="text-xs text-text-secondary">(-2 poin/x)</span>
+                                    <span className="text-xs text-text-secondary">(-{latePenalty} poin/x)</span>
                                 </div>
                             </div>
 
@@ -138,7 +153,7 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
                                     <span className={`text-sm font-bold ${score.early_leave_count > 0 ? 'text-orange-600' : 'text-text-main'}`}>
                                         {score.early_leave_count}x
                                     </span>
-                                    <span className="text-xs text-text-secondary">(-2 poin/x)</span>
+                                    <span className="text-xs text-text-secondary">(-{earlyLeavePenalty} poin/x)</span>
                                 </div>
                             </div>
 
@@ -151,7 +166,7 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
                                     <span className={`text-sm font-bold ${score.wrong_location_count > 0 ? 'text-purple-600' : 'text-text-main'}`}>
                                         {score.wrong_location_count}x
                                     </span>
-                                    <span className="text-xs text-text-secondary">(-5 poin/x)</span>
+                                    <span className="text-xs text-text-secondary">(-{wrongLocationPenalty} poin/x)</span>
                                 </div>
                             </div>
 
@@ -164,7 +179,7 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
                                     <span className={`text-sm font-bold ${score.correction_count > 0 ? 'text-amber-600' : 'text-text-main'}`}>
                                         {score.correction_count}x
                                     </span>
-                                    <span className="text-xs text-text-secondary">(-1 poin/x)</span>
+                                    <span className="text-xs text-text-secondary">(-{correctionPenalty} poin/x)</span>
                                 </div>
                             </div>
                         </div>
@@ -172,7 +187,7 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
                         {/* Info */}
                         <div className="text-xs text-text-secondary bg-blue-50 p-3 rounded-lg">
                             <p className="font-medium text-blue-700 mb-1">ℹ️ Cara Perhitungan:</p>
-                            <p>Skor dasar 100 poin, dikurangi berdasarkan pelanggaran. Skor ≥90 (Baik), 70-89 (Perlu Perhatian), &lt;70 (Kurang).</p>
+                            <p>Skor dasar {baseScoreConfig} poin, dikurangi berdasarkan pelanggaran. Skor ≥90 (Baik), 70-89 (Perlu Perhatian), &lt;70 (Kurang).</p>
                         </div>
                     </div>
                 ) : (
@@ -186,3 +201,4 @@ const SkorDisiplinCard: React.FC<SkorDisiplinCardProps> = ({ user }) => {
 };
 
 export default SkorDisiplinCard;
+

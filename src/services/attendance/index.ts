@@ -124,6 +124,8 @@ export const attendanceService = {
             p_late_minutes: updateData.late_minutes ?? null,
             p_early_leave_minutes: updateData.early_leave_minutes ?? null,
             p_source: updateData.source ?? null,
+            p_catatan: updateData.catatan ?? null,
+            p_attendance_flags: updateData.attendance_flags ?? null,
         });
         if (error) {
             console.error('Error in updateAttendanceAsManager RPC:', error);
@@ -171,10 +173,8 @@ export const attendanceService = {
         const now = new Date();
         const address = await getAddressFromCoords(position.coords.latitude, position.coords.longitude);
 
-        // Combine user notes with attendance flags for tracking
-        const flags = attendanceFlags && attendanceFlags.length > 0 ? attendanceFlags : [];
-        const flagsNote = flags.length > 0 ? `[Flags: ${flags.join(', ')}]` : '';
-        const combinedNotes = [notes, flagsNote].filter(Boolean).join(' ').trim() || undefined;
+        // Prepare flags array for database storage
+        const flags: string[] = attendanceFlags && attendanceFlags.length > 0 ? attendanceFlags : [];
 
         if (actionType === 'in') {
             const window = buildAttendanceWindow(scheduleForAction, shiftMeta || null);
@@ -189,7 +189,9 @@ export const attendanceService = {
                 clock_in_coords: { lat: position.coords.latitude, lon: position.coords.longitude },
                 clock_in_address: address,
                 source: 'MANUAL',
-                catatan: combinedNotes,
+                catatan: notes || undefined,
+                // Store attendance flags in dedicated column
+                attendance_flags: flags.length > 0 ? flags : undefined,
             };
             return this.submitClockIn(clockInData);
         } else { // 'out'
@@ -211,6 +213,10 @@ export const attendanceService = {
                 shiftMeta: shiftMeta || null,
             });
 
+            // Merge existing flags with new clock-out flags
+            const existingFlags: string[] = openAttendance.attendance_flags || [];
+            const mergedFlags = [...new Set([...existingFlags, ...flags])]; // Deduplicate
+
             const clockOutData: Partial<Attendance> & { clock_out: string } = {
                 clock_out: now.toISOString(),
                 work_date: workDate,
@@ -221,6 +227,10 @@ export const attendanceService = {
                 clock_out_coords: { lat: position.coords.latitude, lon: position.coords.longitude },
                 clock_out_address: address,
                 source: openAttendance.source || 'MANUAL',
+                // Update attendance flags with merged values
+                attendance_flags: mergedFlags.length > 0 ? mergedFlags : undefined,
+                // Add clock-out notes if provided
+                catatan: notes ? (openAttendance.catatan ? `${openAttendance.catatan} | ${notes}` : notes) : openAttendance.catatan,
             };
             return this.submitClockOut(openAttendance.id, clockOutData, user.id);
         }

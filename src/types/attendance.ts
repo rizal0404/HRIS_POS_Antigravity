@@ -26,7 +26,8 @@ export interface Attendance {
     late_minutes?: number | null;
     early_leave_minutes?: number | null;
     source?: string | null;
-    catatan?: string; // Notes including validation flags
+    catatan?: string; // User notes
+    attendance_flags?: string[]; // Validation/mock detection flags
 }
 
 export interface JadwalKerja {
