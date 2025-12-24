@@ -9,7 +9,7 @@ import {
     RequestType,
     RequestStatus,
 } from '../../types';
-import { buildAttendanceWindow, computeAttendanceOutcome, CORRECTION_MAX_DAYS, deriveWorkDate } from '../../lib/attendanceRules';
+import { buildAttendanceWindow, computeAttendanceOutcome, CORRECTION_MAX_DAYS, deriveWorkDate, AttendanceLogData } from '../../lib/attendanceRules';
 import { handleSupabaseError, getAddressFromCoords } from '../helpers';
 import { disciplineService } from '../discipline';
 
@@ -206,11 +206,28 @@ export const attendanceService = {
             }
 
             const workDate = deriveWorkDate(openAttendance, scheduleForAction, now);
+
+            // Callback to log abnormal attendance cases to Supabase
+            const logAbnormalToSupabase = async (logData: AttendanceLogData) => {
+                try {
+                    console.warn('[Attendance] Abnormal case detected:', logData.log_type);
+                    await supabase.from('attendance_logs').insert({
+                        attendance_id: openAttendance.id,
+                        profile_id: user.id,
+                        log_type: logData.log_type,
+                        log_data: logData.log_data,
+                    });
+                } catch (err) {
+                    console.error('[Attendance] Failed to log abnormal case:', err);
+                }
+            };
+
             const outcome = computeAttendanceOutcome({
                 clockInISO: openAttendance.clock_in,
                 clockOutISO: now.toISOString(),
                 schedule: scheduleForAction,
                 shiftMeta: shiftMeta || null,
+                onAbnormalLog: logAbnormalToSupabase,
             });
 
             // Merge existing flags with new clock-out flags

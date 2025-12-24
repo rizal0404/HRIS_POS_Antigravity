@@ -157,6 +157,33 @@ export const validateClockWindow = (
 const diffMinutes = (later: Date, earlier: Date): number =>
     Math.max(0, Math.round((later.getTime() - earlier.getTime()) / 60000));
 
+// Type for abnormal attendance log data
+export interface AttendanceLogData {
+    log_type: 'missing_schedule' | 'calculation_mismatch' | 'incomplete_data' | 'schedule_stale';
+    log_data: {
+        schedule_used: JadwalKerjaTim | null;
+        clock_in_iso: string;
+        clock_out_iso: string;
+        calculated: {
+            status: string;
+            worked_minutes: number;
+            late_minutes: number;
+            early_leave_minutes: number;
+        };
+        debug_info: {
+            shift_end?: string;
+            shift_end_with_grace?: string;
+            grace_minutes: number;
+            is_schedule_complete: boolean;
+        };
+    };
+}
+
+// Helper to check if schedule has complete data
+export const isScheduleComplete = (schedule?: JadwalKerjaTim | null): boolean => {
+    return !!(schedule?.start_time && schedule?.end_time && schedule?.date);
+};
+
 /**
  * Compute attendance outcome (late, early leave, worked minutes)
  */
@@ -164,6 +191,7 @@ export const computeAttendanceOutcome = (params: {
     clockInISO: string;
     clockOutISO: string;
     schedule?: JadwalKerjaTim | null;
+    onAbnormalLog?: (logData: AttendanceLogData) => void; // Callback for abnormal logging
 }): { status: AttendanceStatus; workedMinutes: number; lateMinutes: number; earlyLeaveMinutes: number } => {
     const window = buildAttendanceWindow(params.schedule);
     const graceMinutes = window.graceMinutes;
@@ -183,6 +211,55 @@ export const computeAttendanceOutcome = (params: {
         status = 'pulang_cepat';
     } else if (lateMinutes > 0) {
         status = 'terlambat';
+    }
+
+    const scheduleComplete = isScheduleComplete(params.schedule);
+
+    // Detect abnormal cases and log them
+    if (params.onAbnormalLog) {
+        let logType: AttendanceLogData['log_type'] | null = null;
+
+        // Case 1: Schedule is missing or incomplete
+        if (!params.schedule) {
+            logType = 'missing_schedule';
+        } else if (!scheduleComplete) {
+            logType = 'incomplete_data';
+        }
+        // Case 2: Calculation seems suspicious (early leave but clock-out is after shift end)
+        else if (earlyLeaveMinutes > 0 && window.shiftEnd && clockOut > window.shiftEnd) {
+            logType = 'calculation_mismatch';
+        }
+
+        if (logType) {
+            console.warn(`[AttendanceRules] Abnormal case detected: ${logType}`, {
+                schedule: params.schedule,
+                clockIn: params.clockInISO,
+                clockOut: params.clockOutISO,
+                earlyLeaveMinutes,
+                shiftEnd: window.shiftEnd?.toISOString(),
+            });
+
+            params.onAbnormalLog({
+                log_type: logType,
+                log_data: {
+                    schedule_used: params.schedule || null,
+                    clock_in_iso: params.clockInISO,
+                    clock_out_iso: params.clockOutISO,
+                    calculated: {
+                        status,
+                        worked_minutes: workedMinutes,
+                        late_minutes: lateMinutes,
+                        early_leave_minutes: earlyLeaveMinutes,
+                    },
+                    debug_info: {
+                        shift_end: window.shiftEnd?.toISOString(),
+                        shift_end_with_grace: shiftEndWithGrace?.toISOString(),
+                        grace_minutes: graceMinutes,
+                        is_schedule_complete: scheduleComplete,
+                    },
+                },
+            });
+        }
     }
 
     return { status, workedMinutes, lateMinutes, earlyLeaveMinutes };

@@ -29,6 +29,7 @@ import {
     formatDateKey,
     determineWorkDate,
     getTimeGreeting,
+    AttendanceLogData,
 } from '../lib/attendanceRules';
 import { offlineQueue, SyncStatus } from '../lib/offlineQueue';
 import { localCache } from '../lib/localCache';
@@ -492,10 +493,29 @@ export default function ClockScreen() {
 
             if (hasActiveAttendance && activeAttendance) {
                 // CLOCK OUT
+
+                // Callback to log abnormal attendance cases to Supabase
+                const logAbnormalToSupabase = async (logData: AttendanceLogData) => {
+                    try {
+                        console.warn('[ClockScreen] Abnormal case detected:', logData.log_type);
+                        if (online) {
+                            await supabase.from('attendance_logs').insert({
+                                attendance_id: activeAttendance.id,
+                                profile_id: user.id,
+                                log_type: logData.log_type,
+                                log_data: logData.log_data,
+                            });
+                        }
+                    } catch (err) {
+                        console.error('[ClockScreen] Failed to log abnormal case:', err);
+                    }
+                };
+
                 const outcome = schedule ? computeAttendanceOutcome({
                     clockInISO: activeAttendance.clock_in,
                     clockOutISO: now,
                     schedule,
+                    onAbnormalLog: logAbnormalToSupabase,
                 }) : { status: 'hadir', workedMinutes: 0, lateMinutes: 0, earlyLeaveMinutes: 0 };
 
                 if (online) {
