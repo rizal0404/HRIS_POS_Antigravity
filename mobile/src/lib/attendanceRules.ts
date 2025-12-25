@@ -10,7 +10,8 @@ export const CORRECTION_MAX_DAYS = 3;
 
 // Window preset configuration
 type WindowPreset = {
-    graceMinutes: number;
+    graceMinutesIn: number;  // Toleransi keterlambatan clock-in
+    graceMinutesOut: number; // Toleransi pulang cepat clock-out
     clockInWindow: [number, number]; // minutes offset from shift start
     clockOutWindow: [number, number]; // minutes offset from shift end
 };
@@ -20,18 +21,27 @@ export type WindowResult = {
     shiftStart: Date | null;
     shiftEnd: Date | null;
     isCrossDay: boolean;
-    graceMinutes: number;
+    graceMinutesIn: number;
+    graceMinutesOut: number;
     inStart: Date | null;
     inEnd: Date | null;
     outStart: Date | null;
     outEnd: Date | null;
 };
 
+// Type for grace period config from database
+export interface GracePeriodConfig {
+    config_key: string;
+    grace_minutes_in: number;
+    grace_minutes_out: number;
+}
+
+// Default presets - can be overridden by database config
 const SHIFT_WINDOW_PRESETS: Record<string, WindowPreset> = {
-    shift1: { graceMinutes: 10, clockInWindow: [-30, 90], clockOutWindow: [-30, 180] },
-    shift2: { graceMinutes: 10, clockInWindow: [-30, 90], clockOutWindow: [-30, 180] },
-    shift3: { graceMinutes: 10, clockInWindow: [-60, 120], clockOutWindow: [-60, 180] },
-    default: { graceMinutes: 10, clockInWindow: [-30, 90], clockOutWindow: [-30, 180] },
+    shift1: { graceMinutesIn: 10, graceMinutesOut: 10, clockInWindow: [-30, 90], clockOutWindow: [-30, 180] },
+    shift2: { graceMinutesIn: 10, graceMinutesOut: 10, clockInWindow: [-30, 90], clockOutWindow: [-30, 180] },
+    shift3: { graceMinutesIn: 15, graceMinutesOut: 15, clockInWindow: [-60, 120], clockOutWindow: [-60, 180] },
+    default: { graceMinutesIn: 10, graceMinutesOut: 10, clockInWindow: [-30, 90], clockOutWindow: [-30, 180] },
 };
 
 // ==========================================
@@ -105,7 +115,8 @@ export const buildAttendanceWindow = (schedule?: JadwalKerjaTim | null): WindowR
         shiftStart,
         shiftEnd,
         isCrossDay: crossesDay,
-        graceMinutes: preset.graceMinutes,
+        graceMinutesIn: preset.graceMinutesIn,
+        graceMinutesOut: preset.graceMinutesOut,
         inStart,
         inEnd,
         outStart,
@@ -173,7 +184,8 @@ export interface AttendanceLogData {
         debug_info: {
             shift_end?: string;
             shift_end_with_grace?: string;
-            grace_minutes: number;
+            grace_minutes_in: number;
+            grace_minutes_out: number;
             is_schedule_complete: boolean;
         };
     };
@@ -191,16 +203,20 @@ export const computeAttendanceOutcome = (params: {
     clockInISO: string;
     clockOutISO: string;
     schedule?: JadwalKerjaTim | null;
+    graceConfig?: GracePeriodConfig | null; // Database config override
     onAbnormalLog?: (logData: AttendanceLogData) => void; // Callback for abnormal logging
 }): { status: AttendanceStatus; workedMinutes: number; lateMinutes: number; earlyLeaveMinutes: number } => {
     const window = buildAttendanceWindow(params.schedule);
-    const graceMinutes = window.graceMinutes;
+
+    // Use database config if provided, otherwise use preset defaults
+    const graceMinutesIn = params.graceConfig?.grace_minutes_in ?? window.graceMinutesIn;
+    const graceMinutesOut = params.graceConfig?.grace_minutes_out ?? window.graceMinutesOut;
 
     const clockIn = new Date(params.clockInISO);
     const clockOut = new Date(params.clockOutISO);
 
-    const shiftStartWithGrace = window.shiftStart ? addMinutes(window.shiftStart, graceMinutes) : null;
-    const shiftEndWithGrace = window.shiftEnd ? addMinutes(window.shiftEnd, -graceMinutes) : null;
+    const shiftStartWithGrace = window.shiftStart ? addMinutes(window.shiftStart, graceMinutesIn) : null;
+    const shiftEndWithGrace = window.shiftEnd ? addMinutes(window.shiftEnd, -graceMinutesOut) : null;
 
     const lateMinutes = shiftStartWithGrace ? diffMinutes(clockIn, shiftStartWithGrace) : 0;
     const earlyLeaveMinutes = shiftEndWithGrace ? diffMinutes(shiftEndWithGrace, clockOut) : 0;
@@ -254,7 +270,8 @@ export const computeAttendanceOutcome = (params: {
                     debug_info: {
                         shift_end: window.shiftEnd?.toISOString(),
                         shift_end_with_grace: shiftEndWithGrace?.toISOString(),
-                        grace_minutes: graceMinutes,
+                        grace_minutes_in: graceMinutesIn,
+                        grace_minutes_out: graceMinutesOut,
                         is_schedule_complete: scheduleComplete,
                     },
                 },

@@ -9,7 +9,7 @@ import {
     RequestType,
     RequestStatus,
 } from '../../types';
-import { buildAttendanceWindow, computeAttendanceOutcome, CORRECTION_MAX_DAYS, deriveWorkDate, AttendanceLogData } from '../../lib/attendanceRules';
+import { buildAttendanceWindow, computeAttendanceOutcome, CORRECTION_MAX_DAYS, deriveWorkDate, AttendanceLogData, GracePeriodConfig } from '../../lib/attendanceRules';
 import { handleSupabaseError, getAddressFromCoords } from '../helpers';
 import { disciplineService } from '../discipline';
 
@@ -207,6 +207,27 @@ export const attendanceService = {
 
             const workDate = deriveWorkDate(openAttendance, scheduleForAction, now);
 
+            // Fetch grace period config from database
+            let graceConfig: GracePeriodConfig | null = null;
+            try {
+                const shiftKey = scheduleForAction?.shift?.toLowerCase().includes('3') ? 'shift3'
+                    : scheduleForAction?.shift?.toLowerCase().includes('2') ? 'shift2'
+                        : scheduleForAction?.shift?.toLowerCase().includes('1') ? 'shift1'
+                            : 'default';
+
+                const { data: configData } = await supabase
+                    .from('grace_period_config')
+                    .select('config_key, grace_minutes_in, grace_minutes_out')
+                    .eq('config_key', shiftKey)
+                    .single();
+
+                if (configData) {
+                    graceConfig = configData as GracePeriodConfig;
+                }
+            } catch (err) {
+                console.warn('[Attendance] Failed to fetch grace config, using defaults:', err);
+            }
+
             // Callback to log abnormal attendance cases to Supabase
             const logAbnormalToSupabase = async (logData: AttendanceLogData) => {
                 try {
@@ -227,6 +248,7 @@ export const attendanceService = {
                 clockOutISO: now.toISOString(),
                 schedule: scheduleForAction,
                 shiftMeta: shiftMeta || null,
+                graceConfig: graceConfig,
                 onAbnormalLog: logAbnormalToSupabase,
             });
 
