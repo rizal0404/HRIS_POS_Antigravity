@@ -207,25 +207,47 @@ export const attendanceService = {
 
             const workDate = deriveWorkDate(openAttendance, scheduleForAction, now);
 
-            // Fetch grace period config from database
+            // Fetch grace period config from database using shift_code
             let graceConfig: GracePeriodConfig | null = null;
             try {
-                const shiftKey = scheduleForAction?.shift?.toLowerCase().includes('3') ? 'shift3'
-                    : scheduleForAction?.shift?.toLowerCase().includes('2') ? 'shift2'
-                        : scheduleForAction?.shift?.toLowerCase().includes('1') ? 'shift1'
-                            : 'default';
+                // Get shift_code from schedule (e.g., 'STNS', 'S1', 'S2', 'S3')
+                const shiftCode = scheduleForAction?.shift || null;
 
-                const { data: configData } = await supabase
-                    .from('grace_period_config')
-                    .select('config_key, grace_minutes_in, grace_minutes_out')
-                    .eq('config_key', shiftKey)
-                    .single();
+                // First, try to get config for this specific shift
+                if (shiftCode) {
+                    const { data: configData } = await supabase
+                        .from('grace_period_config')
+                        .select('shift_code, grace_minutes_in, grace_minutes_out')
+                        .eq('shift_code', shiftCode)
+                        .single();
 
-                if (configData) {
-                    graceConfig = configData as GracePeriodConfig;
+                    if (configData) {
+                        graceConfig = {
+                            config_key: configData.shift_code || 'default',
+                            grace_minutes_in: configData.grace_minutes_in,
+                            grace_minutes_out: configData.grace_minutes_out,
+                        };
+                    }
+                }
+
+                // If no specific config found, get default config
+                if (!graceConfig) {
+                    const { data: defaultConfig } = await supabase
+                        .from('grace_period_config')
+                        .select('shift_code, grace_minutes_in, grace_minutes_out')
+                        .eq('is_default', true)
+                        .single();
+
+                    if (defaultConfig) {
+                        graceConfig = {
+                            config_key: 'default',
+                            grace_minutes_in: defaultConfig.grace_minutes_in,
+                            grace_minutes_out: defaultConfig.grace_minutes_out,
+                        };
+                    }
                 }
             } catch (err) {
-                console.warn('[Attendance] Failed to fetch grace config, using defaults:', err);
+                console.warn('[Attendance] Failed to fetch grace config, using code defaults:', err);
             }
 
             // Callback to log abnormal attendance cases to Supabase
