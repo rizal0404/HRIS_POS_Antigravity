@@ -152,14 +152,13 @@ const DashboardBawahanPage: React.FC<{ user: UserProfile }> = ({ user }) => {
 
             setActiveAttendance(activeAtt);
 
-            // Convert schedules to JadwalKerjaTim[] for modal
+            // Convert schedules to JadwalKerjaTim[] for modal - use actual shift times from database
             const jadwalList: JadwalKerjaTim[] = schedulesLast3.map(s => ({
+                profile_id: user.id,
                 date: s.date,
                 shift: s.shift,
-                is_off: s.shift === 'OFF',
-                // Map other properties if needed or create partial content
-                start_time: '08:00', // Default or fetch real shift times if needed
-                end_time: '17:00'
+                start_time: s.start_time, // Use actual shift times from joined shifts table
+                end_time: s.end_time
             }));
             setJadwal(jadwalList);
 
