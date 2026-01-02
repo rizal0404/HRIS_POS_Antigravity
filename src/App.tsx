@@ -34,6 +34,7 @@ import SuperadminDashboardPage from './app/(app)/(superadmin)/dashboardPage';
 import KonfigurasiPegawaiPage from './app/(app)/(superadmin)/pegawaiPage';
 import KonfigurasiSistemPage from './app/(app)/(superadmin)/sistemPage';
 import SemuaLaporanPage from './app/(app)/(superadmin)/laporan_semuaPage';
+import JadwalSuperadminPage from './app/(app)/(superadmin)/jadwal_superadminPage';
 import JadwalAdminPage from './app/(app)/(admin)/jadwal_adminPage';
 import KpiPage from './app/(app)/kpiPage';
 import LoginPage from './app/(auth)/LoginPage';
@@ -318,6 +319,7 @@ export default function App() {
                             <Route path="superadmin/pegawai" element={requireSuperadmin(<KonfigurasiPegawaiPage user={currentUser} />)} />
                             <Route path="superadmin/sistem" element={requireSuperadmin(<KonfigurasiSistemPage user={currentUser} />)} />
                             <Route path="superadmin/laporan-semua" element={requireSuperadmin(<SemuaLaporanPage user={currentUser} />)} />
+                            <Route path="superadmin/jadwal-shift" element={requireSuperadmin(<JadwalSuperadminPage user={currentUser} />)} />
 
                             {/* Admin Routes */}
                             <Route path="admin/laporan-semua" element={requirePrivileged(<SemuaLaporanPage user={currentUser} />)} />

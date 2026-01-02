@@ -63,6 +63,7 @@ const superadminLinks: NavLinkItem[] = [
     { key: 'pegawai', label: 'Konfigurasi Pegawai', icon: UsersIcon, path: '/superadmin/pegawai' },
     { key: 'sistem', label: 'Konfigurasi Sistem', icon: CogIcon, path: '/superadmin/sistem' },
     { key: 'laporan_semua', label: 'Semua Laporan', icon: DocumentReportIcon, path: '/superadmin/laporan-semua' },
+    { key: 'jadwal_shift', label: 'Jadwal Shift', icon: CalendarIcon, path: '/superadmin/jadwal-shift' },
     { key: 'kpi', label: 'Hitung KPI', icon: CalculatorIcon, path: '/kpi' },
 ];
 

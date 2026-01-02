@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { UserProfile, JadwalKerjaTim, Shift, Holiday } from '../../types';
 import { apiService } from '../../services/apiService';
 import { getAllSubordinates } from '../../lib/utils';
@@ -9,6 +10,7 @@ import EditShiftModal from '../modals/EditShiftModal';
 interface ModernJadwalViewProps {
     user: UserProfile;
     mode: 'team' | 'colleagues' | 'all';
+    forceEdit?: boolean;
 }
 
 const COLOR_MAP: Record<string, string> = {
@@ -42,7 +44,7 @@ const MONTH_NAMES_ID = [
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
+const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode, forceEdit }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [loading, setLoading] = useState(true);
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -63,7 +65,7 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
         shiftCode: string;
     } | null>(null);
 
-    const canEdit = mode === 'team';
+    const canEdit = mode === 'team' || !!forceEdit;
 
     const fetchData = useCallback(async (date: Date) => {
         setLoading(true);
@@ -174,6 +176,255 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
         }
     };
 
+    const handleDownloadTemplate = () => {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // Header row
+        const header = ['User ID', 'Nama Karyawan'];
+        for (let i = 1; i <= daysInMonth; i++) {
+            const date = new Date(year, month, i);
+            header.push(`${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`);
+        }
+
+        // Data rows
+        const data = usersToDisplay.map(employee => {
+            const row = [employee.id, employee.full_name];
+            const schedule = teamScheduleData[employee.id] || [];
+            const scheduleMap = new Map<string, string>(schedule.map(s => [s.date, s.shift]));
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                row.push(scheduleMap.get(dateStr) || 'OFF');
+            }
+            return row;
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Jadwal Shift");
+        XLSX.writeFile(wb, `Jadwal_Shift_${MONTH_NAMES_ID[month]}_${year}.xlsx`);
+    };
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleUploadTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target?.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+
+                if (data.length < 2) {
+                    alert('File kosong atau format salah');
+                    return;
+                }
+
+                // Extract dates from header (row 0), skipping first 2 columns (ID, Name)
+                const headerRow = data[0];
+                const dates = headerRow.slice(2);
+
+                const updates: { profile_id: string; date: string; shift_code: string }[] = [];
+
+                // Process data rows
+                for (let i = 1; i < data.length; i++) {
+                    const row = data[i];
+                    const userId = row[0];
+                    if (!userId) continue;
+
+                    for (let j = 0; j < dates.length; j++) {
+                        const date = dates[j];
+                        const shiftCode = row[j + 2];
+                        if (date && shiftCode) {
+                            // Basic validation to ensure shift code exists within allShifts could be added here
+                            // For now assuming user inputs valid codes or 'OFF'
+                            updates.push({
+                                profile_id: userId,
+                                date: String(date).trim(),
+                                shift_code: String(shiftCode).trim()
+                            });
+                        }
+                    }
+                }
+
+                if (updates.length > 0) {
+                    setLoading(true);
+                    await apiService.bulkUpdateWorkSchedules(updates);
+                    await fetchData(currentDate);
+                    alert('Jadwal berhasil diperbarui!');
+                }
+            } catch (error) {
+                console.error("Error processing file:", error);
+                alert('Gagal memproses file. Pastikan format sesuai.');
+            } finally {
+                setLoading(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const handleContinueSchedule = async () => {
+        if (!confirm(`Apakah Anda yakin ingin melanjutkan pola shift dari bulan sebelumnya ke ${MONTH_NAMES_ID[currentDate.getMonth()]} ${currentDate.getFullYear()}? Jadwal yang sudah ada di bulan ini akan tertimpa.`)) {
+            return;
+        }
+
+        setLoading(true);
+        try {
+            // 1. Determine Previous Month Range
+            const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+            const prevYear = prevDate.getFullYear();
+            const prevMonth = prevDate.getMonth();
+            const prevDaysInMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+
+            const prevStartDate = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-01`;
+            const prevEndDate = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(prevDaysInMonth).padStart(2, '0')}`;
+
+            // 2. Fetch Previous Month Data
+            const userIds = usersToDisplay.map(u => u.id);
+            if (userIds.length === 0) {
+                setLoading(false);
+                return;
+            }
+
+            const prevSchedules = await apiService.getTeamSchedules(userIds, prevStartDate, prevEndDate);
+
+            // Organize by User
+            const prevSchedulesByUser: Record<string, JadwalKerjaTim[]> = {};
+            prevSchedules.forEach(s => {
+                if (!prevSchedulesByUser[s.profile_id]) prevSchedulesByUser[s.profile_id] = [];
+                prevSchedulesByUser[s.profile_id].push(s);
+            });
+
+            // 3. Calculate New Month Shifts
+            const newUpdates: { profile_id: string; date: string; shift_code: string }[] = [];
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Prepare Map for Previous Month: DateStr -> ShiftCode
+            // To detect pattern efficiently
+
+            usersToDisplay.forEach(user => {
+                const userPrevShifts = prevSchedulesByUser[user.id] || [];
+                if (userPrevShifts.length === 0) return; // No history, skip
+
+                // Map Date -> Shift Code
+                // We also need numerical day index (1..DaysInPrevMonth)
+                const shiftMap: Record<number, string> = {};
+                userPrevShifts.forEach(s => {
+                    const d = new Date(s.date).getDate();
+                    shiftMap[d] = s.shift;
+                });
+
+                // Detect Pattern
+                // Try periods P = 1 to 8. Preferred small P if strong match? 
+                // We check the LAST 14 days of previous month for consistency.
+                const checkDays = 14;
+                let bestPeriod = 7; // Default to weekly
+                let bestScore = -1;
+
+                // Heuristic: Check periods 
+                for (let p = 1; p <= 8; p++) {
+                    let matchCount = 0;
+                    let checkCount = 0;
+
+                    // Check backwards from end of month
+                    for (let d = prevDaysInMonth; d > prevDaysInMonth - checkDays && d > p; d--) {
+                        const sCurrent = shiftMap[d];
+                        const sPrev = shiftMap[d - p];
+                        if (sCurrent && sPrev) {
+                            checkCount++;
+                            if (sCurrent === sPrev) matchCount++;
+                        }
+                    }
+
+                    if (checkCount > 3) { // Min data to establish pattern
+                        const score = matchCount / checkCount;
+                        if (score > 0.9 && score > bestScore) { // Allow minor variations but prefer exact
+                            bestScore = score;
+                            bestPeriod = p;
+                        }
+                    }
+                }
+
+                // If no strong short cycle found, stick to P=7 (Weekly)
+                const P = bestPeriod;
+
+                // Generate for current month
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateObj = new Date(year, month, day);
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                    // Logic to project:
+                    // Find a reference date in prev month such that (RefDate + k*P) = NewDate
+                    // Or simply: Shift[NewDate] = Shift[PrevDateOfSamePatternIndex]
+
+                    // Let's use the END of prev month as anchor
+                    // Days elapsed since PrevMonthEnd = day (since NewMonth starts at day 1, which is PrevEnd+1)
+                    // Wait, simple math:
+                    // Total days from PrevMonth Day 1 to NewMonth Day X?
+                    // Let's map everything to a continuous index?
+                    // Simpler: 
+                    // Ref Day in Prev Month = PrevDaysInMonth - ( (DaysSincePrevMonthEnd - 1) % P ) ? No.
+
+                    // Continuos Pattern:
+                    // If pattern is P days long.
+                    // The shift at NewDate should be same as shift at (NewDate - k*P) where (NewDate - k*P) is inside PrevMonth.
+
+                    // We need to find `k` such that `NewDate - k*P` falls within `[PrevStartDate, PrevEndDate]`
+                    // But we only care about the Cyclic Index.
+                    // Let last day of prev month range be `RefIndex = prevDaysInMonth`.
+                    // The `day` of new month is essentially `RefIndex + day`.
+                    // We want shift at `(RefIndex + day)`
+                    // Assuming cyclic: `Shift[x] == Shift[x - P]`
+                    // So `Shift[RefIndex + day] == Shift[RefIndex + day - m*P]`
+                    // We reduce `RefIndex + day` by P until it is <= prevDaysInMonth.
+
+                    let targetPrevDay = prevDaysInMonth + day;
+                    while (targetPrevDay > prevDaysInMonth) {
+                        targetPrevDay -= P;
+                    }
+
+                    // Special Handling for P=7 (Weekly) to matches Day of Week exactly if disjoint?
+                    // Actually P=7 logic above (modulo based) ensures Monday maps to Monday IF contiguous.
+                    // But if P=7 specifically, user expects "Monday is Shift A".
+                    // The modulo logic preserves this only if P=7.
+
+                    const shiftCode = shiftMap[targetPrevDay];
+                    if (shiftCode) {
+                        newUpdates.push({
+                            profile_id: user.id,
+                            date: dateStr,
+                            shift_code: shiftCode
+                        });
+                    }
+                }
+            });
+
+            if (newUpdates.length > 0) {
+                await apiService.bulkUpdateWorkSchedules(newUpdates);
+                await fetchData(currentDate);
+                alert(`Jadwal berhasil dibuat! Pola yang terdeteksi diterapkan.`);
+            } else {
+                alert('Tidak ada data jadwal bulan sebelumnya untuk dilanjutkan.');
+            }
+
+        } catch (error) {
+            console.error("Failed to continue schedule:", error);
+            alert('Gagal melanjutkan jadwal.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Format month in Indonesian
     const formattedMonth = `${MONTH_NAMES_ID[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
 
@@ -196,11 +447,44 @@ const ModernJadwalView: React.FC<ModernJadwalViewProps> = ({ user, mode }) => {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {mode === 'team' && (
+                    {(mode === 'team' || forceEdit) && (
                         <button className="flex h-10 items-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-white shadow-lg shadow-orange-500/30 hover:bg-orange-600 transition-all">
                             <span className="material-symbols-outlined text-[20px]">add</span>
                             <span>Atur Shift</span>
                         </button>
+                    )}
+                    {(mode === 'team' || forceEdit) && (
+                        <>
+                            <button
+                                onClick={handleDownloadTemplate}
+                                className="flex h-10 items-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-bold text-white shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
+                                title="Download Template Excel"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">download</span>
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleUploadTemplate}
+                                className="hidden"
+                                accept=".xlsx, .xls"
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+                                title="Upload Template Excel"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">upload</span>
+                            </button>
+                            <button
+                                onClick={handleContinueSchedule}
+                                className="flex h-10 items-center gap-2 rounded-xl bg-purple-600 px-4 text-sm font-bold text-white shadow-lg shadow-purple-600/20 hover:bg-purple-700 transition-all"
+                                title="Lanjutkan pola dari bulan lalu"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">update</span>
+                                <span className="hidden md:inline">Lanjut Jadwal</span>
+                            </button>
+                        </>
                     )}
                 </div>
             </header>
