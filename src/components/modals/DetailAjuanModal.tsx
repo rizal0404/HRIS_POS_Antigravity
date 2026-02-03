@@ -13,16 +13,29 @@ interface DetailAjuanModalProps {
     onClose: () => void;
     request: Request | null;
     allUsers: UserProfile[];
+    onApprove?: (id: string) => void;
+    onReject?: (id: string, reason?: string) => void;
+    onRevise?: (id: string, notes: string) => void;
+    isProcessing?: boolean;
 }
 
 const InfoRow: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
-    <div>
+    <div className="flex justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
         <p className="text-sm font-medium text-gray-500">{label}</p>
-        <p className="text-md text-gray-800">{value || '-'}</p>
+        <p className="text-sm font-medium text-gray-900 text-right max-w-[60%]">{value || '-'}</p>
     </div>
 );
 
-const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, request, allUsers }) => {
+const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({
+    isOpen,
+    onClose,
+    request,
+    allUsers,
+    onApprove,
+    onReject,
+    onRevise,
+    isProcessing = false
+}) => {
     const [isAttachmentViewerOpen, setAttachmentViewerOpen] = useState(false);
     const [originalAttendance, setOriginalAttendance] = useState<Attendance | null>(null);
     const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -152,7 +165,7 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                     <div className="sm:col-span-2">
                         <p className="text-sm font-medium text-gray-500">Detail Pengganti Shift</p>
                         <div className="mt-1 space-y-2 border rounded-md p-3 bg-gray-50 max-h-48 overflow-y-auto">
-                            {Object.entries(cutiDetails.substitutes).map(([date, shifts]) => {
+                            {Object.entries(cutiDetails.substitutes).map(([date, shifts]: [string, any]) => {
                                 const daySub = resolveSubstituteName(shifts.day);
                                 const nightSub = resolveSubstituteName(shifts.night);
                                 return (
@@ -167,7 +180,26 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                     </div>
                 );
             case RequestType.LEMBUR:
-                return <InfoRow label="Waktu Lembur" value={`${request.start_time} - ${request.end_time}`} />;
+            case RequestType.LEMBUR:
+                // Calculate duration
+                const duration = (() => {
+                    if (request.duration_hours) return `${request.duration_hours} Jam`;
+                    if (!request.start_time || !request.end_time) return '-';
+                    const [startH, startM] = request.start_time.split(':').map(Number);
+                    const [endH, endM] = request.end_time.split(':').map(Number);
+                    let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+                    if (diffMinutes < 0) diffMinutes += 24 * 60;
+                    const hours = Math.floor(diffMinutes / 60);
+                    const minutes = diffMinutes % 60;
+                    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} Jam`;
+                })();
+
+                return (
+                    <>
+                        <InfoRow label="Waktu Lembur" value={`${request.start_time} - ${request.end_time}`} />
+                        <InfoRow label="Durasi Lembur" value={duration} />
+                    </>
+                );
             case RequestType.SUBSTITUSI:
                 return (
                     <>
@@ -272,10 +304,9 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                 return { variant: 'success' as const, label: 'Disetujui' };
             case RequestStatus.REJECTED:
                 return { variant: 'danger' as const, label: 'Ditolak' };
-            case RequestStatus.PENDING:
                 return { variant: 'warning' as const, label: 'Menunggu' };
-            case RequestStatus.CANCELLED:
-                return { variant: 'secondary' as const, label: 'Dibatalkan' };
+            // case RequestStatus.CANCELLED:
+            //    return { variant: 'secondary' as const, label: 'Dibatalkan' };
             default:
                 return { variant: 'primary' as const, label: status };
         }
@@ -324,7 +355,24 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                             </div>
                         </div>
                     </div>
-                    {/* Footer removed as requested */}
+                    {/* Footer Actions */}
+                    <div className="p-4 bg-gray-50 rounded-b-xl border-t border-gray-100">
+                        {(() => {
+                            // Using local state for action modes (Rejection / Revision)
+                            // We need new state variables in the component for this
+                            if (!onApprove) return null; // Assuming onApprove availability implies editable
+
+                            return (
+                                <ActionButtons
+                                    request={request}
+                                    onApprove={onApprove}
+                                    onReject={onReject}
+                                    onRevise={onRevise}
+                                    isProcessing={isProcessing}
+                                />
+                            );
+                        })()}
+                    </div>
                 </div>
             </div>
             <AttachmentViewerModal
@@ -333,6 +381,111 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({ isOpen, onClose, re
                 fileUrl={request.attachment_url || null}
             />
         </>
+    );
+};
+
+// Sub-component for actions to keep main component clean
+const ActionButtons = ({ request, onApprove, onReject, onRevise, isProcessing }: any) => {
+    const [mode, setMode] = useState<'view' | 'revise' | 'reject'>('view');
+    const [notes, setNotes] = useState('');
+
+    if (request.status !== RequestStatus.PENDING) return null;
+
+    const handleRevise = () => {
+        if (!notes.trim()) return;
+        onRevise(request.id, notes);
+        setNotes('');
+        setMode('view');
+    };
+
+    const handleReject = () => {
+        onReject(request.id, notes);
+        setNotes('');
+        setMode('view');
+    };
+
+    if (mode === 'revise') {
+        return (
+            <div className="flex flex-col gap-3 w-full">
+                <label className="text-sm font-medium text-gray-700">Catatan Revisi:</label>
+                <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                    rows={3}
+                    placeholder="Masukkan detail yang perlu direvisi..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={() => { setMode('view'); setNotes(''); }}
+                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        onClick={handleRevise}
+                        disabled={!notes.trim() || isProcessing}
+                        className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-sm font-medium disabled:opacity-50"
+                    >
+                        {isProcessing ? 'Memproses...' : 'Kirim Revisi'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (mode === 'reject') {
+        return (
+            <div className="flex flex-col gap-3 w-full">
+                <label className="text-sm font-medium text-gray-700">Alasan Penolakan (Opsional):</label>
+                <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    rows={3}
+                    placeholder="Alasan penolakan..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={() => { setMode('view'); setNotes(''); }}
+                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        onClick={handleReject}
+                        disabled={isProcessing}
+                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium disabled:opacity-50"
+                    >
+                        {isProcessing ? 'Memproses...' : 'Tolak Ajuan'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex gap-2 w-full">
+            <button
+                onClick={() => setMode('reject')}
+                className="flex-1 px-4 py-2 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-semibold transition-colors"
+            >
+                Tolak
+            </button>
+            <button
+                onClick={() => setMode('revise')}
+                className="flex-1 px-4 py-2 border border-yellow-200 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-lg text-sm font-semibold transition-colors"
+            >
+                Revisi
+            </button>
+            <button
+                onClick={() => onApprove(request.id)}
+                disabled={isProcessing}
+                className="flex-[2] px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm font-semibold shadow-md transition-colors flex justify-center items-center gap-2"
+            >
+                {isProcessing ? 'Memproses...' : 'Setujui'}
+            </button>
+        </div>
     );
 };
 

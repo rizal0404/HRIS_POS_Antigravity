@@ -35,6 +35,12 @@ export const requestsService = {
             .insert([{ ...requestData, status: 'pending' }])
             .select()
             .single();
+
+        // Handle duplicate constraint violation (PostgreSQL error code 23505)
+        if (error?.code === '23505') {
+            throw new Error('DUPLICATE_REQUEST');
+        }
+
         return handleSupabaseError({ data, error }, 'submitRequest');
     },
 
@@ -182,6 +188,23 @@ export const requestsService = {
             .limit(10);
         return handleSupabaseError({ data, error }, 'getRequestUpdatesForUser');
     },
+
+    async reviseRequest(requestId: string, approverId: string, notes: string): Promise<Request> {
+        // Update the request status to REVISION and add notes
+        const { data, error } = await supabase
+            .from('requests')
+            .update({
+                status: RequestStatus.REVISION,
+                approver_id: approverId,
+                approver_notes: notes,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', requestId)
+            .select()
+            .single();
+
+        return handleSupabaseError({ data, error }, 'reviseRequest');
+    },
 };
 
 // Export individual functions for granular imports
@@ -194,4 +217,5 @@ export const {
     getRequestPrerequisites,
     getApprovedLeaves,
     getRequestUpdatesForUser,
+    reviseRequest,
 } = requestsService;

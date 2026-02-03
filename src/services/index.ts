@@ -58,6 +58,7 @@ export const apiService = {
     getRequestPrerequisites: requestsService.getRequestPrerequisites.bind(requestsService),
     getApprovedLeaves: requestsService.getApprovedLeaves.bind(requestsService),
     getRequestUpdatesForUser: requestsService.getRequestUpdatesForUser.bind(requestsService),
+    reviseRequest: requestsService.reviseRequest.bind(requestsService),
 
     // Profiles
     getProfiles: profilesService.getProfiles.bind(profilesService),

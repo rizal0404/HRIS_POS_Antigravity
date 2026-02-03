@@ -100,7 +100,22 @@ const ReviewAjuanModal: React.FC<ReviewAjuanModalProps> = ({
                 <div className="p-4 space-y-1 max-h-[60vh] overflow-y-auto">
                     <div className="bg-blue-50 p-3 rounded-lg mb-3">
                         <p className="text-xs text-blue-700 font-medium">
-                            Pastikan data berikut sudah benar sebelum mengirim ke atasan.
+                            {requestType === RequestType.LEMBUR ? (
+                                (() => {
+                                    if (!startTime || !endTime) return 'Pastikan data berikut sudah benar sebelum mengirim ke atasan.';
+                                    const [startH, startM] = startTime.split(':').map(Number);
+                                    const [endH, endM] = endTime.split(':').map(Number);
+                                    let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+                                    if (diffMinutes < 0) diffMinutes += 24 * 60;
+                                    const hours = Math.floor(diffMinutes / 60);
+                                    const minutes = diffMinutes % 60;
+                                    const durationStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+                                    return `Apakah Anda sudah yakin durasi lembur anda ${durationStr} Jam dari jam ${startTime} ke jam ${endTime}?`;
+                                })()
+                            ) : (
+                                'Pastikan data berikut sudah benar sebelum mengirim ke atasan.'
+                            )}
                         </p>
                     </div>
 
@@ -108,8 +123,20 @@ const ReviewAjuanModal: React.FC<ReviewAjuanModalProps> = ({
 
                     {requestType === RequestType.LEMBUR ? (
                         <>
-                            <InfoRow label="Tanggal" value={formatDate(new Date(startDate))} />
-                            <InfoRow label="Waktu Lembur" value={`${startTime} - ${endTime}`} />
+                            <>
+                                <InfoRow label="Tanggal" value={formatDate(new Date(startDate))} />
+                                <InfoRow label="Waktu Lembur" value={`${startTime} - ${endTime}`} />
+                                <InfoRow label="Durasi Lembur" value={(() => {
+                                    if (!startTime || !endTime) return '-';
+                                    const [startH, startM] = startTime.split(':').map(Number);
+                                    const [endH, endM] = endTime.split(':').map(Number);
+                                    let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+                                    if (diffMinutes < 0) diffMinutes += 24 * 60; // Handle crossing midnight if needed
+                                    const hours = Math.floor(diffMinutes / 60);
+                                    const minutes = diffMinutes % 60;
+                                    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} Jam`;
+                                })()} />
+                            </>
                         </>
                     ) : requestType === RequestType.SUBSTITUSI ? (
                         <>

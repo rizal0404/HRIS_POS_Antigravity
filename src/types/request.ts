@@ -16,7 +16,8 @@ export enum RequestStatus {
     PENDING = 'pending',
     APPROVED = 'approved',
     REJECTED = 'rejected',
-    REVISED = 'revised',
+    REVISION = 'revision', // Used for requesting changes from subordinate
+    REVISED = 'revised', // When subordinate has revised it (if needed) or keep unified
 }
 
 export enum UsulanJenis {

@@ -53,10 +53,8 @@ const getStatusBadge = (status: RequestStatus) => {
 const RequestApprovalCard: React.FC<{
     request: Request;
     requester: UserProfile;
-    onAction: (id: string, newStatus: RequestStatus) => void;
     onViewDetails: () => void;
-    processingId: string | null;
-}> = ({ request, requester, onAction, onViewDetails, processingId }) => {
+}> = ({ request, requester, onViewDetails }) => {
     const reasonPreview = useMemo(() => {
         if (request.request_type === RequestType.SUBSTITUSI) {
             try {
@@ -130,20 +128,11 @@ const RequestApprovalCard: React.FC<{
             {isPending && (
                 <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3" onClick={(e) => e.stopPropagation()}>
                     <button
-                        onClick={(e) => { e.stopPropagation(); onAction(request.id, RequestStatus.REJECTED); }}
-                        disabled={!!processingId}
-                        className="flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-sm font-semibold rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-colors flex items-center justify-center gap-2"
-                    >
-                        <XIcon className="w-4 h-4 text-[16px]" />
-                        Tolak
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onAction(request.id, RequestStatus.APPROVED); }}
-                        disabled={!!processingId}
+                        onClick={(e) => { e.stopPropagation(); onViewDetails(); }}
                         className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2"
                     >
-                        {processingId === request.id ? <Spinner className="w-4 h-4 border-white" /> : <CheckCircleIcon className="w-4 h-4 text-[16px]" />}
-                        Setujui
+                        <span className="material-symbols-outlined text-[16px]">visibility</span>
+                        Lihat Detail
                     </button>
                 </div>
             )}
@@ -469,9 +458,7 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
                                         key={request.id}
                                         request={request}
                                         requester={requester}
-                                        onAction={handleAction}
                                         onViewDetails={() => handleViewDetails(request)}
-                                        processingId={processingId}
                                     />
                                 );
                             })}
@@ -486,6 +473,18 @@ const PersetujuanTimPage: React.FC<PersetujuanPageProps> = ({ user }) => {
                     onClose={() => setIsDetailModalOpen(false)}
                     request={selectedRequest}
                     allUsers={allUsers}
+                    onApprove={(id) => { handleAction(id, RequestStatus.APPROVED); setIsDetailModalOpen(false); }}
+                    onReject={(id, reason) => { handleAction(id, RequestStatus.REJECTED); setIsDetailModalOpen(false); }}
+                    onRevise={async (id, notes) => {
+                        try {
+                            await apiService.reviseRequest(id, user.id, notes);
+                            await fetchData();
+                            setIsDetailModalOpen(false);
+                        } catch (err: any) {
+                            alert(err.message || 'Gagal mengirim revisi.');
+                        }
+                    }}
+                    isProcessing={!!processingId}
                 />
             )}
         </div>

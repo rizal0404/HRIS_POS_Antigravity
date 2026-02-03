@@ -472,9 +472,15 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
 
         } catch (err: any) {
             logError('Failed to submit request', { error: err, userId: user.id });
-            setError(err.message || 'Gagal mengirim pengajuan.');
+
+            let errorMessage = err.message || 'Gagal mengirim pengajuan.';
+            if (err.message === 'DUPLICATE_REQUEST') {
+                errorMessage = 'Pengajuan serupa sudah ada untuk tanggal yang dipilih. Silakan cek riwayat pengajuan Anda.';
+            }
+
+            setError(errorMessage);
             if (onError) {
-                onError(err.message || 'Gagal mengirim pengajuan.');
+                onError(errorMessage);
             }
             console.error(err);
         } finally {
