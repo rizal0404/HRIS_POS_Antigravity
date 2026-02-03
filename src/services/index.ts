@@ -59,6 +59,9 @@ export const apiService = {
     getApprovedLeaves: requestsService.getApprovedLeaves.bind(requestsService),
     getRequestUpdatesForUser: requestsService.getRequestUpdatesForUser.bind(requestsService),
     reviseRequest: requestsService.reviseRequest.bind(requestsService),
+    // Manager assignment methods
+    assignRequestForSubordinate: requestsService.assignRequestForSubordinate.bind(requestsService),
+    getSubordinatesMissingAttendance: requestsService.getSubordinatesMissingAttendance.bind(requestsService),
 
     // Profiles
     getProfiles: profilesService.getProfiles.bind(profilesService),

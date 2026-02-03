@@ -17,15 +17,15 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
     const today = new Date();
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
-    
+
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-    
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [overtimeRequests, setOvertimeRequests] = useState<Request[]>([]);
     const isPrivileged = user.role === UserRole.SUPERADMIN || user.role === UserRole.ADMIN;
-    
+
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
@@ -46,10 +46,10 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
                         employeeIds = [user.id];
                     }
                 }
-                
+
                 if (employeeIds.length > 0) {
-                    const startDate = new Date(selectedYear, selectedMonth, 1).toISOString().split('T')[0];
-                    const endDate = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split('T')[0];
+                    const startDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+                    const endDate = new Date(selectedYear, selectedMonth + 1, 0).toLocaleDateString('en-CA');
                     const requests = await apiService.getOvertimeRequestsForSubordinates(employeeIds, startDate, endDate);
                     setOvertimeRequests(requests);
                 } else {
@@ -66,7 +66,7 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
 
     const processedData = useMemo(() => {
         let accumulatedHours: { [key: string]: number } = {};
-        
+
         return overtimeRequests.map(req => {
             let totalJamLembur = 0;
             if (req.start_time && req.end_time) {
@@ -81,7 +81,7 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
                 accumulatedHours[req.profile_id] = 0;
             }
             accumulatedHours[req.profile_id] += totalJamLembur;
-            
+
             return {
                 noKaryawan: req.profiles?.nik || '-',
                 namaKaryawan: req.profiles?.full_name || 'N/A',
@@ -128,7 +128,7 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
             ];
             csvRows.push(csvRow.join(','));
         });
-        
+
         const csvContent = csvRows.join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -146,26 +146,26 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
     return (
         <div className="bg-white rounded-lg shadow-md p-6">
             <header className="mb-4">
-                 <h3 className="text-xl font-bold text-gray-800">Rekap Data Lembur Karyawan</h3>
+                <h3 className="text-xl font-bold text-gray-800">Rekap Data Lembur Karyawan</h3>
             </header>
             <div className="flex flex-wrap items-center justify-between mb-4 gap-4">
-                 <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                     <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="p-2 border rounded-md text-sm">
-                        {Array.from({length: 5}).map((_, i) => <option key={i} value={today.getFullYear() - i}>{today.getFullYear() - i}</option>)}
+                        {Array.from({ length: 5 }).map((_, i) => <option key={i} value={today.getFullYear() - i}>{today.getFullYear() - i}</option>)}
                     </select>
                     <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="p-2 border rounded-md text-sm">
-                        {Array.from({length: 12}).map((_, i) => <option key={i} value={i}>{new Date(0, i).toLocaleString('id-ID', {month: 'long'})}</option>)}
+                        {Array.from({ length: 12 }).map((_, i) => <option key={i} value={i}>{new Date(0, i).toLocaleString('id-ID', { month: 'long' })}</option>)}
                     </select>
                 </div>
                 <div className="flex items-center gap-2">
                     <button onClick={handleDownload} className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 border" title="Download as CSV">
-                        <ExcelIcon className="h-5 w-5"/>
+                        <ExcelIcon className="h-5 w-5" />
                     </button>
                     <button onClick={handlePrint} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 border" title="Cetak Laporan">
-                        <PrintIcon className="h-5 w-5"/>
+                        <PrintIcon className="h-5 w-5" />
                     </button>
                     <span className="text-sm">Tampilkan</span>
-                     <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="p-2 border rounded-md text-sm">
+                    <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="p-2 border rounded-md text-sm">
                         <option value={10}>10</option>
                         <option value={25}>25</option>
                         <option value={50}>50</option>
@@ -181,39 +181,39 @@ const RekapLembur: React.FC<RekapLemburProps> = ({ user, mode = 'team' }) => {
                 ) : paginatedData.length === 0 ? (
                     <div className="text-center p-8 text-gray-500">Tidak ada data lembur untuk periode ini.</div>
                 ) : (
-                <table className="w-full text-sm text-left min-w-[900px]">
-                    <thead className="bg-gray-100 text-gray-600 font-bold">
-                        <tr>
-                            <th className="p-3">No Karyawan</th>
-                            <th className="p-3">Nama Karyawan</th>
-                            <th className="p-3">Tanggal Lembur</th>
-                            <th className="p-3">Jam Lembur</th>
-                            <th className="p-3">Total Jam Lembur</th>
-                            <th className="p-3">Shift 1</th>
-                            <th className="p-3">Shift 2</th>
-                            <th className="p-3">Shift 3</th>
-                            <th className="p-3">Akumulasi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {paginatedData.map((row, index) => (
-                            <tr key={index} className="border-b hover:bg-gray-50">
-                                <td className="p-3">{row.noKaryawan}</td>
-                                <td className="p-3">{row.namaKaryawan}</td>
-                                <td className="p-3">{new Date(row.tanggalLembur + "T00:00:00").toLocaleDateString('id-ID')}</td>
-                                <td className="p-3">{row.jamLembur}</td>
-                                <td className="p-3">{row.totalJamLembur} Jam</td>
-                                <td className="p-3">{row.shift1}</td>
-                                <td className="p-3">{row.shift2}</td>
-                                <td className="p-3">{row.shift3}</td>
-                                <td className="p-3">{row.akumulasi} Jam</td>
+                    <table className="w-full text-sm text-left min-w-[900px]">
+                        <thead className="bg-gray-100 text-gray-600 font-bold">
+                            <tr>
+                                <th className="p-3">No Karyawan</th>
+                                <th className="p-3">Nama Karyawan</th>
+                                <th className="p-3">Tanggal Lembur</th>
+                                <th className="p-3">Jam Lembur</th>
+                                <th className="p-3">Total Jam Lembur</th>
+                                <th className="p-3">Shift 1</th>
+                                <th className="p-3">Shift 2</th>
+                                <th className="p-3">Shift 3</th>
+                                <th className="p-3">Akumulasi</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {paginatedData.map((row, index) => (
+                                <tr key={index} className="border-b hover:bg-gray-50">
+                                    <td className="p-3">{row.noKaryawan}</td>
+                                    <td className="p-3">{row.namaKaryawan}</td>
+                                    <td className="p-3">{new Date(row.tanggalLembur + "T00:00:00").toLocaleDateString('id-ID')}</td>
+                                    <td className="p-3">{row.jamLembur}</td>
+                                    <td className="p-3">{row.totalJamLembur} Jam</td>
+                                    <td className="p-3">{row.shift1}</td>
+                                    <td className="p-3">{row.shift2}</td>
+                                    <td className="p-3">{row.shift3}</td>
+                                    <td className="p-3">{row.akumulasi} Jam</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 )}
             </div>
-             <Pagination
+            <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}

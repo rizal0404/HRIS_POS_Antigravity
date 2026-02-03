@@ -47,6 +47,11 @@ export interface Request {
     end_time?: string;
     attachment_url?: string;
     attendance_id_to_correct?: string;
+    // Manager assignment tracking
+    is_manager_assigned?: boolean;
+    assigned_by_id?: string;
+    assigned_by?: Pick<UserProfile, 'full_name'> | null;
     profiles?: Pick<UserProfile, 'full_name' | 'nik'> | null;
     approvers?: Pick<UserProfile, 'full_name'> | null;
 }
+

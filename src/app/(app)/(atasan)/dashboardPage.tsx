@@ -16,6 +16,7 @@ import { getAllSubordinates, formatDateKey, formatTime } from '../../../lib/util
 import Spinner from '@/components/ui/Spinner';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import AssignRequestModal from '@/components/modals/AssignRequestModal';
 
 interface DashboardPageProps {
     user: UserProfile;
@@ -54,6 +55,7 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [processingId, setProcessingId] = useState<string | null>(null);
+    const [showAssignModal, setShowAssignModal] = useState(false);
 
     const fetchData = useCallback(async () => {
         setRefreshing(true);
@@ -492,10 +494,14 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
                     {/* Quick Actions */}
                     <div className="space-y-3">
                         <h3 className="font-bold text-sm text-slate-800">Aksi Cepat</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                             <button className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-center gap-2 hover:border-blue-300 hover:shadow-sm transition-all" onClick={() => onNavigate('/tim')}>
                                 <span className="material-symbols-outlined text-blue-600 text-[20px]">person_add</span>
                                 <span className="font-semibold text-slate-700 text-sm">Atur Shift</span>
+                            </button>
+                            <button className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-center gap-2 hover:border-orange-300 hover:shadow-sm transition-all" onClick={() => setShowAssignModal(true)}>
+                                <span className="material-symbols-outlined text-orange-600 text-[20px]">assignment_add</span>
+                                <span className="font-semibold text-slate-700 text-sm">Assign Cuti/Lembur</span>
                             </button>
                             <button className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-center gap-2 hover:border-blue-300 hover:shadow-sm transition-all">
                                 <span className="material-symbols-outlined text-purple-600 text-[20px]">campaign</span>
@@ -509,6 +515,17 @@ const AtasanDashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate })
                     </div>
                 </div>
             </div>
+
+            {/* Assign Request Modal */}
+            <AssignRequestModal
+                isOpen={showAssignModal}
+                onClose={() => setShowAssignModal(false)}
+                onSuccess={() => {
+                    setShowAssignModal(false);
+                    fetchData();
+                }}
+                manager={user}
+            />
         </div>
     );
 };

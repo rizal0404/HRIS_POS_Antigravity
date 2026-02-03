@@ -205,6 +205,213 @@ export const requestsService = {
 
         return handleSupabaseError({ data, error }, 'reviseRequest');
     },
+
+    /**
+     * Assign a leave or overtime request for a subordinate (manager-initiated).
+     * This creates a request on behalf of the subordinate and can auto-approve it.
+     */
+    async assignRequestForSubordinate(params: {
+        managerId: string;
+        subordinateId: string;
+        requestType: 'Cuti' | 'Lembur';
+        startDate: string;
+        endDate: string;
+        reason: string;
+        // For overtime
+        startTime?: string;
+        endTime?: string;
+        // Auto-approve settings
+        autoApprove?: boolean;
+    }): Promise<Request> {
+        const {
+            managerId,
+            subordinateId,
+            requestType,
+            startDate,
+            endDate,
+            reason,
+            startTime,
+            endTime,
+            autoApprove = true,
+        } = params;
+
+        // Create the request with manager assignment tracking
+        const requestData: any = {
+            profile_id: subordinateId,
+            request_type: requestType,
+            start_date: startDate,
+            end_date: endDate,
+            reason: reason,
+            status: autoApprove ? 'approved' : 'pending',
+            approver_id: autoApprove ? managerId : null,
+            is_manager_assigned: true,
+            assigned_by_id: managerId,
+        };
+
+        // Add overtime-specific fields
+        if (requestType === 'Lembur' && startTime && endTime) {
+            requestData.start_time = startTime;
+            requestData.end_time = endTime;
+        }
+
+        const { data, error } = await supabase
+            .from('requests')
+            .insert([requestData])
+            .select()
+            .single();
+
+        // Handle duplicate constraint violation
+        if (error?.code === '23505') {
+            throw new Error('DUPLICATE_REQUEST');
+        }
+
+        const createdRequest = handleSupabaseError({ data, error }, 'assignRequestForSubordinate');
+
+        // If auto-approved and it's a leave request, deduct leave balance
+        if (autoApprove && requestType === 'Cuti') {
+            await this.deductLeaveBalance(subordinateId, startDate, endDate);
+        }
+
+        // Send notification to subordinate
+        await this.notifySubordinateOfAssignment(subordinateId, managerId, requestType, startDate, endDate);
+
+        return createdRequest;
+    },
+
+    /**
+     * Deduct leave balance for a subordinate based on working days in the date range.
+     * Note: Leave balance tracking is not yet implemented in profiles table.
+     */
+    async deductLeaveBalance(subordinateId: string, startDate: string, endDate: string): Promise<void> {
+        // Get work schedules to calculate actual working days
+        const { data: schedules, error: scheduleError } = await supabase
+            .from('work_schedules')
+            .select('date, shift_code')
+            .eq('profile_id', subordinateId)
+            .gte('date', startDate)
+            .lte('date', endDate);
+
+        if (scheduleError) {
+            console.error('[deductLeaveBalance] Failed to fetch schedules:', scheduleError);
+            return;
+        }
+
+        // Count working days (days with shift != 'OFF')
+        const workingDays = (schedules || []).filter(s => s.shift_code && s.shift_code !== 'OFF').length;
+
+        // Log the deduction (leave balance column not yet implemented in profiles)
+        console.log(`[deductLeaveBalance] Would deduct ${workingDays} working days for ${subordinateId} (${startDate} to ${endDate})`);
+
+        // TODO: Implement leave balance tracking when annual_leave_balance column is added to profiles
+    },
+
+
+    /**
+     * Send notification to subordinate about manager-assigned request.
+     */
+    async notifySubordinateOfAssignment(
+        subordinateId: string,
+        managerId: string,
+        requestType: string,
+        startDate: string,
+        endDate: string
+    ): Promise<void> {
+        try {
+            // Get manager name
+            const { data: manager } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', managerId)
+                .single();
+
+            const managerName = manager?.full_name || 'Atasan';
+            const dateRange = startDate === endDate ? startDate : `${startDate} s/d ${endDate}`;
+
+            // Insert notification
+            await supabase.from('notifications').insert({
+                profile_id: subordinateId,
+                title: `${requestType} Ditetapkan oleh ${managerName}`,
+                message: `Atasan Anda telah menetapkan ${requestType.toLowerCase()} untuk tanggal ${dateRange}.`,
+                type: 'request_assigned',
+                is_read: false,
+            });
+        } catch (err) {
+            console.error('[notifySubordinateOfAssignment] Failed to send notification:', err);
+            // Don't throw - notification failure shouldn't block the main operation
+        }
+    },
+
+    /**
+     * Get subordinates who have no attendance record on a specific work date.
+     */
+    async getSubordinatesMissingAttendance(managerId: string, date?: string): Promise<{
+        subordinate: { id: string; full_name: string; nik: string | null };
+        scheduled_shift: string | null;
+        missing_date: string;
+    }[]> {
+        const targetDate = date || new Date().toISOString().split('T')[0];
+
+        // Get all subordinates of this manager
+        const { data: subordinates, error: subError } = await supabase
+            .from('profiles')
+            .select('id, full_name, nik')
+            .eq('manager_id', managerId);
+
+        if (subError || !subordinates || subordinates.length === 0) {
+            return [];
+        }
+
+        const subordinateIds = subordinates.map(s => s.id);
+
+        // Get their schedules for the date
+        const { data: schedules } = await supabase
+            .from('work_schedules')
+            .select('profile_id, shift_code')
+            .in('profile_id', subordinateIds)
+            .eq('date', targetDate);
+
+        // Get their attendance for the date
+        const { data: attendances } = await supabase
+            .from('attendance')
+            .select('profile_id')
+            .in('profile_id', subordinateIds)
+            .eq('work_date', targetDate);
+
+        // Get approved leave requests for the date
+        const { data: approvedLeaves } = await supabase
+            .from('requests')
+            .select('profile_id')
+            .in('profile_id', subordinateIds)
+            .in('request_type', [RequestType.CUTI, RequestType.SAKIT])
+            .eq('status', RequestStatus.APPROVED)
+            .lte('start_date', targetDate)
+            .gte('end_date', targetDate);
+
+        const scheduleMap = new Map((schedules || []).map(s => [s.profile_id, s.shift_code]));
+        const attendedIds = new Set((attendances || []).map(a => a.profile_id));
+        const onLeaveIds = new Set((approvedLeaves || []).map(l => l.profile_id));
+
+        const missing: {
+            subordinate: { id: string; full_name: string; nik: string | null };
+            scheduled_shift: string | null;
+            missing_date: string;
+        }[] = [];
+
+        for (const sub of subordinates) {
+            const schedule = scheduleMap.get(sub.id);
+            // Skip if: already attended, on approved leave, or not scheduled to work (OFF or no schedule)
+            if (attendedIds.has(sub.id) || onLeaveIds.has(sub.id)) continue;
+            if (!schedule || schedule === 'OFF') continue;
+
+            missing.push({
+                subordinate: { id: sub.id, full_name: sub.full_name, nik: sub.nik },
+                scheduled_shift: schedule,
+                missing_date: targetDate,
+            });
+        }
+
+        return missing;
+    },
 };
 
 // Export individual functions for granular imports
@@ -218,4 +425,9 @@ export const {
     getApprovedLeaves,
     getRequestUpdatesForUser,
     reviseRequest,
+    assignRequestForSubordinate,
+    deductLeaveBalance,
+    notifySubordinateOfAssignment,
+    getSubordinatesMissingAttendance,
 } = requestsService;
+
