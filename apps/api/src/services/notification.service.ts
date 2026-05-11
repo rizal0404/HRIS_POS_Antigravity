@@ -1,6 +1,6 @@
 ﻿import { db } from '../config/database';
-import { notificationJobs, notificationPreferences, notificationLogs, employees, requests, users } from '../db/schema';
-import { eq, and, isNull, lt, sql } from 'drizzle-orm';
+import { notificationJobs, notificationPreferences, notificationLogs, employees, requests, users, departments } from '../db/schema';
+import { eq, and, isNull, lt } from 'drizzle-orm';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -133,13 +133,6 @@ export const notificationService = {
         });
     },
 
-    buildMessage(event: string, req: any) {
-        const header = event === 'created' ? '<b>🔔 Pengajuan Baru</b>' : 
-                      event === 'approved' ? '<b>✅ Pengajuan Disetujui</b>' : 
-                      '<b>❌ Pengajuan Ditolak</b>';
-        
-        const dateRange = req.startDate === req.endDate ? req.startDate : `${req.startDate} s/d ${req.endDate}`;
-        
     async enqueue(employeeId: string, requestId: string, event: string) {
         await db.insert(notificationJobs).values({
             employeeId,
@@ -150,18 +143,25 @@ export const notificationService = {
 
     async enqueueForManager(employeeId: string, requestId: string) {
         // Find department manager
-        const [emp] = await db.select({ managerId: sql`departments.manager_id` })
+        const [emp] = await db.select({ managerId: departments.managerId })
             .from(employees)
-            .innerJoin(sql`departments`, sql`employees.department_id = departments.id`)
+            .innerJoin(departments, eq(employees.departmentId, departments.id))
             .where(eq(employees.id, employeeId))
-            .limit(1) as any;
+            .limit(1);
 
         if (emp && emp.managerId) {
-            await this.enqueue(emp.managerId, requestId, "created");
+            await this.enqueue(emp.managerId, requestId, 'created');
         }
     },
 
     buildMessage(event: string, req: any) {
+        const header = event === 'created' ? '<b>Pengajuan Baru</b>' :
+                      event === 'approved' ? '<b>Pengajuan Disetujui</b>' :
+                      '<b>Pengajuan Ditolak</b>';
+
+        const dateRange = req.startDate === req.endDate ? req.startDate : `${req.startDate} s/d ${req.endDate}`;
+
+        return `${header}\n\n` +
                `Pemohon: ${req.employeeName}\n` +
                `Jenis: ${req.type}\n` +
                `Tanggal: ${dateRange}\n` +

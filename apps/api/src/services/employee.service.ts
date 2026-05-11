@@ -1,6 +1,5 @@
-﻿import { auth } from '../config/auth';
 import { db } from '../config/database';
-import { employees } from '../db/schema';
+import { employees, users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 export const employeeService = {
@@ -31,5 +30,13 @@ export const employeeService = {
         const result = await db.insert(employees).values(data).returning();
         return result[0];
     },
-};
 
+    async updateEmail(userId: string, email: string) {
+        const result = await db
+            .update(users)
+            .set({ email, updatedAt: new Date() })
+            .where(eq(users.id, userId))
+            .returning();
+        return result[0];
+    },
+};

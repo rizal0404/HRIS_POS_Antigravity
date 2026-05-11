@@ -7,11 +7,11 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY apps/api/package.json ./
+COPY apps/api/package*.json ./
 
 # Install ALL dependencies (including devDependencies for build)
 ENV NODE_ENV=development
-RUN npm install
+RUN npm ci
 
 # Copy source code
 COPY apps/api/ .
@@ -28,11 +28,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy package.json
-COPY apps/api/package.json ./
+# Copy package files
+COPY apps/api/package*.json ./
 
 # Install production dependencies only
-RUN npm install --omit=dev --no-package-lock
+RUN npm ci --omit=dev
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist

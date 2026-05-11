@@ -57,7 +57,7 @@ export const requestService = {
             throw new Error('Insufficient leave balance');
         }
 
-        const result = const result = await db.insert(requests).values({
+        const result = await db.insert(requests).values({
             employeeId,
             type: 'leave',
             status: 'pending',
@@ -65,7 +65,10 @@ export const requestService = {
             endDate: data.endDate,
             durationDays,
             reason: data.reason,
-        }).returning();`n`n        // Enqueue notifications`n        await notificationService.enqueue(employeeId, result[0].id, "created");`n        await notificationService.enqueueForManager(employeeId, result[0].id);`n`n        return result[0];
+        }).returning();
+
+        await notificationService.enqueue(employeeId, result[0].id, 'created');
+        await notificationService.enqueueForManager(employeeId, result[0].id);
 
         return result[0];
     },
@@ -78,7 +81,7 @@ export const requestService = {
         const [endHours, endMins] = data.endTime.split(':').map(Number);
         const durationHours = (endHours + endMins / 60) - (startHours + startMins / 60);
 
-        const result = const result = await db.insert(requests).values({
+        const result = await db.insert(requests).values({
             employeeId,
             type: 'overtime',
             status: 'pending',
@@ -88,7 +91,10 @@ export const requestService = {
             endTime: data.endTime,
             durationHours: durationHours.toString(),
             reason: data.reason,
-        }).returning();`n`n        // Enqueue notifications`n        await notificationService.enqueue(employeeId, result[0].id, "created");`n        await notificationService.enqueueForManager(employeeId, result[0].id);`n`n        return result[0];
+        }).returning();
+
+        await notificationService.enqueue(employeeId, result[0].id, 'created');
+        await notificationService.enqueueForManager(employeeId, result[0].id);
 
         return result[0];
     },
@@ -100,7 +106,7 @@ export const requestService = {
         const end = new Date(data.endDate);
         const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-        const result = const result = await db.insert(requests).values({
+        const result = await db.insert(requests).values({
             employeeId,
             type: 'sick',
             status: 'pending',
@@ -109,7 +115,10 @@ export const requestService = {
             durationDays,
             reason: data.reason,
             attachmentUrl: data.attachmentUrl,
-        }).returning();`n`n        // Enqueue notifications`n        await notificationService.enqueue(employeeId, result[0].id, "created");`n        await notificationService.enqueueForManager(employeeId, result[0].id);`n`n        return result[0];
+        }).returning();
+
+        await notificationService.enqueue(employeeId, result[0].id, 'created');
+        await notificationService.enqueueForManager(employeeId, result[0].id);
 
         return result[0];
     },
@@ -117,7 +126,7 @@ export const requestService = {
     async createCorrectionRequest(userId: string, data: CorrectionRequestData) {
         const employeeId = await this.getEmployeeId(userId);
 
-        const result = const result = await db.insert(requests).values({
+        const result = await db.insert(requests).values({
             employeeId,
             type: 'correction',
             status: 'pending',
@@ -125,7 +134,10 @@ export const requestService = {
             correctionType: data.correctionType,
             correctedTime: data.correctedTime,
             reason: data.reason,
-        }).returning();`n`n        // Enqueue notifications`n        await notificationService.enqueue(employeeId, result[0].id, "created");`n        await notificationService.enqueueForManager(employeeId, result[0].id);`n`n        return result[0];
+        }).returning();
+
+        await notificationService.enqueue(employeeId, result[0].id, 'created');
+        await notificationService.enqueueForManager(employeeId, result[0].id);
 
         return result[0];
     },
@@ -133,14 +145,17 @@ export const requestService = {
     async createShiftSwapRequest(userId: string, data: ShiftSwapRequestData) {
         const employeeId = await this.getEmployeeId(userId);
 
-        const result = const result = await db.insert(requests).values({
+        const result = await db.insert(requests).values({
             employeeId,
             type: 'shift_swap',
             status: 'pending',
             targetShiftId: data.targetShiftId,
             substituteEmployeeId: data.substituteEmployeeId,
             reason: data.reason,
-        }).returning();`n`n        // Enqueue notifications`n        await notificationService.enqueue(employeeId, result[0].id, "created");`n        await notificationService.enqueueForManager(employeeId, result[0].id);`n`n        return result[0];
+        }).returning();
+
+        await notificationService.enqueue(employeeId, result[0].id, 'created');
+        await notificationService.enqueueForManager(employeeId, result[0].id);
 
         return result[0];
     },
