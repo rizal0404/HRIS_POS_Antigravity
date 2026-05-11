@@ -7,19 +7,18 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY apps/web/package.json apps/web/package-lock.json* ./
+COPY apps/web/package.json ./
 
 # Install dependencies
-# Set NODE_ENV to development to ensure devDependencies are installed
 ENV NODE_ENV=development
-RUN npm install --frozen-lockfile || npm install
+RUN npm install
 
 # Copy source code
 COPY apps/web/ .
 
 # Build argument for API URL
 ARG VITE_API_URL=http://localhost:3001
-ENV VITE_API_URL=
+ENV VITE_API_URL=$VITE_API_URL
 
 # Build Vite app
 RUN npm run build
