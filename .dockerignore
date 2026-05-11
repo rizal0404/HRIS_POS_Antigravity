@@ -1,0 +1,14 @@
+﻿node_modules
+.git
+.env
+.env.*
+*.md
+documentation
+mobile
+src
+public
+supabase
+*.sql
+.tmp
+.vite
+.vite-temp
