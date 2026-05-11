@@ -7,11 +7,11 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY apps/web/package.json ./
+COPY apps/web/package*.json ./
 
 # Install dependencies
 ENV NODE_ENV=development
-RUN npm install
+RUN npm ci
 
 # Copy source code
 COPY apps/web/ .
