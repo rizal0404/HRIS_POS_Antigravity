@@ -5,13 +5,13 @@ services:
     container_name: hris-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: 
-      POSTGRES_PASSWORD: 
-      POSTGRES_DB: 
+      POSTGRES_USER: ${POSTGRES_USER:-hris_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hris_password}
+      POSTGRES_DB: ${POSTGRES_DB:-hris_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U  -d "]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hris_user} -d ${POSTGRES_DB:-hris_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,13 +28,13 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - DATABASE_URL=postgresql://:@postgres:5432/
-      - BETTER_AUTH_URL=
-      - BETTER_AUTH_SECRET=
-      - FRONTEND_URL=
-      - TELEGRAM_BOT_TOKEN=
-      - GOOGLE_CLIENT_ID=
-      - GOOGLE_CLIENT_SECRET=
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-hris_user}:${POSTGRES_PASSWORD:-hris_password}@postgres:5432/${POSTGRES_DB:-hris_db}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,11 +49,11 @@ services:
       context: .
       dockerfile: ./apps/web/Dockerfile
       args:
-        VITE_API_URL: 
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
     container_name: hris-web
     restart: unless-stopped
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     depends_on:
       - api
     networks:
