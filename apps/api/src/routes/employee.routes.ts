@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.middleware';
 import { employeeService } from '../services/employee.service';
 
@@ -56,4 +56,21 @@ router.get('/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     }
 });
 
+// Update employee email (admin only)
+router.put('/:id/email', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+        if (req.user!.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        const employee = await employeeService.getById(req.params.id);
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+        await employeeService.updateEmail(employee.userId, req.body.email);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export { router as employeeRoutes };
+

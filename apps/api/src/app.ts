@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './config/auth';
@@ -11,6 +11,8 @@ import { scheduleRoutes } from './routes/schedule.routes';
 import { reportRoutes } from './routes/report.routes';
 import { managerRoutes } from './routes/manager.routes';
 import { officeRoutes } from './routes/office.routes';
+import { notificationRoutes } from './routes/notification.routes';
+import { disciplineRoutes } from './routes/discipline.routes';
 
 const app = express();
 
@@ -32,6 +34,8 @@ app.use('/api/schedules', scheduleRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/offices', officeRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/discipline', disciplineRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -39,3 +43,5 @@ app.get('/api/health', (req, res) => {
 });
 
 export { app };
+
+

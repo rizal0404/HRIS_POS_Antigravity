@@ -1,3 +1,4 @@
+﻿import { auth } from '../config/auth';
 import { db } from '../config/database';
 import { employees } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -31,3 +32,4 @@ export const employeeService = {
         return result[0];
     },
 };
+
