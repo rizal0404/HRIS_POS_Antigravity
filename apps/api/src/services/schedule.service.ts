@@ -1,25 +1,9 @@
 import { db } from '../config/database';
-import { shiftTemplates, employeeShifts, employees } from '../db/schema';
+import { shifts, workSchedules, profiles } from '../db/schema';
 import { eq, and, sql, asc } from 'drizzle-orm';
 
-interface ShiftTemplateData {
-    name: string;
-    startTime?: string;
-    endTime?: string;
-    color?: string;
-}
-
-interface ShiftAssignmentData {
-    employeeId: string;
-    shiftTemplateId: string;
-    shiftDate: string;
-}
-
 export const scheduleService = {
-    async getEmployeeSchedule(userId: string, weekOffset: number = 0) {
-        const employee = await db.select().from(employees).where(eq(employees.userId, userId)).limit(1);
-        if (!employee[0]) return [];
-
+    async getEmployeeSchedule(profileId: string, weekOffset: number = 0) {
         // Calculate week dates
         const today = new Date();
         const startOfWeek = new Date(today);
@@ -31,20 +15,17 @@ export const scheduleService = {
         const endDate = endOfWeek.toISOString().split('T')[0];
 
         return db.select()
-            .from(employeeShifts)
-            .innerJoin(shiftTemplates, eq(employeeShifts.shiftTemplateId, shiftTemplates.id))
+            .from(workSchedules)
+            .innerJoin(shifts, eq(workSchedules.shift_code, shifts.code))
             .where(and(
-                eq(employeeShifts.employeeId, employee[0].id),
-                sql`${employeeShifts.shiftDate} >= ${startDate}`,
-                sql`${employeeShifts.shiftDate} <= ${endDate}`
+                eq(workSchedules.profile_id, profileId),
+                sql`${workSchedules.date} >= ${startDate}`,
+                sql`${workSchedules.date} <= ${endDate}`
             ))
-            .orderBy(asc(employeeShifts.shiftDate));
+            .orderBy(asc(workSchedules.date));
     },
 
-    async getEmployeeMonthlySchedule(userId: string, month?: number, year?: number) {
-        const employee = await db.select().from(employees).where(eq(employees.userId, userId)).limit(1);
-        if (!employee[0]) return [];
-
+    async getEmployeeMonthlySchedule(profileId: string, month?: number, year?: number) {
         const now = new Date();
         const targetMonth = month ?? now.getMonth() + 1;
         const targetYear = year ?? now.getFullYear();
@@ -54,60 +35,42 @@ export const scheduleService = {
         const endDate = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${lastDay}`;
 
         return db.select()
-            .from(employeeShifts)
-            .innerJoin(shiftTemplates, eq(employeeShifts.shiftTemplateId, shiftTemplates.id))
+            .from(workSchedules)
+            .innerJoin(shifts, eq(workSchedules.shift_code, shifts.code))
             .where(and(
-                eq(employeeShifts.employeeId, employee[0].id),
-                sql`${employeeShifts.shiftDate} >= ${startDate}`,
-                sql`${employeeShifts.shiftDate} <= ${endDate}`
+                eq(workSchedules.profile_id, profileId),
+                sql`${workSchedules.date} >= ${startDate}`,
+                sql`${workSchedules.date} <= ${endDate}`
             ))
-            .orderBy(asc(employeeShifts.shiftDate));
+            .orderBy(asc(workSchedules.date));
     },
 
     async getShiftTemplates() {
-        return db.select().from(shiftTemplates);
-    },
-
-    async createShiftTemplate(data: ShiftTemplateData) {
-        const result = await db.insert(shiftTemplates).values({
-            name: data.name,
-            startTime: data.startTime,
-            endTime: data.endTime,
-            color: data.color || '#3b82f6',
-        }).returning();
-        return result[0];
+        return db.select().from(shifts);
     },
 
     async getTeamSchedule(startDate: string, endDate: string) {
         return db.select()
-            .from(employeeShifts)
-            .innerJoin(shiftTemplates, eq(employeeShifts.shiftTemplateId, shiftTemplates.id))
-            .innerJoin(employees, eq(employeeShifts.employeeId, employees.id))
+            .from(workSchedules)
+            .innerJoin(shifts, eq(workSchedules.shift_code, shifts.code))
+            .innerJoin(profiles, eq(workSchedules.profile_id, profiles.id))
             .where(and(
-                sql`${employeeShifts.shiftDate} >= ${startDate}`,
-                sql`${employeeShifts.shiftDate} <= ${endDate}`
+                sql`${workSchedules.date} >= ${startDate}`,
+                sql`${workSchedules.date} <= ${endDate}`
             ))
-            .orderBy(asc(employeeShifts.shiftDate));
+            .orderBy(asc(workSchedules.date));
     },
 
-    async assignShift(data: ShiftAssignmentData) {
-        const result = await db.insert(employeeShifts).values({
-            employeeId: data.employeeId,
-            shiftTemplateId: data.shiftTemplateId,
-            shiftDate: data.shiftDate,
+    async assignShift(data: { profile_id: string; shift_code: string; date: string }) {
+        const result = await db.insert(workSchedules).values({
+            profile_id: data.profile_id,
+            shift_code: data.shift_code,
+            date: data.date,
         }).returning();
         return result[0];
     },
 
-    async updateShiftAssignment(id: string, data: Partial<ShiftAssignmentData>) {
-        const result = await db.update(employeeShifts)
-            .set({ ...data, updatedAt: new Date() })
-            .where(eq(employeeShifts.id, id))
-            .returning();
-        return result[0];
-    },
-
-    async deleteShiftAssignment(id: string) {
-        await db.delete(employeeShifts).where(eq(employeeShifts.id, id));
+    async deleteSchedule(id: string) {
+        await db.delete(workSchedules).where(eq(workSchedules.id, BigInt(id)));
     },
 };

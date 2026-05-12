@@ -1,175 +1,104 @@
 import { db } from '../config/database';
-import { requests, employees } from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
-
-interface LeaveRequestData {
-    startDate: string;
-    endDate: string;
-    reason?: string;
-}
-
-interface OvertimeRequestData {
-    date: string;
-    startTime: string;
-    endTime: string;
-    reason?: string;
-}
-
-interface SickRequestData {
-    startDate: string;
-    endDate: string;
-    reason?: string;
-    attachmentUrl?: string;
-}
-
-interface CorrectionRequestData {
-    correctionDate: string;
-    correctionType: 'clock_in' | 'clock_out';
-    correctedTime: string;
-    reason?: string;
-}
-
-interface ShiftSwapRequestData {
-    targetShiftId: string;
-    substituteEmployeeId: string;
-    reason?: string;
-}
+import { requests, profiles } from '../db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 export const requestService = {
-    async getEmployeeId(userId: string) {
-        const employee = await db.select().from(employees).where(eq(employees.userId, userId)).limit(1);
-        if (!employee[0]) throw new Error('Employee not found');
-        return employee[0].id;
-    },
-
-    async createLeaveRequest(userId: string, data: LeaveRequestData) {
-        const employeeId = await this.getEmployeeId(userId);
-
-        // Calculate duration
-        const start = new Date(data.startDate);
-        const end = new Date(data.endDate);
-        const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-        // Check leave balance
-        const employee = await db.select().from(employees).where(eq(employees.id, employeeId)).limit(1);
-        if (employee[0].annualLeaveBalance < durationDays) {
-            throw new Error('Insufficient leave balance');
-        }
-
-        const result = await db.insert(requests).values({
-            employeeId,
-            type: 'leave',
-            status: 'pending',
-            startDate: data.startDate,
-            endDate: data.endDate,
-            durationDays,
-            reason: data.reason,
-        }).returning();
-
-        return result[0];
-    },
-
-    async createOvertimeRequest(userId: string, data: OvertimeRequestData) {
-        const employeeId = await this.getEmployeeId(userId);
-
-        // Calculate hours
-        const [startHours, startMins] = data.startTime.split(':').map(Number);
-        const [endHours, endMins] = data.endTime.split(':').map(Number);
-        const durationHours = (endHours + endMins / 60) - (startHours + startMins / 60);
-
-        const result = await db.insert(requests).values({
-            employeeId,
-            type: 'overtime',
-            status: 'pending',
-            startDate: data.date,
-            endDate: data.date,
-            startTime: data.startTime,
-            endTime: data.endTime,
-            durationHours: durationHours.toString(),
-            reason: data.reason,
-        }).returning();
-
-        return result[0];
-    },
-
-    async createSickRequest(userId: string, data: SickRequestData) {
-        const employeeId = await this.getEmployeeId(userId);
-
-        const start = new Date(data.startDate);
-        const end = new Date(data.endDate);
-        const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-        const result = await db.insert(requests).values({
-            employeeId,
-            type: 'sick',
-            status: 'pending',
-            startDate: data.startDate,
-            endDate: data.endDate,
-            durationDays,
-            reason: data.reason,
-            attachmentUrl: data.attachmentUrl,
-        }).returning();
-
-        return result[0];
-    },
-
-    async createCorrectionRequest(userId: string, data: CorrectionRequestData) {
-        const employeeId = await this.getEmployeeId(userId);
-
-        const result = await db.insert(requests).values({
-            employeeId,
-            type: 'correction',
-            status: 'pending',
-            correctionDate: data.correctionDate,
-            correctionType: data.correctionType,
-            correctedTime: data.correctedTime,
-            reason: data.reason,
-        }).returning();
-
-        return result[0];
-    },
-
-    async createShiftSwapRequest(userId: string, data: ShiftSwapRequestData) {
-        const employeeId = await this.getEmployeeId(userId);
-
-        const result = await db.insert(requests).values({
-            employeeId,
-            type: 'shift_swap',
-            status: 'pending',
-            targetShiftId: data.targetShiftId,
-            substituteEmployeeId: data.substituteEmployeeId,
-            reason: data.reason,
-        }).returning();
-
-        return result[0];
-    },
-
-    async getByEmployee(userId: string) {
-        const employeeId = await this.getEmployeeId(userId);
+    async getByProfile(profileId: string) {
         return db.select().from(requests)
-            .where(eq(requests.employeeId, employeeId))
-            .orderBy(desc(requests.createdAt));
+            .where(eq(requests.profile_id, profileId))
+            .orderBy(desc(requests.created_at));
     },
 
     async getById(id: string) {
-        const result = await db.select().from(requests).where(eq(requests.id, id)).limit(1);
+        const result = await db.select().from(requests)
+            .where(eq(requests.id, BigInt(id)))
+            .limit(1);
         return result[0] || null;
     },
 
-    async cancel(id: string, userId: string) {
-        const employeeId = await this.getEmployeeId(userId);
-        const request = await this.getById(id);
+    async create(data: {
+        profile_id: string;
+        request_type: 'Cuti' | 'Lembur' | 'Izin' | 'Sakit' | 'Koreksi Absensi' | 'Registrasi Pegawai' | 'Substitusi';
+        start_date: string;
+        end_date: string;
+        reason: string;
+        start_time?: string;
+        end_time?: string;
+        approver_id?: string;
+        attachment_url?: string;
+        attendance_id_to_correct?: bigint;
+        is_manager_assigned?: boolean;
+        assigned_by_id?: string;
+        day_shift_substitute_id?: string;
+        night_shift_substitute_id?: string;
+    }) {
+        const result = await db.insert(requests).values({
+            profile_id: data.profile_id,
+            request_type: data.request_type,
+            status: 'pending',
+            start_date: data.start_date,
+            end_date: data.end_date,
+            reason: data.reason,
+            start_time: data.start_time,
+            end_time: data.end_time,
+            approver_id: data.approver_id,
+            attachment_url: data.attachment_url,
+            attendance_id_to_correct: data.attendance_id_to_correct,
+            is_manager_assigned: data.is_manager_assigned ?? false,
+            assigned_by_id: data.assigned_by_id,
+            day_shift_substitute_id: data.day_shift_substitute_id,
+            night_shift_substitute_id: data.night_shift_substitute_id,
+        }).returning();
+        return result[0];
+    },
 
+    async updateStatus(id: string, status: 'approved' | 'rejected' | 'revised' | 'revision', approverNotes?: string) {
+        const result = await db.update(requests)
+            .set({
+                status,
+                approver_notes: approverNotes,
+                updated_at: new Date(),
+            })
+            .where(eq(requests.id, BigInt(id)))
+            .returning();
+        return result[0];
+    },
+
+    async cancel(id: string, profileId: string) {
+        const request = await this.getById(id);
         if (!request) throw new Error('Request not found');
-        if (request.employeeId !== employeeId) throw new Error('Not authorized');
+        if (request.profile_id !== profileId) throw new Error('Not authorized');
         if (request.status !== 'pending') throw new Error('Can only cancel pending requests');
 
-        await db.delete(requests).where(eq(requests.id, id));
+        await db.delete(requests).where(eq(requests.id, BigInt(id)));
     },
 
     async getPending() {
         return db.select().from(requests)
             .where(eq(requests.status, 'pending'))
-            .orderBy(desc(requests.createdAt));
+            .orderBy(desc(requests.created_at));
+    },
+
+    async getByFilters(filters: {
+        profile_id?: string;
+        request_type?: string;
+        status?: string;
+        year?: number;
+    }) {
+        const conditions = [];
+        if (filters.profile_id) conditions.push(eq(requests.profile_id, filters.profile_id));
+        if (filters.request_type) conditions.push(eq(requests.request_type, filters.request_type as any));
+        if (filters.status) conditions.push(eq(requests.status, filters.status as any));
+        if (filters.year) {
+            conditions.push(sql`EXTRACT(YEAR FROM ${requests.start_date}::date) = ${filters.year}`);
+        }
+
+        if (conditions.length === 0) {
+            return db.select().from(requests).orderBy(desc(requests.created_at));
+        }
+
+        return db.select().from(requests)
+            .where(and(...conditions))
+            .orderBy(desc(requests.created_at));
     },
 };
