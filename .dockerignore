@@ -4,9 +4,15 @@ node_modules
 *.md
 !MIGRATION_GUIDE.md
 .env
-.env.*
+.env.local
+.env.development
+.env.production
 !.env.production.example
 dist
+apps/api/dist
+apps/api/node_modules
+apps/web/dist
+apps/web/node_modules
 mobile
 documentation
 supabase
