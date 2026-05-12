@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment
+.env
+.env.*
+!.env.production.example
+
+# Database dumps
+*.sql.dump
+supabase_data_dump.sql
+
+# Supabase (not needed for VPS deploy)
+supabase/.temp

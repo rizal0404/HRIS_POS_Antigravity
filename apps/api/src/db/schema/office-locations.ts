@@ -1,13 +1,13 @@
-import { pgTable, uuid, varchar, decimal, integer, boolean, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, doublePrecision, integer, boolean, timestamp } from 'drizzle-orm/pg-core';
 
-export const officeLocations = pgTable('office_locations', {
+// Workplaces (office locations)
+export const workplaces = pgTable('workplaces', {
     id: uuid('id').primaryKey().defaultRandom(),
-    name: varchar('name', { length: 255 }).notNull(),
-    address: text('address'),
-    latitude: decimal('latitude', { precision: 10, scale: 8 }).notNull(),
-    longitude: decimal('longitude', { precision: 11, scale: 8 }).notNull(),
-    radiusMeters: integer('radius_meters').notNull().default(100),
-    isActive: boolean('is_active').notNull().default(true),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    name: text('name').notNull().unique(),
+    latitude: doublePrecision('latitude').notNull(),
+    longitude: doublePrecision('longitude').notNull(),
+    radius_meters: integer('radius_meters').default(350),
+    is_active: boolean('is_active').default(true),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

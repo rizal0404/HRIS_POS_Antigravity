@@ -11,6 +11,9 @@ import { scheduleRoutes } from './routes/schedule.routes';
 import { reportRoutes } from './routes/report.routes';
 import { managerRoutes } from './routes/manager.routes';
 import { officeRoutes } from './routes/office.routes';
+import { notificationRoutes } from './routes/notification.routes';
+import { disciplineRoutes } from './routes/discipline.routes';
+import { telegramRoutes } from './routes/telegram.routes';
 
 const app = express();
 
@@ -32,6 +35,9 @@ app.use('/api/schedules', scheduleRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/offices', officeRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/discipline', disciplineRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

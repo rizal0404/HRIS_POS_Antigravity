@@ -1,25 +1,28 @@
-import { pgTable, uuid, varchar, text, date, integer, timestamp } from 'drizzle-orm/pg-core';
-import { users } from './users';
-import { departments } from './departments';
+import { pgTable, uuid, text, date, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { userRoleEnum } from './users';
+import { workplaces } from './office-locations';
 
-export const employees = pgTable('employees', {
+// Profiles table - matches Supabase public.profiles
+export const profiles = pgTable('profiles', {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
-    employeeId: varchar('employee_id', { length: 50 }).notNull().unique(), // EMP-2024-001
-    departmentId: uuid('department_id').references(() => departments.id),
-    position: varchar('position', { length: 255 }),
-    phone: varchar('phone', { length: 50 }),
+    email: text('email').notNull().unique(),
+    full_name: text('full_name').notNull(),
+    position: text('position'),
+    role: userRoleEnum('role').notNull().default('user'),
+    manager_id: uuid('manager_id').references((): any => profiles.id),
+    avatar_url: text('avatar_url'),
+    default_shift: text('default_shift'),
+    salary: jsonb('salary'),
+    phone_number: text('phone_number'),
+    nik: text('nik').unique(),
+    workplace_id: uuid('workplace_id').references(() => workplaces.id),
+    place_of_birth: text('place_of_birth'),
+    date_of_birth: date('date_of_birth'),
+    education_level: text('education_level'),
+    education_major: text('education_major'),
+    employment_status: text('employment_status'),
     address: text('address'),
-    joinDate: date('join_date'),
-
-    // Leave quotas
-    annualLeaveBalance: integer('annual_leave_balance').notNull().default(12),
-    annualLeaveTotal: integer('annual_leave_total').notNull().default(12),
-
-    // Overtime tracking
-    overtimeHoursUsed: integer('overtime_hours_used').notNull().default(0),
-    overtimeHoursMax: integer('overtime_hours_max').notNull().default(40),
-
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    approved: boolean('approved').notNull().default(false),
+    telegram_chat_id: text('telegram_chat_id'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

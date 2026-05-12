@@ -1,23 +1,13 @@
-import { pgTable, uuid, varchar, time, date, timestamp } from 'drizzle-orm/pg-core';
-import { employees } from './employees';
+import { pgTable, varchar, text, time, pgEnum } from 'drizzle-orm/pg-core';
 
-// Shift templates (Pagi, Siang, Malam, OFF)
-export const shiftTemplates = pgTable('shift_templates', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    name: varchar('name', { length: 100 }).notNull(), // Pagi, Siang, Malam, OFF
-    startTime: time('start_time'), // null for OFF
-    endTime: time('end_time'), // null for OFF
-    color: varchar('color', { length: 50 }).notNull().default('#3b82f6'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+export const workDayTypeEnum = pgEnum('work_day_type', ['non-shift', 'shift']);
 
-// Employee shift assignments
-export const employeeShifts = pgTable('employee_shifts', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    employeeId: uuid('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
-    shiftTemplateId: uuid('shift_template_id').notNull().references(() => shiftTemplates.id),
-    shiftDate: date('shift_date').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+// Shifts master table
+export const shifts = pgTable('shifts', {
+    code: varchar('code').primaryKey(),
+    name: text('name').notNull(),
+    start_time: time('start_time'),
+    end_time: time('end_time'),
+    color: text('color'),
+    work_day_type: workDayTypeEnum('work_day_type').notNull(),
 });

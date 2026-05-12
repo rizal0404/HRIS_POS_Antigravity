@@ -1,47 +1,50 @@
-import { pgTable, uuid, varchar, timestamp, text } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, boolean, pgEnum } from 'drizzle-orm/pg-core';
 
-export const users = pgTable('users', {
+export const userRoleEnum = pgEnum('user_role', ['superadmin', 'user', 'admin']);
+
+// Better Auth tables - auto-managed by Better Auth
+export const users = pgTable('user', {
     id: uuid('id').primaryKey().defaultRandom(),
-    email: varchar('email', { length: 255 }).notNull().unique(),
-    name: varchar('name', { length: 255 }).notNull(),
-    emailVerified: timestamp('email_verified'),
+    name: text('name').notNull(),
+    email: text('email').notNull().unique(),
+    emailVerified: boolean('emailVerified').notNull().default(false),
     image: text('image'),
-    role: varchar('role', { length: 50 }).notNull().default('employee'), // employee | manager | admin
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });
 
-export const sessions = pgTable('sessions', {
+export const sessions = pgTable('session', {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    token: varchar('token', { length: 255 }).notNull().unique(),
-    expiresAt: timestamp('expires_at').notNull(),
-    ipAddress: varchar('ip_address', { length: 45 }),
-    userAgent: text('user_agent'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    expiresAt: timestamp('expiresAt').notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+    ipAddress: text('ipAddress'),
+    userAgent: text('userAgent'),
+    userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
 });
 
-export const accounts = pgTable('accounts', {
+export const accounts = pgTable('account', {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    accountId: varchar('account_id', { length: 255 }).notNull(),
-    providerId: varchar('provider_id', { length: 255 }).notNull(), // credential | google
-    accessToken: text('access_token'),
-    refreshToken: text('refresh_token'),
-    accessTokenExpiresAt: timestamp('access_token_expires_at'),
-    refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+    accountId: text('accountId').notNull(),
+    providerId: text('providerId').notNull(),
+    userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('accessToken'),
+    refreshToken: text('refreshToken'),
+    idToken: text('idToken'),
+    accessTokenExpiresAt: timestamp('accessTokenExpiresAt'),
+    refreshTokenExpiresAt: timestamp('refreshTokenExpiresAt'),
     scope: text('scope'),
-    password: text('password'), // hashed password for credential provider
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    password: text('password'),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });
 
-export const verifications = pgTable('verifications', {
+export const verifications = pgTable('verification', {
     id: uuid('id').primaryKey().defaultRandom(),
-    identifier: varchar('identifier', { length: 255 }).notNull(),
-    value: varchar('value', { length: 255 }).notNull(),
-    expiresAt: timestamp('expires_at').notNull(),
-    createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expiresAt').notNull(),
+    createdAt: timestamp('createdAt').defaultNow(),
+    updatedAt: timestamp('updatedAt').defaultNow(),
 });

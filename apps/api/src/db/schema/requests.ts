@@ -1,46 +1,34 @@
-import { pgTable, uuid, varchar, date, time, integer, decimal, text, timestamp } from 'drizzle-orm/pg-core';
-import { employees } from './employees';
+import { pgTable, bigserial, uuid, date, time, text, boolean, timestamp, bigint, pgEnum } from 'drizzle-orm/pg-core';
+import { profiles } from './employees';
+import { attendance } from './attendance';
 
-// Request types: leave, overtime, sick, correction, shift_swap
+export const requestStatusEnum = pgEnum('request_status', [
+    'pending', 'approved', 'rejected', 'revised', 'revision'
+]);
+
+export const requestTypeEnum = pgEnum('request_type', [
+    'Cuti', 'Lembur', 'Izin', 'Sakit', 'Koreksi Absensi', 'Registrasi Pegawai', 'Substitusi'
+]);
+
+// Requests
 export const requests = pgTable('requests', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    employeeId: uuid('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
-    type: varchar('type', { length: 50 }).notNull(), // leave, overtime, sick, correction, shift_swap
-    status: varchar('status', { length: 50 }).notNull().default('pending'), // pending, approved, rejected
-
-    // Date range for leave/sick/shift_swap
-    startDate: date('start_date'),
-    endDate: date('end_date'),
-    durationDays: integer('duration_days'),
-
-    // Time range for overtime
-    startTime: time('start_time'),
-    endTime: time('end_time'),
-    durationHours: decimal('duration_hours', { precision: 4, scale: 2 }),
-
-    // Request details
-    reason: text('reason'),
-    attachmentUrl: text('attachment_url'), // For sick leave (doctor's note)
-
-    // For shift swap requests
-    substituteEmployeeId: uuid('substitute_employee_id').references(() => employees.id),
-    targetShiftId: uuid('target_shift_id'), // References employee_shifts.id
-
-    // For correction requests
-    correctionDate: date('correction_date'),
-    correctionType: varchar('correction_type', { length: 50 }), // clock_in, clock_out
-    correctedTime: time('corrected_time'),
-
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Request approvals
-export const requestApprovals = pgTable('request_approvals', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    requestId: uuid('request_id').notNull().references(() => requests.id, { onDelete: 'cascade' }).unique(),
-    approverId: uuid('approver_id').notNull(), // References employees.id (manager)
-    decision: varchar('decision', { length: 50 }).notNull(), // approved, rejected
-    notes: text('notes'),
-    decidedAt: timestamp('decided_at').defaultNow().notNull(),
+    id: bigserial('id', { mode: 'bigint' }).primaryKey(),
+    profile_id: uuid('profile_id').notNull().references(() => profiles.id),
+    request_type: requestTypeEnum('request_type').notNull(),
+    status: requestStatusEnum('status').notNull().default('pending'),
+    start_date: date('start_date').notNull(),
+    end_date: date('end_date').notNull(),
+    reason: text('reason').notNull(),
+    start_time: time('start_time'),
+    end_time: time('end_time'),
+    approver_id: uuid('approver_id').references(() => profiles.id),
+    approver_notes: text('approver_notes'),
+    day_shift_substitute_id: uuid('day_shift_substitute_id').references(() => profiles.id),
+    night_shift_substitute_id: uuid('night_shift_substitute_id').references(() => profiles.id),
+    attachment_url: text('attachment_url'),
+    attendance_id_to_correct: bigint('attendance_id_to_correct', { mode: 'bigint' }).references(() => attendance.id),
+    is_manager_assigned: boolean('is_manager_assigned').notNull().default(false),
+    assigned_by_id: uuid('assigned_by_id').references(() => profiles.id),
+    updated_at: timestamp('updated_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
