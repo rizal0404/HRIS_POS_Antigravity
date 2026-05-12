@@ -1,5 +1,5 @@
-import { db } from '../config/database';
-import { attendance, employees, officeLocations, employeeShifts, shiftTemplates } from '../db/schema';
+import { db } from '../config/database.js';
+import { attendance, employees, officeLocations, employeeShifts, shiftTemplates } from '../db/schema/index.js';
 import { eq, and, sql } from 'drizzle-orm';
 
 interface Location {

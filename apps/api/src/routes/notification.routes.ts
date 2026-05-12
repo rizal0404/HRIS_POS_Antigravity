@@ -1,8 +1,8 @@
-﻿import { Router } from 'express';
-import { db } from '../config/database';
-import { notificationPreferences, employees, users } from '../db/schema';
+import { Router } from 'express';
+import { db } from '../config/database.js';
+import { notificationPreferences, employees, users } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
-import { requireAuth } from '../middleware/auth.middleware';
+import { requireAuth } from '../middleware/auth.middleware.js';
 
 const router = Router();
 

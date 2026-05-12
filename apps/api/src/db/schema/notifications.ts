@@ -1,6 +1,6 @@
-﻿import { pgTable, uuid, varchar, text, boolean, timestamp, integer, bigserial } from 'drizzle-orm/pg-core';
-import { employees } from './employees';
-import { requests } from './requests';
+import { pgTable, uuid, varchar, text, boolean, timestamp, integer, bigserial } from 'drizzle-orm/pg-core';
+import { employees } from './employees.js';
+import { requests } from './requests.js';
 
 // UI Notifications (in-app)
 export const notifications = pgTable('notifications', {

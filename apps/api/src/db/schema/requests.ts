@@ -1,5 +1,5 @@
 import { pgTable, uuid, varchar, date, time, integer, decimal, text, timestamp } from 'drizzle-orm/pg-core';
-import { employees } from './employees';
+import { employees } from './employees.js';
 
 // Request types: leave, overtime, sick, correction, shift_swap
 export const requests = pgTable('requests', {

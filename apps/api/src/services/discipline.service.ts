@@ -1,5 +1,5 @@
-﻿import { db } from '../config/database';
-import { disciplineScores, attendance, requests, employees } from '../db/schema';
+import { db } from '../config/database.js';
+import { disciplineScores, attendance, requests, employees } from '../db/schema/index.js';
 import { eq, and, sql, count } from 'drizzle-orm';
 
 export const disciplineService = {

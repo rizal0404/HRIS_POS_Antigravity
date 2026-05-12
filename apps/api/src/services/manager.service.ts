@@ -1,5 +1,5 @@
-import { db } from '../config/database';
-import { requests, requestApprovals, employees, attendance } from '../db/schema';
+import { db } from '../config/database.js';
+import { requests, requestApprovals, employees, attendance } from '../db/schema/index.js';
 import { eq, and, sql, desc } from 'drizzle-orm';
 
 export const managerService = {

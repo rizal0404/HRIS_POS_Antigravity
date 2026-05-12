@@ -1,5 +1,5 @@
-import { db } from '../config/database';
-import { shiftTemplates, employeeShifts, employees } from '../db/schema';
+import { db } from '../config/database.js';
+import { shiftTemplates, employeeShifts, employees } from '../db/schema/index.js';
 import { eq, and, sql, asc } from 'drizzle-orm';
 
 interface ShiftTemplateData {

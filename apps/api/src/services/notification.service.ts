@@ -1,5 +1,5 @@
-﻿import { db } from '../config/database';
-import { notificationJobs, notificationPreferences, notificationLogs, employees, requests, users, departments } from '../db/schema';
+import { db } from '../config/database.js';
+import { notificationJobs, notificationPreferences, notificationLogs, employees, requests, users, departments } from '../db/schema/index.js';
 import { eq, and, isNull, lt } from 'drizzle-orm';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;

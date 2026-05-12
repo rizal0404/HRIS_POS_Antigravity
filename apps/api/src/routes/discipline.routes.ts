@@ -1,6 +1,6 @@
-﻿import { Router } from 'express';
-import { disciplineService } from '../services/discipline.service';
-import { requireAuth } from '../middleware/auth.middleware';
+import { Router } from 'express';
+import { disciplineService } from '../services/discipline.service.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
 
 const router = Router();
 

@@ -1,6 +1,6 @@
-﻿import { notificationService } from './notification.service';
-import { db } from '../config/database';
-import { requests, employees } from '../db/schema';
+import { notificationService } from './notification.service.js';
+import { db } from '../config/database.js';
+import { requests, employees } from '../db/schema/index.js';
 import { eq, and, desc } from 'drizzle-orm';
 
 interface LeaveRequestData {

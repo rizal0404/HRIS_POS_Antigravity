@@ -1,5 +1,5 @@
 import { pgTable, uuid, varchar, time, date, timestamp } from 'drizzle-orm/pg-core';
-import { employees } from './employees';
+import { employees } from './employees.js';
 
 // Shift templates (Pagi, Siang, Malam, OFF)
 export const shiftTemplates = pgTable('shift_templates', {
