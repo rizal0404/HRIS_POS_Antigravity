@@ -6,7 +6,7 @@ import { XIcon, PaperClipIcon } from '../icons';
 import Badge from '../ui/Badge';
 import { formatDate, formatTime } from '../../lib/utils';
 import AttachmentViewerModal from './AttachmentViewerModal';
-import { supabase } from '../../services/supabase';
+import api from '../../services/apiClient';
 
 interface DetailAjuanModalProps {
     isOpen: boolean;
@@ -47,14 +47,8 @@ const DetailAjuanModal: React.FC<DetailAjuanModalProps> = ({
             if (isOpen && request && request.request_type === RequestType.KOREKSI && request.attendance_id_to_correct) {
                 setLoadingAttendance(true);
                 try {
-                    const { data, error } = await supabase
-                        .from('attendance')
-                        .select('*')
-                        .eq('id', request.attendance_id_to_correct)
-                        .single();
-
-                    if (error && error.code !== 'PGRST116') throw error;
-                    setOriginalAttendance(data as Attendance | null);
+                    const data = await api.get<Attendance>(`/api/attendance/${request.attendance_id_to_correct}`);
+                    setOriginalAttendance(data || null);
                 } catch (err) {
                     console.error("Failed to fetch original attendance record", err);
                 } finally {

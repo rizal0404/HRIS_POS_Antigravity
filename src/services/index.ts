@@ -14,8 +14,8 @@ export { disciplineService } from './discipline';
 // Re-export helpers
 export { handleSupabaseError, getAddressFromCoords } from './helpers';
 
-// Re-export Supabase client
-export { supabase } from './supabase';
+// Re-export API client
+export { default as api } from './apiClient';
 
 // Re-export individual functions for granular imports
 export * from './attendance';

@@ -1,7 +1,22 @@
-// Helper untuk penanganan error yang konsisten
+import { ApiError } from './apiClient';
+
+/**
+ * Generic API error handler (replaces handleSupabaseError)
+ * Kept for backward compatibility with existing service method signatures.
+ */
+export const handleApiError = (error: any, context: string) => {
+    if (error) {
+        console.error(`API error in ${context}:`, error);
+        throw new Error(error.message || error.error || `An unknown error occurred in ${context}.`);
+    }
+};
+
+/**
+ * @deprecated Use api client directly. Kept for migration compatibility.
+ */
 export const handleSupabaseError = ({ error, data }: { error: any, data: any }, context: string) => {
     if (error) {
-        console.error(`Supabase error in ${context}:`, error);
+        console.error(`Error in ${context}:`, error);
         throw new Error(error.message || `An unknown database error occurred in ${context}.`);
     }
     return data;

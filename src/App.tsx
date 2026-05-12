@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Session } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { UserProfile, UserRole, Request, RequestType, RequestStatus } from './types';
-import { supabase } from './services/supabase';
+import api from './services/apiClient';
 import { apiService } from './services/apiService';
 import { getAllSubordinates } from './lib/utils';
 import { logInfo, logError, logWarn } from './lib/logger';
@@ -111,7 +110,7 @@ const AuthRoutes: React.FC<{
 };
 
 export default function App() {
-    const [session, setSession] = useState<Session | null>(null);
+    const [session, setSession] = useState<any | null>(null);
     const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
     const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
     const [notifications, setNotifications] = useState<Request[]>([]);
@@ -175,49 +174,49 @@ export default function App() {
     }, []);
 
     useEffect(() => {
-        logInfo('App component mounted. Setting up auth listener.');
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            logInfo(`Auth state changed: ${_event}`, { hasSession: !!session });
-            setSession(session);
-            if (_event === 'PASSWORD_RECOVERY') {
-                setShowPasswordResetModal(true);
+        logInfo('App component mounted. Checking Better Auth session.');
+        const checkSession = async () => {
+            try {
+                const data = await api.get<{ session: any; user: any }>('/api/auth/get-session');
+                if (data?.user) {
+                    setSession({ user: data.user });
+                } else {
+                    setSession(null);
+                }
+            } catch {
+                setSession(null);
             }
-        });
-        return () => {
-            logInfo('App component unmounting. Unsubscribing from auth changes.');
-            subscription.unsubscribe();
         };
+        checkSession();
     }, []);
 
     useEffect(() => {
         if (session?.user) {
             const fetchProfileAndUsers = async () => {
                 try {
-                    const [{ data: profile, error: profileError }, { data: users, error: usersError }] = await Promise.all([
-                        supabase.from('profiles').select('*').eq('id', session.user.id).single(),
-                        supabase.from('profiles').select('*')
+                    // Fetch profile and all users via Express API
+                    const [profile, users] = await Promise.all([
+                        api.get<UserProfile>(`/api/employees/${session.user.id}`),
+                        api.get<UserProfile[]>('/api/employees'),
                     ]);
-                    if (profileError) throw profileError;
-                    if (usersError) throw usersError;
-                    setAllUsers(users as UserProfile[]);
+                    setAllUsers(users);
                     if (profile) {
-                        const { data: pendingReg, error: regErr } = await supabase
-                            .from('requests')
-                            .select('status')
-                            .eq('profile_id', profile.id)
-                            .eq('request_type', RequestType.REGISTRASI)
-                            .order('created_at', { ascending: false })
-                            .limit(1)
-                            .maybeSingle();
-                        if (regErr && regErr.code !== 'PGRST116') logWarn('Failed to check registration status', regErr);
-                        const isRegistrationPending = pendingReg?.status === RequestStatus.PENDING;
-                        // Jika sudah di-approve, paksa pending = false meski request belum di-update.
-                        setRegistrationPending(profile.approved === false ? isRegistrationPending : false);
+                        // Check registration status
+                        try {
+                            const pendingRegs = await api.get<any[]>('/api/requests/check-registration', {
+                                profile_id: profile.id,
+                            });
+                            const isRegistrationPending = pendingRegs?.[0]?.status === RequestStatus.PENDING;
+                            setRegistrationPending(profile.approved === false ? isRegistrationPending : false);
+                        } catch {
+                            setRegistrationPending(false);
+                        }
 
                         if (profile.approved === false) {
                             setBlockedMessage('Akun menunggu persetujuan superadmin.');
                             setRegistrationPending(true);
-                            await supabase.auth.signOut();
+                            await api.post('/api/auth/sign-out');
+                            setSession(null);
                             setCurrentUser(null);
                             setLoading(false);
                             return;
@@ -225,12 +224,12 @@ export default function App() {
                             setBlockedMessage(null);
                         }
 
-                        const { count, error: managerError } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('manager_id', profile.id);
-                        if (managerError) logWarn('Could not determine manager status', managerError);
-                        const isManager = (count ?? 0) > 0;
+                        // Check manager status by counting subordinates
+                        const subordinates = users.filter(u => u.manager_id === profile.id);
+                        const isManager = subordinates.length > 0;
                         const completeProfile = { ...profile, isManager } as UserProfile;
                         setCurrentUser(completeProfile);
-                        loadNotifications(completeProfile, users as UserProfile[]);
+                        loadNotifications(completeProfile, users);
                     } else {
                         logWarn('User authenticated but no profile found.', { userId: session.user.id });
                         setCurrentUser(null);
@@ -256,7 +255,8 @@ export default function App() {
 
     const handleLogout = async () => {
         logInfo('User initiated logout.');
-        await supabase.auth.signOut();
+        await api.post('/api/auth/sign-out');
+        setSession(null);
         setCurrentUser(null);
     };
 

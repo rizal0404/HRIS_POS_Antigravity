@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserProfile, Attendance, Request, RequestType, RequestStatus } from '@/types';
 import { apiService } from '@/services/apiService';
-import { supabase } from '@/services/supabase';
+import api from '@/services/apiClient';
 import { APP_TIME_ZONE, formatDateKey, formatTime, getStartOfDayISO, APP_TIME_OFFSET } from '@/lib/utils';
 import { CORRECTION_MAX_DAYS } from '@/lib/attendanceRules';
 import {
@@ -138,18 +138,11 @@ const PresensiPage: React.FC<PresensiPageProps> = ({ user }) => {
             const { attachment } = koreksiData;
 
             if (attachment) {
-                const filePath = `${user.id}/${Date.now()}_${attachment.name}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('attachments')
-                    .upload(filePath, attachment);
-
-                if (uploadError) throw uploadError;
-
-                const { data: urlData } = supabase.storage
-                    .from('attachments')
-                    .getPublicUrl(filePath);
-
-                attachmentUrl = urlData.publicUrl;
+                const formData = new FormData();
+                formData.append('file', attachment);
+                formData.append('profile_id', user.id);
+                const uploadResult = await api.upload<{ url: string }>('/api/attachments/upload', formData);
+                attachmentUrl = uploadResult.url;
             } else {
                 throw new Error("Lampiran bukti diperlukan.");
             }

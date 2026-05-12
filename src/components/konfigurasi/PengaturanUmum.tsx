@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { CogIcon, LocationMarkerIcon, BellIcon, SaveIcon, PencilIcon, UploadIcon, CheckCircleIcon } from '../icons';
-import { supabase } from '@/services/supabase';
-import { BRAND_BUCKET, BRAND_LOGO_PATH, getBrandLogoUrl } from '@/lib/branding';
+import api from '@/services/apiClient';
+import { getBrandLogoUrl } from '@/lib/branding';
 import { apiService } from '@/services/apiService';
 import { NotificationPreferences } from '@/types';
 
@@ -131,17 +131,15 @@ const PengaturanUmum: React.FC = () => {
         if (!file) return;
         setLogoUploading(true);
         setLogoMessage(null);
-        const { error } = await supabase.storage.from(BRAND_BUCKET).upload(BRAND_LOGO_PATH, file, {
-            upsert: true,
-            contentType: file.type,
-            cacheControl: '3600',
-        });
-        if (error) {
-            setLogoMessage(`Gagal mengunggah logo: ${error.message}`);
-        } else {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            await api.upload('/api/branding/upload-logo', formData);
             const refreshedUrl = `${getBrandLogoUrl()}?t=${Date.now()}`; // bust cache
             setLogoUrl(refreshedUrl);
             setLogoMessage('Logo berhasil diperbarui. Reload aplikasi untuk melihat perubahan.');
+        } catch (error: any) {
+            setLogoMessage(`Gagal mengunggah logo: ${error.message}`);
         }
         setLogoUploading(false);
     };

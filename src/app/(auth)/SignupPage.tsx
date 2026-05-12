@@ -5,7 +5,7 @@ import { AcademicCapIcon } from '@/components/icons';
 import Spinner from '@/components/ui/Spinner';
 import { pegawaiDefaultFormData } from '@/components/modals/PegawaiModal';
 import { apiService } from '@/services/apiService';
-import { supabase } from '@/services/supabase';
+import api from '@/services/apiClient';
 import { RequestType, UserProfile, UserRole } from '@/types';
 
 interface SignupPageProps {
@@ -30,15 +30,14 @@ const SignupPage: React.FC<SignupPageProps> = ({ onShowLogin }) => {
         const loadOptions = async () => {
             setLoadingOptions(true);
             try {
-                const { data, error } = await supabase.from('profiles').select('id, full_name, role, position');
-                if (error) throw error;
-                const users = (data as UserProfile[]) || [];
-                setAllUsers(users);
+                const users = await api.get<UserProfile[]>('/api/employees');
+                const typedUsers = users || [];
+                setAllUsers(typedUsers);
                 const uniquePositions = Array.from(
-                    new Set(users.map(u => u.position).filter(Boolean) as string[])
+                    new Set(typedUsers.map(u => u.position).filter(Boolean) as string[])
                 ).sort();
                 setPositions(uniquePositions);
-                const superadmin = users.find(u => u.role === UserRole.SUPERADMIN);
+                const superadmin = typedUsers.find(u => u.role === UserRole.SUPERADMIN);
                 setSuperadminId(superadmin?.id || null);
             } catch (err) {
                 console.error('Failed to load reference data for signup form', err);
@@ -77,16 +76,14 @@ const SignupPage: React.FC<SignupPageProps> = ({ onShowLogin }) => {
 
         setLoading(true);
         try {
-            const { data: authData, error: signUpError } = await supabase.auth.signUp({
+            // Register via Better Auth
+            const authResponse = await api.post<{ user?: { id: string } }>('/api/auth/sign-up/email', {
                 email: formData.email,
                 password,
+                name: formData.full_name,
             });
 
-            if (signUpError) {
-                throw signUpError;
-            }
-
-            const newUserId = authData.user?.id;
+            const newUserId = authResponse?.user?.id;
             if (!newUserId) {
                 throw new Error('Pendaftaran gagal: tidak ada ID pengguna yang dikembalikan.');
             }
@@ -127,7 +124,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onShowLogin }) => {
                 approver_id: superadminId || undefined,
             });
 
-            await supabase.auth.signOut(); // Pastikan tidak langsung login.
+            await api.post('/api/auth/sign-out'); // Pastikan tidak langsung login.
             setSuccessMessage('Pendaftaran berhasil dikirim. Tunggu persetujuan superadmin sebelum login.');
             setFormData({ ...pegawaiDefaultFormData, email: formData.email });
             setPassword('');

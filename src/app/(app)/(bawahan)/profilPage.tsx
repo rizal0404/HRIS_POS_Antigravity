@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../../../types';
-import { supabase } from '../../../services/supabase';
+import api from '../../../services/apiClient';
 import { apiService } from '../../../services/apiService';
 import { CameraIcon, PencilIcon, SaveIcon } from '../../../components/icons';
 import Spinner from '../../../components/ui/Spinner';
@@ -53,24 +53,17 @@ const ProfilSayaPage: React.FC<ProfilSayaPageProps> = ({ user }) => {
         let newAvatarUrl = formData.avatar_url;
 
         if (avatarFile) {
-            const fileExt = avatarFile.name.split('.').pop();
-            const filePath = `${user.id}/avatar_${Date.now()}.${fileExt}`;
-            
-            const { error: uploadError } = await supabase.storage
-                .from('attachments')
-                .upload(filePath, avatarFile, { upsert: true });
-
-            if (uploadError) {
+            try {
+                const formData = new FormData();
+                formData.append('file', avatarFile);
+                formData.append('profile_id', user.id);
+                const uploadResult = await api.upload<{ url: string }>('/api/attachments/upload', formData);
+                newAvatarUrl = uploadResult.url;
+            } catch (uploadError: any) {
                 setProfileMessage({ type: 'error', text: `Gagal mengunggah foto: ${uploadError.message}` });
                 setIsSaving(false);
                 return;
             }
-            
-            const { data: urlData } = supabase.storage
-                .from('attachments')
-                .getPublicUrl(filePath);
-            
-            newAvatarUrl = urlData.publicUrl;
         }
 
         const telegramChatId = typeof updatedData.telegram_chat_id === 'string' ? updatedData.telegram_chat_id.trim() : updatedData.telegram_chat_id;
@@ -99,13 +92,13 @@ const ProfilSayaPage: React.FC<ProfilSayaPageProps> = ({ user }) => {
         }
 
         setIsSavingPassword(true);
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
-        if (error) {
-            setPasswordMessage({ type: 'error', text: `Gagal mengganti password: ${error.message}` });
-        } else {
+        try {
+            await api.post('/api/auth/change-password', { newPassword });
             setPasswordMessage({ type: 'success', text: 'Password berhasil diganti.' });
             setNewPassword('');
             setConfirmPassword('');
+        } catch (error: any) {
+            setPasswordMessage({ type: 'error', text: `Gagal mengganti password: ${error.message}` });
         }
         setIsSavingPassword(false);
     };

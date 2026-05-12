@@ -1,43 +1,24 @@
-import { supabase } from '../supabase';
+import api from '../apiClient';
 import { UserProfile } from '../../types';
-import { handleSupabaseError } from '../helpers';
 
 // ==== PROFILES SERVICE ====
 
 export const profilesService = {
     async getProfiles(): Promise<UserProfile[]> {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*');
-        return handleSupabaseError({ data, error }, 'getProfiles');
+        return api.get<UserProfile[]>('/api/employees');
     },
 
     async saveProfile(profileData: Partial<UserProfile>): Promise<UserProfile> {
-        // Destructure id and isManager (which is not a DB column) to exclude them from the update payload.
         const { id, isManager, ...updateData } = profileData;
-        const { data, error } = await supabase
-            .from('profiles')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
-        return handleSupabaseError({ data, error }, 'saveProfile');
+        return api.patch<UserProfile>(`/api/employees/${id}`, updateData);
     },
 
     async createProfile(profileData: Partial<UserProfile>): Promise<UserProfile> {
-        const { data, error } = await supabase
-            .from('profiles')
-            .insert([profileData])
-            .select()
-            .single();
-        return handleSupabaseError({ data, error }, 'createProfile');
+        return api.post<UserProfile>('/api/employees', profileData);
     },
 
     async deleteUser(userId: string): Promise<void> {
-        const { error } = await supabase.rpc('delete_user', { p_user_id: userId });
-        if (error) {
-            handleSupabaseError({ data: null, error }, 'deleteUser');
-        }
+        await api.delete(`/api/employees/${userId}`);
     },
 };
 

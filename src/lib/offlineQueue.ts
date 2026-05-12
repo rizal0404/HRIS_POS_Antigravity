@@ -2,7 +2,7 @@
 // Queues attendance actions when offline and syncs when connection is restored
 // Uses IndexedDB for persistent storage
 
-import { supabase } from '../services/supabase';
+import api from '../services/apiClient';
 
 const DB_NAME = 'hris_offline_db';
 const DB_VERSION = 1;
@@ -266,51 +266,40 @@ class WebOfflineQueueService {
 
         if (type === 'clock_in') {
             // Check if already clocked in for this date
-            const { data: existing } = await supabase
-                .from('attendance')
-                .select('id')
-                .eq('profile_id', payload.profile_id)
-                .eq('work_date', payload.work_date)
-                .limit(1)
-                .single();
-
-            if (existing) {
-                console.log(`[OfflineQueue] Already clocked in for ${payload.work_date}, skipping`);
-                return;
-            }
-
-            const { error } = await supabase
-                .from('attendance')
-                .insert({
+            try {
+                const existing = await api.get<any>(`/api/attendance/check-existing`, {
                     profile_id: payload.profile_id,
-                    clock_in: payload.clock_in,
-                    clock_in_coords: payload.clock_in_coords,
-                    clock_in_address: payload.clock_in_address,
                     work_date: payload.work_date,
-                    lokasi_kerja: payload.lokasi_kerja,
-                    tempat_kerja: payload.tempat_kerja,
-                    status: 'in_progress',
-                    source: 'web_app_offline',
-                    catatan: payload.catatan,
                 });
+                if (existing) {
+                    console.log(`[OfflineQueue] Already clocked in for ${payload.work_date}, skipping`);
+                    return;
+                }
+            } catch { /* no existing record, proceed */ }
 
-            if (error) throw error;
+            await api.post('/api/attendance/clock-in', {
+                profile_id: payload.profile_id,
+                clock_in: payload.clock_in,
+                clock_in_coords: payload.clock_in_coords,
+                clock_in_address: payload.clock_in_address,
+                work_date: payload.work_date,
+                lokasi_kerja: payload.lokasi_kerja,
+                tempat_kerja: payload.tempat_kerja,
+                status: 'in_progress',
+                source: 'web_app_offline',
+                catatan: payload.catatan,
+            });
         } else if (type === 'clock_out') {
             if (!payload.attendance_id) {
                 throw new Error('No attendance_id for clock_out');
             }
 
-            const { error } = await supabase
-                .from('attendance')
-                .update({
-                    clock_out: payload.clock_out,
-                    clock_out_coords: payload.clock_out_coords,
-                    clock_out_address: payload.clock_out_address,
-                    status: payload.status || 'hadir',
-                })
-                .eq('id', payload.attendance_id);
-
-            if (error) throw error;
+            await api.put(`/api/attendance/clock-out/${payload.attendance_id}`, {
+                clock_out: payload.clock_out,
+                clock_out_coords: payload.clock_out_coords,
+                clock_out_address: payload.clock_out_address,
+                status: payload.status || 'hadir',
+            });
         }
     }
 

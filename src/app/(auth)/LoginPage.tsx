@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/services/supabase';
+import api from '@/services/apiClient';
 import Spinner from '@/components/ui/Spinner';
 import { defaultLogo, getBrandLogoUrl } from '@/lib/branding';
 
@@ -26,13 +26,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowResetPassword, infoMessage,
         setError(null);
         setLoading(true);
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password,
-        });
-
-        if (error) {
-            setError(error.message);
+        try {
+            await api.post('/api/auth/sign-in/email', { email, password });
+            // Session cookie is set automatically, App.tsx will detect it
+            window.location.reload();
+        } catch (err: any) {
+            setError(err.message || 'Login gagal.');
         }
         setLoading(false);
     };

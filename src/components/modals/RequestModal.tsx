@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Request, RequestType, UserProfile, Shift } from '../../types';
 import { XIcon, UploadIcon, CameraIcon } from '../icons';
-import { supabase } from '../../services/supabase';
+import api from '../../services/apiClient';
 import { apiService } from '../../services/apiService';
 import Spinner from '../ui/Spinner';
 import { logError } from '../../lib/logger';
@@ -391,17 +391,11 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose, onSuccess,
             let attachmentUrl: string | undefined = undefined;
             if (attachment && requestType === RequestType.SAKIT) {
                 const filePath = `${user.id}/${Date.now()}_${attachment.name}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('attachments')
-                    .upload(filePath, attachment);
-
-                if (uploadError) throw uploadError;
-
-                const { data: urlData } = supabase.storage
-                    .from('attachments')
-                    .getPublicUrl(filePath);
-
-                attachmentUrl = urlData.publicUrl;
+                const formData = new FormData();
+                formData.append('file', attachment);
+                formData.append('profile_id', user.id);
+                const uploadResult = await api.upload<{ url: string }>('/api/attachments/upload', formData);
+                attachmentUrl = uploadResult.url;
             }
 
             const baseRequestData = {

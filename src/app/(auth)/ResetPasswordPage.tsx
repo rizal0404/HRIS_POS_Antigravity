@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { supabase } from '@/services/supabase';
+import api from '@/services/apiClient';
 import { AcademicCapIcon } from '@/components/icons';
 import Spinner from '@/components/ui/Spinner';
 
@@ -21,13 +21,14 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onShowLogin }) =>
         setMessage(null);
         setLoading(true);
 
-        const redirectTo = `${window.location.origin}/`;
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-        
-        if (error) {
-            setError(error.message);
-        } else {
+        try {
+            await api.post('/api/auth/forget-password', {
+                email,
+                redirectTo: `${window.location.origin}/`,
+            });
             setMessage('If an account exists for this email, a password reset link has been sent.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to send reset link.');
         }
 
         setLoading(false);

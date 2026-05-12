@@ -1,11 +1,13 @@
-import { supabase } from '@/services/supabase';
 import hrisLogo from '/HRIS_2.png';
 
 export const defaultLogo = hrisLogo;
-export const BRAND_BUCKET = 'branding';
-export const BRAND_LOGO_PATH = 'logo.png';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+/**
+ * Get brand logo URL from the API (or fallback to default).
+ * In VPS deployment, branding assets are served from the API static files.
+ */
 export const getBrandLogoUrl = (): string => {
-  const { data } = supabase.storage.from(BRAND_BUCKET).getPublicUrl(BRAND_LOGO_PATH);
-  return data?.publicUrl || hrisLogo;
+  return `${API_BASE_URL}/api/branding/logo`;
 };

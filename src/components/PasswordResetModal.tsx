@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { supabase } from '@/services/supabase';
+import api from '@/services/apiClient';
 import Spinner from '@/components/ui/Spinner';
 
 interface PasswordResetModalProps {
@@ -32,11 +32,12 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({ email, onClose,
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-
-    if (updateError) {
-      setError(updateError.message);
+    try {
+      await api.post('/api/auth/change-password', { newPassword: password });
+      setLoading(false);
+    } catch (updateErr: any) {
+      setLoading(false);
+      setError(updateErr.message || 'Gagal mengubah kata sandi.');
       return;
     }
 

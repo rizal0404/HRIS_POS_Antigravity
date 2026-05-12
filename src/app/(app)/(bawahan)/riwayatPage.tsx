@@ -7,7 +7,7 @@ import KoreksiAbsensiModal from '../../../components/modals/KoreksiAbsensiModal'
 import DetailAbsensiModal from '../../../components/modals/DetailAbsensiModal';
 import DetailAjuanModal from '../../../components/modals/DetailAjuanModal';
 import { SearchIcon, XIcon, FilterIcon, CalendarIcon, BriefcaseIcon, ClockIcon, LocationMarkerIcon, RefreshIcon, CheckCircleIcon, DocumentAddIcon } from '../../../components/icons';
-import { supabase } from '../../../services/supabase';
+import api from '../../../services/apiClient';
 import { APP_TIME_OFFSET, APP_TIME_ZONE, formatDateKey, formatDate } from '../../../lib/utils';
 import { CORRECTION_MAX_DAYS } from '../../../lib/attendanceRules';
 import Card from '@/components/ui/Card';
@@ -177,18 +177,11 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
             const { attachment } = koreksiData;
 
             if (attachment) {
-                const filePath = `${user.id}/${Date.now()}_${attachment.name}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('attachments')
-                    .upload(filePath, attachment);
-
-                if (uploadError) throw uploadError;
-
-                const { data: urlData } = supabase.storage
-                    .from('attachments')
-                    .getPublicUrl(filePath);
-
-                attachmentUrl = urlData.publicUrl;
+                const formData = new FormData();
+                formData.append('file', attachment);
+                formData.append('profile_id', user.id);
+                const uploadResult = await api.upload<{ url: string }>('/api/attachments/upload', formData);
+                attachmentUrl = uploadResult.url;
             } else {
                 throw new Error("Lampiran bukti diperlukan.");
             }
@@ -200,16 +193,8 @@ const RiwayatPage: React.FC<RiwayatPageProps> = ({ user }) => {
                 throw new Error(`Koreksi hanya boleh diajukan maksimal ${CORRECTION_MAX_DAYS} hari ke belakang.`);
             }
 
-            const { data: pendingExisting, error: pendingError } = await supabase
-                .from('requests')
-                .select('id')
-                .eq('profile_id', user.id)
-                .eq('request_type', RequestType.KOREKSI)
-                .eq('status', RequestStatus.PENDING)
-                .eq('start_date', koreksiData.newDate)
-                .limit(1);
+            const pendingExisting = await api.get<any[]>(`/api/requests?profile_id=${user.id}&request_type=${RequestType.KOREKSI}&status=${RequestStatus.PENDING}&start_date=${koreksiData.newDate}&limit=1`);
 
-            if (pendingError) throw pendingError;
             if (pendingExisting && pendingExisting.length > 0) {
                 throw new Error('Sudah ada ajuan koreksi yang masih pending untuk tanggal tersebut.');
             }

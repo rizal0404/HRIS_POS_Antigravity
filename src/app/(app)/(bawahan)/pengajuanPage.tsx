@@ -19,7 +19,7 @@ import {
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Spinner from '@/components/ui/Spinner';
-import { supabase } from '../../../services/supabase';
+import api from '../../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import CameraCapture from '@/components/ui/CameraCapture';
 import { useToast } from '@/components/ui/Toast';
@@ -82,30 +82,12 @@ const LeaveBalanceWidget: React.FC<{ user: UserProfile }> = ({ user }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const { data: types } = await supabase.from('leave_types').select('*');
                 const currentYear = new Date().getFullYear();
-                const startYear = `${currentYear}-01-01`;
-                const endYear = `${currentYear}-12-31`;
-
-                // Fetch approved CUTI
-                const { data: cutiRequests } = await supabase
-                    .from('requests')
-                    .select('*')
-                    .eq('profile_id', user.id)
-                    .eq('request_type', RequestType.CUTI)
-                    .eq('status', RequestStatus.APPROVED)
-                    .gte('start_date', startYear)
-                    .lte('start_date', endYear);
-
-                // Fetch approved SAKIT
-                const { data: sickRequests } = await supabase
-                    .from('requests')
-                    .select('*')
-                    .eq('profile_id', user.id)
-                    .eq('request_type', RequestType.SAKIT)
-                    .eq('status', RequestStatus.APPROVED)
-                    .gte('start_date', startYear)
-                    .lte('start_date', endYear);
+                const [types, cutiRequests, sickRequests] = await Promise.all([
+                    api.get<any[]>('/api/leave-types'),
+                    api.get<any[]>(`/api/requests?profile_id=${user.id}&request_type=${RequestType.CUTI}&status=${RequestStatus.APPROVED}&year=${currentYear}`),
+                    api.get<any[]>(`/api/requests?profile_id=${user.id}&request_type=${RequestType.SAKIT}&status=${RequestStatus.APPROVED}&year=${currentYear}`),
+                ]);
 
                 // Calculate Sick Days
                 const totalSickDays = (sickRequests || []).reduce((acc, req) => {
@@ -357,18 +339,11 @@ const PengajuanPage: React.FC<PengajuanPageProps> = ({ user }) => {
         try {
             let attachmentUrl = undefined;
             if (attachment) {
-                const fileExt = attachment.name.split('.').pop();
-                const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('attachments')
-                    .upload(fileName, attachment);
-
-                if (uploadError) throw uploadError;
-
-                const { data: urlData } = supabase.storage
-                    .from('attachments')
-                    .getPublicUrl(fileName);
-                attachmentUrl = urlData.publicUrl;
+                const formData = new FormData();
+                formData.append('file', attachment);
+                formData.append('profile_id', user.id);
+                const uploadResult = await api.upload<{ url: string }>('/api/attachments/upload', formData);
+                attachmentUrl = uploadResult.url;
             }
 
             const baseRequest: Partial<Request> = {

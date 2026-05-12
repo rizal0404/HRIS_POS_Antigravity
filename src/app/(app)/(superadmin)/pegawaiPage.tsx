@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { UserProfile, Department, UserRole, Workplace } from '../../../types';
 import { apiService } from '../../../services/apiService';
 import { disciplineService } from '../../../services/discipline';
-import { supabase } from '../../../services/supabase';
+import api from '../../../services/apiClient';
 import { PlusCircleIcon, PencilIcon, TrashIcon, SearchIcon, UsersIcon, CurrencyDollarIcon } from '../../../components/icons';
 import Pagination from '../../../components/ui/Pagination';
 import PegawaiModal from '../../../components/modals/PegawaiModal';
@@ -163,13 +163,11 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
                     editingUser.email !== userData.email
                 );
                 if (emailChanged) {
-                    // Keep auth.users in sync via Edge Function that uses the service role key server-side.
-                    const { error: fnError } = await supabase.functions.invoke('update-user-email', {
-                        body: { userId: userData.id, email: userData.email },
+                    // Update email via Better Auth admin API
+                    await api.post('/api/admin/update-user-email', {
+                        userId: userData.id,
+                        email: userData.email,
                     });
-                    if (fnError) {
-                        throw new Error(fnError.message || 'Failed to update user email in auth.');
-                    }
                 }
 
                 await apiService.saveProfile(profileData as UserProfile);
@@ -179,25 +177,22 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
                     throw new Error("Email and password are required for new users.");
                 }
 
-                // Step 1: Create the authentication user in Supabase Auth.
-                const { data: authData, error: signUpError } = await supabase.auth.signUp({
+                // Step 1: Create the authentication user via Better Auth.
+                const authResponse = await api.post<{ user?: { id: string } }>('/api/auth/sign-up/email', {
                     email,
                     password,
+                    name: userData.full_name,
                 });
 
-                if (signUpError) {
-                    throw signUpError;
-                }
-                if (!authData.user) {
+                if (!authResponse?.user) {
                     throw new Error("User registration did not return a user object.");
                 }
 
-                // Step 2: The database trigger `handle_new_user` has now created a basic profile.
-                // We now update that profile with the full details from the form.
+                // Step 2: Update profile with the full details from the form.
                 const { password: pwd, ...profileData } = userData;
                 const profileToUpdate: Partial<UserProfile> = {
                     ...profileData,
-                    id: authData.user.id,
+                    id: authResponse.user.id,
                 };
 
                 await apiService.saveProfile(profileToUpdate);
@@ -341,18 +336,19 @@ const KonfigurasiPegawaiPage: React.FC<KonfigurasiPegawaiPageProps> = ({ user })
                         await apiService.saveProfile(updatePayload as UserProfile);
                         updated += 1;
                     } else {
-                        const { data, error } = await supabase.auth.signUp({
+                        const authResponse = await api.post<{ user?: { id: string } }>('/api/auth/sign-up/email', {
                             email,
                             password: 'password123',
+                            name: mapped.full_name || email,
                         });
-                        if (error || !data.user) {
-                            errors.push(`Baris ${i + 2}: ${error?.message || 'Gagal membuat user.'}`);
+                        if (!authResponse?.user) {
+                            errors.push(`Baris ${i + 2}: Gagal membuat user.`);
                             continue;
                         }
 
                         const fullName = mapped.full_name || email;
                         const profilePayload: Partial<UserProfile> = {
-                            id: data.user.id,
+                            id: authResponse.user.id,
                             email,
                             role: UserRole.USER,
                             position: '',

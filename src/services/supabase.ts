@@ -1,11 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * @deprecated This file is no longer used in VPS deployment.
+ * All services now use apiClient.ts to communicate with the Express API backend.
+ * This file is kept only as a tombstone to prevent broken imports during migration.
+ * 
+ * If you see an import referencing this file, update it to use:
+ *   import api from '../services/apiClient';
+ */
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Re-export api as a named export for any remaining legacy imports
+export { default as supabase } from './apiClient';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
-}
-
-// Gunakan header default Supabase; hindari mengunci Content-Type global agar upload storage tidak korup.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+console.warn(
+    '[DEPRECATED] supabase.ts is deprecated. ' +
+    'All services should import from apiClient.ts instead. ' +
+    'See MIGRATION_GUIDE.md for details.'
+);

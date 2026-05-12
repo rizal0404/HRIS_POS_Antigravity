@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserProfile } from '../types';
 import { profilesService } from '../services/profiles';
-import { supabase } from '../services/supabase';
+
 
 // ==== PROFILE HOOK ====
 
