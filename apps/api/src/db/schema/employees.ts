@@ -1,6 +1,6 @@
 import { pgTable, uuid, text, date, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
-import { userRoleEnum } from './users';
-import { workplaces } from './office-locations';
+import { userRoleEnum } from './users.js';
+import { workplaces } from './office-locations.js';
 
 // Profiles table - matches Supabase public.profiles
 export const profiles = pgTable('profiles', {

@@ -1,19 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 import { toNodeHandler } from 'better-auth/node';
-import { auth } from './config/auth';
+import { auth } from './config/auth.js';
 
 // Import routes
-import { employeeRoutes } from './routes/employee.routes';
-import { attendanceRoutes } from './routes/attendance.routes';
-import { requestRoutes } from './routes/request.routes';
-import { scheduleRoutes } from './routes/schedule.routes';
-import { reportRoutes } from './routes/report.routes';
-import { managerRoutes } from './routes/manager.routes';
-import { officeRoutes } from './routes/office.routes';
-import { notificationRoutes } from './routes/notification.routes';
-import { disciplineRoutes } from './routes/discipline.routes';
-import { telegramRoutes } from './routes/telegram.routes';
+import { employeeRoutes } from './routes/employee.routes.js';
+import { attendanceRoutes } from './routes/attendance.routes.js';
+import { requestRoutes } from './routes/request.routes.js';
+import { scheduleRoutes } from './routes/schedule.routes.js';
+import { reportRoutes } from './routes/report.routes.js';
+import { managerRoutes } from './routes/manager.routes.js';
+import { officeRoutes } from './routes/office.routes.js';
+import { telegramRoutes } from './routes/telegram.routes.js';
 
 const app = express();
 
@@ -35,8 +33,6 @@ app.use('/api/schedules', scheduleRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/offices', officeRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/discipline', disciplineRoutes);
 app.use('/api/telegram', telegramRoutes);
 
 // Health check

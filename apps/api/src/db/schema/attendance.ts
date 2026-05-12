@@ -1,5 +1,5 @@
 import { pgTable, bigserial, uuid, timestamp, text, jsonb, integer, date, pgEnum } from 'drizzle-orm/pg-core';
-import { profiles } from './employees';
+import { profiles } from './employees.js';
 
 export const attendanceStatusEnum = pgEnum('attendance_status', [
     'hadir', 'terlambat', 'pulang_cepat', 'absent', 'incomplete', 'in_progress'

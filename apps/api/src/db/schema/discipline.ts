@@ -1,5 +1,5 @@
 import { pgTable, uuid, integer, timestamp } from 'drizzle-orm/pg-core';
-import { profiles } from './employees';
+import { profiles } from './employees.js';
 
 // Discipline Configuration (singleton)
 export const disciplineConfiguration = pgTable('discipline_configuration', {

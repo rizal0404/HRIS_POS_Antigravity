@@ -1,6 +1,6 @@
 import { pgTable, bigserial, uuid, text, boolean, integer, timestamp, bigint } from 'drizzle-orm/pg-core';
-import { profiles } from './employees';
-import { requests } from './requests';
+import { profiles } from './employees.js';
+import { requests } from './requests.js';
 
 // Notification Preferences
 export const notificationPreferences = pgTable('notification_preferences', {

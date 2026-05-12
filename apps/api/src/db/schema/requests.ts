@@ -1,6 +1,6 @@
 import { pgTable, bigserial, uuid, date, time, text, boolean, timestamp, bigint, pgEnum } from 'drizzle-orm/pg-core';
-import { profiles } from './employees';
-import { attendance } from './attendance';
+import { profiles } from './employees.js';
+import { attendance } from './attendance.js';
 
 export const requestStatusEnum = pgEnum('request_status', [
     'pending', 'approved', 'rejected', 'revised', 'revision'

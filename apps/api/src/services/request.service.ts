@@ -1,5 +1,5 @@
-import { db } from '../config/database';
-import { requests, profiles } from '../db/schema';
+import { db } from '../config/database.js';
+import { requests, profiles } from '../db/schema/index.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 export const requestService = {

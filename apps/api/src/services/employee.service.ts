@@ -1,5 +1,5 @@
-import { db } from '../config/database';
-import { employees } from '../db/schema';
+import { db } from '../config/database.js';
+import { employees } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
 
 export const employeeService = {

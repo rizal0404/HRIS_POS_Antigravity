@@ -1,5 +1,5 @@
-import { db } from '../config/database';
-import { officeLocations } from '../db/schema';
+import { db } from '../config/database.js';
+import { officeLocations } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
 
 interface OfficeLocationData {

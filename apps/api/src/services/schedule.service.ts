@@ -1,5 +1,5 @@
-import { db } from '../config/database';
-import { shifts, workSchedules, profiles } from '../db/schema';
+import { db } from '../config/database.js';
+import { shifts, workSchedules, profiles } from '../db/schema/index.js';
 import { eq, and, sql, asc } from 'drizzle-orm';
 
 export const scheduleService = {
