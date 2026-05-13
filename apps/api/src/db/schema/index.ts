@@ -30,3 +30,12 @@ export const gracePeriodConfig = pgTable('grace_period_config', {
     is_default: boolean('is_default').default(false),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
+
+// Backward compatibility aliases for incomplete migration in services
+import { workplaces } from './office-locations.js';
+import { requests } from './requests.js';
+export { profiles as employees } from './employees.js';
+export { workplaces as officeLocations };
+export { workSchedules as employeeShifts };
+export { shifts as shiftTemplates };
+export { requests as requestApprovals }; // Dummy alias to prevent import crash
